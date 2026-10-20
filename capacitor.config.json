@@ -1,0 +1,6 @@
+{
+  "appId": "com.islam.masareef",
+  "appName": "مصاريفي",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#f6f4ef" }
+}
