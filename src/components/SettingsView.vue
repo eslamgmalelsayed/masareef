@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { state, saveSettings, syncSms, reparse, importFile, clearImported, resetOverrides, allTx, currentCycle, income, totalLimit, cycleSpent, salaryDay, nextSalaryDate } from '../lib/store.js'
+import { state, saveSettings, syncSms, reparse, importFile, clearImported, resetOverrides, allTx, currentCycle, income, totalLimit, cycleSpent, dayLimit, weekLimit, salaryDay, nextSalaryDate } from '../lib/store.js'
 import { isNative, isIOS, requestNotifications } from '../lib/smsSource.js'
 import { fmtDate, fmt } from '../lib/format.js'
 import NotifyTest from './NotifyTest.vue'
@@ -47,11 +47,11 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
         <input type="number" inputmode="numeric" min="1" max="31" v-model.number="state.settings.salaryDay" @change="saveMoney" :placeholder="salaryDay ? 'تلقائي: يوم ' + salaryDay + ' في الشهر' : 'مثلًا 27'" />
         <small class="muted" v-if="nextSalaryDate">الراتب الجاي متوقع {{ fmtDate(nextSalaryDate, { weekday: 'long', day: 'numeric', month: 'long' }) }} (لو جه جمعة أو سبت بنقدّمه للخميس)</small>
       </label>
-      <label class="fld">
-        <span>حد إجمالي المصروفات لكل راتب (ر.س)</span>
-        <input type="number" inputmode="numeric" v-model.number="state.settings.totalLimit" @change="saveMoney" :placeholder="income ? 'نفس الدخل: ' + fmt(income) : 'نفس الدخل'" />
-        <small class="muted">افتراضيًا = دخلك. صرفت لحد دلوقتي {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} ({{ totalLimit ? Math.round((cycleSpent / totalLimit) * 100) : 0 }}٪)</small>
-      </label>
+      <button class="fld navrow2" @click="emit('go', 'limits')">
+        <span>حدود الصرف (يومي · أسبوعي · شهري)</span>
+        <b>{{ fmt(dayLimit) }} / يوم · {{ fmt(weekLimit) }} / أسبوع · {{ fmt(totalLimit) }} / راتب</b>
+        <small class="muted">صرفت لحد دلوقتي {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} ({{ totalLimit ? Math.round((cycleSpent / totalLimit) * 100) : 0 }}٪) · اضغط للتعديل ←</small>
+      </button>
       <label class="sw">
         <span><b>نبّهني لما أقرّب أو أعدّي الحد</b><br /><small class="muted">إشعار عند ٨٠٪ وعند تخطي الحد</small></span>
         <input type="checkbox" :checked="state.settings.totalAlert !== false" @change="(e) => { state.settings.totalAlert = e.target.checked; saveMoney() }" />
@@ -153,4 +153,6 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
 .det { background: var(--accent-soft); border-radius: 14px; padding: 10px 12px; margin-top: 10px }
 .det .chip { display: inline-block; background: var(--surface); border-radius: 99px; padding: 3px 10px; font-size: 12.5px; margin: 6px 0 0 6px; font-variant-numeric: tabular-nums }
 .about { text-align: center; margin: 18px 20px; line-height: 1.7 }
+.navrow2 { width: 100%; text-align: right; border: 0; background: var(--surface-2); border-radius: 14px; padding: 12px; font: inherit; color: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 3px }
+.navrow2 b { font-variant-numeric: tabular-nums; font-size: 14px }
 </style>

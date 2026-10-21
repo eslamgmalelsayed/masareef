@@ -21,6 +21,8 @@ const DEFAULT_SETTINGS = {
   totalAlert: true,
   dayLimit: '', // حد الصرف اليومي (فاضي = بدون)
   weekLimit: '', // حد الصرف الأسبوعي — الأسبوع بيبدأ الأحد
+  periodBase: '', // day | week | month — الحد اللي كتبته بإيدك، والباقي محسوب منه
+  periodValue: '',
   salaryDay: '', // فاضي = تلقائي من رسايل الراتب
   v: 2,
 }
@@ -279,8 +281,38 @@ export const cycleByCat = computed(() => {
 
 /** الدخل المعتمد: اللي في الإعدادات، وإلا آخر راتب نزل */
 export const income = computed(() => Number(state.settings.income) || currentCycle.value.salary || 0)
+/** عدد أيام دورة الراتب الحالية (من الراتب للراتب الجاي) — علشان نحوّل بين اليومي والشهري */
+export const cycleDays = computed(() => {
+  const from = new Date(currentCycle.value.from); from.setHours(0, 0, 0, 0)
+  const to = nextSalaryDate.value ? new Date(nextSalaryDate.value) : null
+  if (to) to.setHours(0, 0, 0, 0)
+  const d = to ? Math.round((to - from) / DAYMS) : 30
+  return d >= 20 && d <= 40 ? d : 30
+})
+/**
+ * حد الصرف: بتكتب واحد بس (يومي أو أسبوعي أو شهري) والباقي بيتحسب منه.
+ * لو مكتبتش حاجة: الشهري = الدخل.
+ */
+export const periodBase = computed(() => {
+  const s = state.settings
+  if (s.periodBase && Number(s.periodValue)) return { k: s.periodBase, v: Number(s.periodValue) }
+  if (Number(s.totalLimit)) return { k: 'month', v: Number(s.totalLimit) } // إعدادات النسخ القديمة
+  if (Number(s.dayLimit)) return { k: 'day', v: Number(s.dayLimit) }
+  if (Number(s.weekLimit)) return { k: 'week', v: Number(s.weekLimit) }
+  return income.value ? { k: 'month', v: income.value, auto: true } : null
+})
+const perDay = computed(() => {
+  const b = periodBase.value
+  if (!b) return 0
+  return b.k === 'day' ? b.v : b.k === 'week' ? b.v / 7 : b.v / cycleDays.value
+})
 /** حد إجمالي المصروفات للراتب ده (افتراضيًا = الدخل) */
-export const totalLimit = computed(() => Number(state.settings.totalLimit) || income.value)
+export const totalLimit = computed(() => (periodBase.value?.k === 'month' ? periodBase.value.v : Math.round(perDay.value * cycleDays.value)))
+export function setPeriodLimit(k, value) {
+  const v = Math.max(0, Math.round(Number(value) || 0))
+  Object.assign(state.settings, { periodBase: v ? k : '', periodValue: v || '', totalLimit: '', dayLimit: '', weekLimit: '' })
+  saveSettings()
+}
 /** إجمالي مصروفات الراتب ده (حسب إعداد التحويلات) */
 export const cycleSpent = computed(() => {
   const start = currentCycle.value.from
@@ -299,8 +331,8 @@ export const periodStarts = computed(() => {
 })
 export const daySpent = computed(() => spendTx.value.filter((t) => t.d >= periodStarts.value.day).reduce((s, t) => s + t.a, 0))
 export const weekSpent = computed(() => spendTx.value.filter((t) => t.d >= periodStarts.value.week).reduce((s, t) => s + t.a, 0))
-export const dayLimit = computed(() => Number(state.settings.dayLimit) || 0)
-export const weekLimit = computed(() => Number(state.settings.weekLimit) || 0)
+export const dayLimit = computed(() => (periodBase.value?.k === 'day' ? periodBase.value.v : Math.round(perDay.value)))
+export const weekLimit = computed(() => (periodBase.value?.k === 'week' ? periodBase.value.v : Math.round(perDay.value * 7)))
 export const levelOf = (spent, limit) => (!limit ? '' : spent > limit ? 'over' : spent >= 0.8 * limit ? 'warn' : 'ok')
 
 /** حالة الحد: ok | warn (٨٠٪+) | over */
@@ -327,8 +359,8 @@ function pushNativeConfig() {
     limits: {
       ...(state.settings.limits || {}),
       ...(state.settings.totalAlert !== false && totalLimit.value ? { __total: totalLimit.value } : {}),
-      ...(dayLimit.value ? { __day: dayLimit.value } : {}),
-      ...(weekLimit.value ? { __week: weekLimit.value } : {}),
+      ...(state.settings.totalAlert !== false && dayLimit.value ? { __day: dayLimit.value } : {}),
+      ...(state.settings.totalAlert !== false && weekLimit.value ? { __week: weekLimit.value } : {}),
     },
     periodKeys: { __day: dayKey(periodStarts.value.day), __week: dayKey(periodStarts.value.week) },
     names: { ...Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name])), __total: 'إجمالي المصروفات', __day: 'الصرف اليومي', __week: 'الصرف الأسبوعي' },
@@ -339,7 +371,7 @@ function pushNativeConfig() {
 }
 let pushTimer = null
 watch(
-  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

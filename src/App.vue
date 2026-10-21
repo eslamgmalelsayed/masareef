@@ -100,7 +100,7 @@ const tabs = [
       </button>
     </nav>
 
-    <button v-if="['home', 'tx', 'analysis'].includes(tab)" class="fab" @click="adding = {}" aria-label="إضافة مصروف">＋</button>
+    <button v-if="tab === 'home'" class="fab" @click="adding = {}" aria-label="إضافة مصروف">＋</button>
     <TxSheet v-if="sheet" :t="allTx.find((x) => x.id === sheet.id) || sheet" @close="sheet = null" @edit="(t) => { sheet = null; adding = t }" />
     <AddExpense v-if="adding" :edit="adding.id ? adding : null" :paste="!!adding.paste" @close="adding = null" />
   </main>
