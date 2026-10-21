@@ -48,7 +48,7 @@ async function setPeriod(p, e) {
   if (v && state.settings.totalAlert === false) { state.settings.totalAlert = true; saveSettings() }
   if (v && isNative && notifOk.value !== true) notifOk.value = await requestNotifications()
 }
-function toggleAlert(e) { state.settings.totalAlert = e.target.checked; saveSettings() }
+function toggleAlert(e) { const y = window.scrollY; state.settings.totalAlert = e.target.checked; saveSettings(); requestAnimationFrame(() => window.scrollTo(0, y)) }
 
 // ===== حدود مجمّعة: أكتر من بند تحت حد واحد =====
 const CATS = CATEGORIES.filter((c) => !c.hidden)
@@ -119,7 +119,7 @@ function suggest(r) {
             <small v-if="p.limit">{{ p.note }}</small>
           </label>
         </div>
-        <template v-if="p.limit && state.settings.totalAlert !== false">
+        <template v-if="p.limit">
           <div class="bar"><i :style="{ width: Math.min(100, (p.spent / p.limit) * 100) + '%' }"></i></div>
           <div class="xs stat">
             <span v-if="p.spent <= p.limit">باقي {{ fmt(p.limit - p.spent) }} ر.س</span>
