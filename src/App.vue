@@ -16,6 +16,9 @@ import WebImport from './components/WebImport.vue'
 import BanksView from './components/BanksView.vue'
 import CreditView from './components/CreditView.vue'
 import PullRefresh from './components/PullRefresh.vue'
+import CommitView from './components/CommitView.vue'
+import TransfersView from './components/TransfersView.vue'
+import SavingsView from './components/SavingsView.vue'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -26,7 +29,8 @@ const adding = ref(null) // null | {} (جديد) | tx (تعديل)
 
 const prevTab = ref('home')
 const creditSel = ref('')
-function go(t, cat = '', range = null, bank = '') { if (t === 'limits' || t === 'credit') prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
+const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings']
+function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t) && !SUB.includes(tab.value)) prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
 onMounted(() => { syncSms(); checkUpdate() })
 const refresh = () => Promise.all([syncSms(), checkUpdate()])
@@ -36,7 +40,7 @@ if (isNative) {
   CapApp.addListener('backButton', () => {
     if (adding.value) adding.value = null
     else if (sheet.value) sheet.value = null
-    else if (tab.value === 'limits' || tab.value === 'credit') go(prevTab.value)
+    else if (SUB.includes(tab.value)) go(prevTab.value)
     else if (tab.value !== 'home') go('home')
     else CapApp.exitApp()
   })
@@ -58,6 +62,9 @@ const tabs = [
     <PullRefresh :on-refresh="refresh" :disabled="!!sheet || !!adding" />
     <SettingsView v-if="tab === 'settings'" @go="go" />
     <LimitsView v-else-if="tab === 'limits'" @back="go(prevTab)" />
+    <CommitView v-else-if="tab === 'commit'" @back="go(prevTab)" @open="(t) => (sheet = t)" />
+    <TransfersView v-else-if="tab === 'transfers'" @back="go(prevTab)" @open="(t) => (sheet = t)" />
+    <SavingsView v-else-if="tab === 'savings'" @back="go(prevTab)" />
     <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="go(prevTab)" @open="(t) => (sheet = t)" @go="go" />
 
     <div v-else-if="state.status === 'loading' && !allTx.length" class="splash">
@@ -94,7 +101,7 @@ const tabs = [
     </template>
     
     <nav class="tabbar">
-      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') }" @click="go(t.id)">
+      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') || (t.id === 'home' && ['commit', 'transfers', 'savings'].includes(tab)) }" @click="go(t.id)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="t.i" /></svg>
         <span>{{ t.l }}</span>
       </button>

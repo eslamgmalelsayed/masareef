@@ -17,12 +17,12 @@ const editing = ref(false)
 const form = ref({})
 function openEdit() {
   const x = c.value
-  form.value = { name: x.name, limit: x.limitIsInferred ? '' : x.limit || '', stmtDay: x.stmtDay || '', dueDay: x.dueDay || '', alertPct: x.alertPct, balType: 'owed', bal: '' }
+  form.value = { name: x.name, limit: x.limitIsInferred ? '' : x.limit || '', stmtDay: x.stmtDay || '', dueDay: x.dueDay || '', alertPct: x.alertPct, minAvail: x.minAvail || '', balType: 'owed', bal: '' }
   editing.value = true
 }
 function saveEdit() {
   const f = form.value
-  const patch = { name: f.name === `${c.value.bank} ••${c.value.card}` ? '' : f.name, limit: Number(f.limit) || '', stmtDay: Number(f.stmtDay) || '', dueDay: Number(f.dueDay) || '', alertPct: f.alertPct === 80 ? '' : f.alertPct }
+  const patch = { name: f.name === `${c.value.bank} ••${c.value.card}` ? '' : f.name, limit: Number(f.limit) || '', stmtDay: Number(f.stmtDay) || '', dueDay: Number(f.dueDay) || '', alertPct: f.alertPct === 80 ? '' : f.alertPct, minAvail: Number(f.minAvail) || '' }
   if (f.bal !== '' && f.bal != null) patch.manual = { type: f.balType, v: Number(f.bal), ts: Date.now() }
   saveCardSettings(c.value.key, patch)
   editing.value = false
@@ -159,6 +159,7 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
           <span>نبهني لما استخدام البطاقة يوصل</span>
           <div class="seg pcts"><button v-for="p in [50, 60, 70, 80, 90, 0]" :key="p" :class="{ on: form.alertPct === p }" @click="form.alertPct = p">{{ p ? p + '٪' : 'مقفول' }}</button></div>
           <small class="muted" v-if="form.alertPct && (Number(form.limit) || c.limit)">يعني لما المستحق يعدّي {{ fmt((Number(form.limit) || c.limit) * form.alertPct / 100) }} ر.س — حتى والتطبيق مقفول</small>
+          <div class="minav"><span>أو لما المتاح يقل عن</span><input v-model="form.minAvail" type="number" inputmode="numeric" placeholder="مثلًا 2000" /><span>ر.س</span></div>
         </div>
         <div class="fld">
           <span>الرصيد دلوقتي (من تطبيق البنك) — اختياري</span>
@@ -240,4 +241,6 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
 .del { width: 100%; margin-top: 8px; padding: 11px; border-radius: 14px; border: 1px solid var(--line); background: none; color: var(--bad); font: inherit }
 .seg.pcts { grid-template-columns: repeat(6, 1fr) }
 .seg.pcts button { padding-inline: 2px; font-size: 13px; font-variant-numeric: tabular-nums }
+.minav { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); margin-top: 6px }
+.minav input { width: 110px; flex: none; text-align: center }
 </style>

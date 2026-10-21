@@ -10,6 +10,7 @@ import UpdateBanner from './UpdateBanner.vue'
 import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
+import { commitments, transfers, savings, saveGoal, unusual, dismissFlag, salarySummary, dismissSummary } from '../lib/insights.js'
 
 const emit = defineEmits(['open', 'go'])
 const now = new Date()
@@ -28,7 +29,7 @@ const week = computed(() => sum(since(startOfWeek())))
 
 // الأيام اللي فاضلة للراتب الجاي، والمسموح تصرفه في اليوم
 const daysLeft = computed(() => (nextSalaryDate.value ? Math.max(1, Math.ceil((nextSalaryDate.value - now) / DAY)) : 0))
-const perDayAllowed = computed(() => (daysLeft.value && left.value > 0 ? left.value / daysLeft.value : 0))
+const perDayAllowed = computed(() => (saveGoal.value ? savings.value.perDay : daysLeft.value && left.value > 0 ? left.value / daysLeft.value : 0))
 const elapsed = computed(() => Math.max(1, (now - cyc.value.from) / DAY))
 const projected = computed(() => {
   const total = elapsed.value + daysLeft.value
@@ -107,7 +108,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
         <div class="split3">
           <div :class="'pl ' + levelOf(today, dayLimit)"><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div><div v-if="dayLimit" class="of">من {{ fmt(dayLimit) }}</div></div>
           <div :class="'pl ' + levelOf(week, weekLimit)"><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div><div v-if="weekLimit" class="of">من {{ fmt(weekLimit) }}</div></div>
-          <div><div class="lbl">تقدر تصرف/يوم</div><div class="mid">{{ fmt(perDayAllowed) }}</div></div>
+          <div><div class="lbl">تقدر تصرف/يوم<template v-if="saveGoal"> 🎯</template></div><div class="mid">{{ fmt(perDayAllowed) }}</div></div>
         </div>
         <div class="foot" v-if="nextSalaryDate">
           الراتب الجاي تقريبًا {{ fmtDate(nextSalaryDate, { day: 'numeric', month: 'short' }) }} (بعد {{ daysLeft }} يوم) · بالمعدل ده هتقفل على {{ fmt(projected) }} ({{ Math.round((projected / limit) * 100) }}٪ من الحد)
@@ -119,6 +120,35 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       </div>
     </section>
 
+    <!-- اختصارات: الالتزامات · الحوالات · الادخار -->
+    <div class="chips">
+      <button class="chip" @click="emit('go', 'commit')">
+        <span class="ci">🔁</span><span><small>التزامات الشهر الجاي</small><b>{{ fmt(commitments.next30) }}</b></span>
+      </button>
+      <button class="chip" v-if="transfers.count" @click="emit('go', 'transfers')">
+        <span class="ci">🌍</span><span><small>حوالات الراتب ده</small><b>{{ fmt(transfers.cycle) }}</b></span>
+      </button>
+      <button class="chip" @click="emit('go', 'savings')">
+        <span class="ci">🎯</span><span><small>{{ saveGoal ? (savings.onTrack ? 'الادخار: ماشي صح' : 'الادخار: متأخر') : 'هدف الادخار' }}</small><b>{{ saveGoal ? fmt(Math.max(0, savings.projected)) + ' / ' + fmt(saveGoal) : 'حدده ←' }}</b></span>
+      </button>
+    </div>
+
+    <section v-if="salarySummary" class="card note sum">
+      <button class="x" @click="dismissSummary(salarySummary.id)">×</button>
+      <b>💰 ملخص راتب {{ salarySummary.label }}</b>
+      <div class="sm">صرفت <b>{{ fmt(salarySummary.spent) }}</b> من {{ fmt(salarySummary.salary) }}<template v-if="salarySummary.saved > 0"> وفضل معاك <b class="good">{{ fmt(salarySummary.saved) }}</b></template><template v-else> — زيادة <b class="bad">{{ fmt(-salarySummary.saved) }}</b></template></div>
+      <div class="muted xs">
+        <template v-if="salarySummary.top">أكتر بند: {{ CAT[salarySummary.top[0]]?.name }} ({{ fmt(salarySummary.top[1]) }})</template>
+        <template v-if="salarySummary.change != null"> · {{ salarySummary.change > 0 ? 'أكتر' : 'أقل' }} {{ Math.abs(Math.round(salarySummary.change * 100)) }}٪ من الراتب اللي قبله</template>
+      </div>
+    </section>
+
+    <section v-if="unusual.length" class="card note warn">
+      <button class="x" @click="dismissFlag(unusual[0].id)">×</button>
+      <b>{{ unusual[0].type === 'dup' ? '⚠️ عملية مكررة؟' : '👀 عملية أكبر من عادتك' }}</b>
+      <button class="ntx" @click="emit('open', unusual[0].tx)">{{ unusual[0].text }} · {{ fmtDate(unusual[0].tx.ts, { day: 'numeric', month: 'short' }) }}</button>
+      <div v-if="unusual.length > 1" class="muted xs">و{{ unusual.length - 1 }} كمان — اضغط × علشان تشوف اللي بعدها</div>
+    </section>
 
     <section v-if="prevSame" class="card cmp">
       <span class="arrow" :class="prevSame.diff > 0 ? 'up' : 'down'">{{ prevSame.diff > 0 ? '▲' : '▼' }}</span>
@@ -200,4 +230,17 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .setlim { display: flex; gap: 10px; align-items: center; width: 100%; font: inherit; color: var(--ink); text-align: right; cursor: pointer; font-size: 14px }
 .setlim span:nth-child(1) { flex: 1 }
 .good { color: var(--good) } .bad { color: var(--bad) }
+.chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 12px; padding: 0 16px; scrollbar-width: none }
+.chips::-webkit-scrollbar { display: none }
+.chip { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; text-align: right; cursor: pointer }
+.chip .ci { font-size: 20px }
+.chip span:last-child { display: flex; flex-direction: column; line-height: 1.3 }
+.chip small { font-size: 11.5px; color: var(--ink-3) }
+.chip b { font-size: 15px; font-variant-numeric: tabular-nums }
+.note { position: relative; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px }
+.note .x { position: absolute; top: 8px; left: 10px; border: 0; background: none; color: var(--ink-3); font-size: 20px; cursor: pointer }
+.note.warn { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 8%, var(--surface)) }
+.note.sum { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)) }
+.note .good { color: var(--good) } .note .bad { color: var(--bad) }
+.ntx { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; color: inherit; text-align: right; cursor: pointer }
 </style>

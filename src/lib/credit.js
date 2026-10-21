@@ -123,7 +123,7 @@ export const creditCards = computed(() => {
     const fxCount = year.filter((t) => t.fx).length
 
     return {
-      key, bank: kb, card: kc, alertPct, name: s.name || `${kb} ••${kc}`, added: !!s.added,
+      key, bank: kb, card: kc, alertPct, minAvail: Number(s.minAvail) || 0, name: s.name || `${kb} ••${kc}`, added: !!s.added,
       list, limit, inferred, limitIsInferred: !s.limit && !!inferred,
       avail: last ? { v: last.bal, ts: last.ts } : null, outstanding, util, base, manual: man,
       dueDay, stmtDay, usualPayDay, nextDue, daysToDue, cur, prev, months, fxYear, fxCount,
@@ -181,7 +181,7 @@ watch(dueReminders, (items) => {
 let lastCC = ''
 watch(creditCards, (cards) => {
   const out = {}
-  for (const c of cards) if (c.limit && c.outstanding != null && /^\d{4}$/.test(c.card)) out[c.card] = { name: c.name, owed: Math.round(c.outstanding * 100) / 100, limit: c.limit, pct: c.alertPct }
+  for (const c of cards) if (c.limit && c.outstanding != null && /^\d{4}$/.test(c.card)) out[c.card] = { name: c.name, owed: Math.round(c.outstanding * 100) / 100, limit: c.limit, pct: c.alertPct, minAvail: c.minAvail }
   const sig = JSON.stringify(out)
   if (sig === lastCC) return
   lastCC = sig

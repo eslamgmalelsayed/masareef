@@ -1,5 +1,5 @@
 import { reactive, computed, watch, ref } from 'vue'
-import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile } from './parser.js'
+import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile, BNPL_SENDERS, parseBnplMessages } from './parser.js'
 import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
 import { isNative, readSms, saveNativeConfig } from './smsSource.js'
 
@@ -40,6 +40,8 @@ export const state = reactive({
   importedTx: LS.get('importedTx', []),
   manualTx: LS.get('manualTx', []), // مصاريف بتضيفها بإيدك
   webMsgs: LS.get('webMsgs', []), // نسخة الويب: رسايل بنك ملزوقة بإيدك
+  bnplSms: [], // خطط تابي/تمارا من رسايلهم
+  importedBnpl: LS.get('importedBnpl', []),
   status: 'idle', // idle | loading | ready | denied | error
   error: '',
   lastSync: LS.get('lastSync', 0),
@@ -76,14 +78,17 @@ export async function syncSms() {
   if (!isNative) {
     // نسخة الويب (آيفون PWA): الرسايل اللي اتلزقت بإيدك هي "صندوق الرسايل"
     rawSms = state.webMsgs
-    if (rawSms.length) { learnProfile(rawSms, true); state.smsTx = parseMessages(rawSms, profile()) }
+    if (rawSms.length) { learnProfile(rawSms, true); state.smsTx = parseMessages(rawSms, profile()); state.bnplSms = parseBnplMessages(rawSms) }
     state.status = 'ready'
     return
   }
   state.status = 'loading'
   state.error = ''
   try {
-    rawSms = await readSms(Object.keys(BANKS))
+    const all = await readSms([...Object.keys(BANKS), ...BNPL_SENDERS])
+    const isBnpl = (m) => BNPL_SENDERS.includes(String(m.address || '').trim().toLowerCase())
+    rawSms = all.filter((m) => !isBnpl(m))
+    state.bnplSms = parseBnplMessages(all.filter(isBnpl).concat(rawSms))
     learnProfile(rawSms)
     state.smsTx = parseMessages(rawSms, profile())
     state.lastSync = Date.now()
@@ -109,6 +114,7 @@ export function addWebMessage(body) {
   rawSms = state.webMsgs
   learnProfile(rawSms, true)
   state.smsTx = parseMessages(rawSms, profile())
+  state.bnplSms = parseBnplMessages(rawSms)
   return { added: true, tx }
 }
 
@@ -126,12 +132,20 @@ export async function importFile(file) {
   tx.forEach((t) => byId.set(t.id, t))
   state.importedTx = [...byId.values()].sort((a, b) => b.ts - a.ts)
   LS.set('importedTx', state.importedTx)
+  const plans = parseBnplMessages(msgs)
+  if (plans.length) {
+    const seen = new Set(state.importedBnpl.map((p) => p.prov + p.store + p.total + p.ts))
+    state.importedBnpl = [...state.importedBnpl, ...plans.filter((p) => !seen.has(p.prov + p.store + p.total + p.ts))]
+    LS.set('importedBnpl', state.importedBnpl)
+  }
   return tx.length
 }
 
 export function clearImported() {
   state.importedTx = []
   LS.set('importedTx', [])
+  state.importedBnpl = []
+  LS.set('importedBnpl', [])
 }
 
 export function setCategory(tx, catId) {
@@ -366,6 +380,9 @@ export function setLimit(catId, value) {
   saveSettings()
 }
 
+/** حاجات زيادة للجزء الأصلي بتتسجل من ملفات تانية (زي متوسط كل تاجر) */
+export const nativeExtra = reactive({})
+
 /** بنبعت للـ Java كل اللي محتاجه علشان يحسب لوحده لما توصل رسالة والتطبيق مقفول */
 function pushNativeConfig() {
   saveNativeConfig({
@@ -384,11 +401,13 @@ function pushNativeConfig() {
     rules: RULES.map(([c, rx]) => [c, rx.source]),
     overrides: state.overrides,
     senders: Object.keys(BANKS),
+    widget: { day: dayLimit.value, cycle: totalLimit.value, daySpent: daySpent.value, cycleSpent: cycleSpent.value },
+    ...nativeExtra,
   })
 }
 let pushTimer = null
 watch(
-  () => [state.status, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, nativeExtra, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

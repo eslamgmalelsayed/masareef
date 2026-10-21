@@ -48,6 +48,9 @@ public final class LimitStore {
     }
 
     public static void saveConfig(Context ctx, JSONObject cfg) {
+        try { saveConfigRaw(ctx, cfg); } finally { TodayWidget.refresh(ctx); }
+    }
+    private static void saveConfigRaw(Context ctx, JSONObject cfg) {
         prefs(ctx).edit().putString(KEY_CONFIG, cfg.toString()).apply();
     }
 
@@ -91,6 +94,7 @@ public final class LimitStore {
         try {
             // نزل راتب جديد؟ نبدأ دورة جديدة: المجاميع ترجع صفر والإشعارات تشتغل من الأول
             if (LimitEngine.isSalary(body)) {
+                salarySummary(ctx, cfg, ts);
                 cfg.put("cycle", String.valueOf(ts));
                 // اليوم والأسبوع ملهمش علاقة بالراتب — نسيبهم زي ما هم
                 JSONObject old = cfg.optJSONObject("totals"), fresh = new JSONObject();
@@ -102,6 +106,7 @@ public final class LimitStore {
             LimitEngine.Purchase p = LimitEngine.parsePurchase(body, ts);
             if (p == null) return;
             String cat = LimitEngine.categorize(p.merchant, strings(cfg.optJSONObject("overrides")), rules(cfg.optJSONArray("rules")));
+            unusualCheck(ctx, cfg, p, cat, ts);
             JSONObject totals = cfg.optJSONObject("totals");
             if (totals == null) totals = new JSONObject();
             totals.put(cat, totals.optDouble(cat, 0) + p.amount);
@@ -239,17 +244,72 @@ public final class LimitStore {
                 String card = it.next();
                 JSONObject c = credit.getJSONObject(card);
                 double limit = c.optDouble("limit", 0), owed = c.optDouble("owed", 0), pct = c.optDouble("pct", 80);
-                if (limit <= 0 || pct <= 0) continue;
-                double u = owed / limit * 100;
-                if (u >= pct) {
+                double minAvail = c.optDouble("minAvail", 0);
+                if (limit <= 0 || (pct <= 0 && minAvail <= 0)) continue;
+                double u = owed / limit * 100, avail = Math.max(0, limit - owed);
+                boolean byPct = pct > 0 && u >= pct, byAvail = minAvail > 0 && avail < minAvail;
+                if (byPct || byAvail) {
                     if (done.optBoolean(card)) continue;
                     done.put(card, true);
                     String name = c.optString("name", "••" + card);
-                    notify(ctx, ("cc" + card).hashCode(), "💳 " + name + " وصلت " + Math.round(u) + "٪ من الحد",
-                        "المستحق " + fmt(owed) + " من " + fmt(limit) + " ر.س — المتاح " + fmt(Math.max(0, limit - owed)));
+                    String title = byAvail && !byPct ? "💳 المتاح في " + name + " بقى " + fmt(avail) + " ر.س بس" : "💳 " + name + " وصلت " + Math.round(u) + "٪ من الحد";
+                    notify(ctx, ("cc" + card).hashCode(), title,
+                        "المستحق " + fmt(owed) + " من " + fmt(limit) + " ر.س — المتاح " + fmt(avail));
                 } else done.remove(card);
             }
             prefs(ctx).edit().putString(KEY_CREDIT_NOTIFIED, done.toString()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    /** أول ما ينزل الراتب: ملخص الراتب اللي فات (قبل ما نصفّر المجاميع) */
+    static void salarySummary(Context ctx, JSONObject cfg, long ts) {
+        try {
+            long cyc = Long.parseLong(cfg.optString("cycle", "0"));
+            if (ts - cyc < 15L * 86400000L) return; // نفس الراتب نازل على دفعتين
+            JSONObject t = cfg.optJSONObject("totals");
+            if (t == null) return;
+            double spent = t.optDouble("__total", 0);
+            if (spent <= 0) return;
+            JSONObject groups = cfg.optJSONObject("groups");
+            String top = null; double topV = 0;
+            Iterator<String> it = t.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                if (k.startsWith("__") || (groups != null && groups.has(k))) continue;
+                double v = t.optDouble(k, 0);
+                if (v > topV) { topV = v; top = k; }
+            }
+            Map<String, String> names = strings(cfg.optJSONObject("names"));
+            double limit = doubles(cfg.optJSONObject("limits")).containsKey("__total") ? doubles(cfg.optJSONObject("limits")).get("__total") : 0;
+            String text = "الراتب اللي فات صرفت " + fmt(spent) + " ر.س" + (limit > 0 ? " (" + Math.round(spent / limit * 100) + "٪ من الحد)" : "");
+            if (top != null) text += " · أكتر بند: " + (names.containsKey(top) ? names.get(top) : top) + " " + fmt(topV);
+            notify(ctx, 7001, "💰 نزل الراتب — ملخص الراتب اللي فات", text);
+        } catch (Exception ignored) { }
+    }
+
+    /** عملية مكررة (نفس المبلغ ونفس المكان في ربع ساعة) أو أكبر بكتير من عادتك مع نفس التاجر */
+    static void unusualCheck(Context ctx, JSONObject cfg, LimitEngine.Purchase p, String cat, long ts) {
+        try {
+            String k = LimitEngine.merchantKey(p.merchant);
+            if (k.isEmpty() || "bnpl".equals(cat) || k.contains("TABBY") || k.contains("TAMARA")) return;
+            JSONArray recent = new JSONArray(prefs(ctx).getString("recent", "[]"));
+            boolean dup = false;
+            for (int i = 0; i < recent.length(); i++) {
+                JSONObject r = recent.getJSONObject(i);
+                if (k.equals(r.optString("k")) && Math.abs(r.optDouble("a") - p.amount) < 0.01 && Math.abs(ts - r.optLong("ts")) < 15 * 60000L && ts != r.optLong("ts")) dup = true;
+            }
+            JSONArray next = new JSONArray();
+            for (int i = Math.max(0, recent.length() - 7); i < recent.length(); i++) next.put(recent.get(i));
+            next.put(new JSONObject().put("k", k).put("a", p.amount).put("ts", ts));
+            prefs(ctx).edit().putString("recent", next.toString()).apply();
+            if (dup) {
+                notify(ctx, ("dup" + k).hashCode(), "⚠️ عملية مكررة؟", "اتسحب " + fmt(p.amount) + " ر.س من " + p.merchant + " مرتين ورا بعض — اتأكد إنها مش مكررة");
+                return;
+            }
+            JSONObject usual = cfg.optJSONObject("usual");
+            double m = usual == null ? 0 : usual.optDouble(k, 0);
+            if (m > 0 && p.amount >= 150 && p.amount >= 3 * m)
+                notify(ctx, ("big" + k).hashCode(), "👀 عملية أكبر من عادتك", fmt(p.amount) + " ر.س في " + p.merchant + " — عادتك هناك حوالي " + fmt(m));
         } catch (Exception ignored) { }
     }
 

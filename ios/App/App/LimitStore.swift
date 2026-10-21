@@ -63,6 +63,7 @@ enum LimitStore {
         creditOnMessage(body: body, ts: ts)
         var cfg = loadConfig()
         if LimitEngine.isSalary(body) {
+            salarySummary(cfg, ts: ts)
             cfg["cycle"] = String(Int(ts))
             let old = doubles(cfg["totals"])  // اليوم والأسبوع ملهمش علاقة بالراتب
             cfg["totals"] = ["__day": old["__day"] ?? 0, "__week": old["__week"] ?? 0]
@@ -71,6 +72,7 @@ enum LimitStore {
         }
         guard let p = LimitEngine.parsePurchase(body, ts: ts) else { return }
         let cat = LimitEngine.categorize(p.merchant, overrides: strings(cfg["overrides"]), rules: rules(cfg["rules"]))
+        unusualCheck(cfg, p, cat: cat, ts: ts)
         var totals = doubles(cfg["totals"])
         totals[cat, default: 0] += p.amount
         totals["__total", default: 0] += p.amount
@@ -115,14 +117,16 @@ enum LimitStore {
         for (card, c) in credit {
             let limit = (c["limit"] as? NSNumber)?.doubleValue ?? 0, owed = (c["owed"] as? NSNumber)?.doubleValue ?? 0
             let pct = (c["pct"] as? NSNumber)?.doubleValue ?? 80
-            if limit <= 0 || pct <= 0 { continue }
-            let u = owed / limit * 100
-            if u >= pct {
+            let minAvail = (c["minAvail"] as? NSNumber)?.doubleValue ?? 0
+            if limit <= 0 || (pct <= 0 && minAvail <= 0) { continue }
+            let u = owed / limit * 100, avail = max(0, limit - owed)
+            let byPct = pct > 0 && u >= pct, byAvail = minAvail > 0 && avail < minAvail
+            if byPct || byAvail {
                 if done[card] == true { continue }
                 done[card] = true
                 let name = (c["name"] as? String) ?? "••\(card)"
-                notify(id: "cc\(card)", title: "💳 \(name) وصلت \(Int(u.rounded()))٪ من الحد",
-                       text: "المستحق \(fmt(owed)) من \(fmt(limit)) ر.س — المتاح \(fmt(max(0, limit - owed)))")
+                let title = byAvail && !byPct ? "💳 المتاح في \(name) بقى \(fmt(avail)) ر.س بس" : "💳 \(name) وصلت \(Int(u.rounded()))٪ من الحد"
+                notify(id: "cc\(card)", title: title, text: "المستحق \(fmt(owed)) من \(fmt(limit)) ر.س — المتاح \(fmt(avail))")
             } else { done[card] = nil }
         }
         UserDefaults.standard.set(done, forKey: kCreditNotified)
@@ -181,6 +185,40 @@ enum LimitStore {
                 text = "صرفت \(fmt(al.spent)) من \(fmt(al.limit)) ر.س (\(pct)٪)"
             }
             notify(id: "limit-\(al.cat)", title: title, text: text)
+        }
+    }
+
+    /// أول ما ينزل الراتب: ملخص الراتب اللي فات (قبل ما نصفّر المجاميع)
+    static func salarySummary(_ cfg: [String: Any], ts: Double) {
+        let cyc = Double((cfg["cycle"] as? String) ?? "") ?? 0
+        if ts - cyc < 15 * 86_400_000 { return }
+        let t = doubles(cfg["totals"])
+        let spent = t["__total"] ?? 0
+        if spent <= 0 { return }
+        let groups = (cfg["groups"] as? [String: Any]) ?? [:]
+        let top = t.filter { !$0.key.hasPrefix("__") && groups[$0.key] == nil }.max { $0.value < $1.value }
+        let names = strings(cfg["names"])
+        let limit = doubles(cfg["limits"])["__total"] ?? 0
+        var text = "الراتب اللي فات صرفت \(fmt(spent)) ر.س" + (limit > 0 ? " (\(Int((spent / limit * 100).rounded()))٪ من الحد)" : "")
+        if let top = top { text += " · أكتر بند: \(names[top.key] ?? top.key) \(fmt(top.value))" }
+        notify(id: "salary", title: "💰 نزل الراتب — ملخص الراتب اللي فات", text: text)
+    }
+
+    /// عملية مكررة (نفس المبلغ ونفس المكان في ربع ساعة) أو أكبر بكتير من عادتك مع نفس التاجر
+    static func unusualCheck(_ cfg: [String: Any], _ p: LimitEngine.Purchase, cat: String, ts: Double) {
+        let k = LimitEngine.merchantKey(p.merchant)
+        if k.isEmpty || cat == "bnpl" || k.contains("TABBY") || k.contains("TAMARA") { return }
+        var recent = (UserDefaults.standard.array(forKey: "masareef_recent") as? [[String: Any]]) ?? []
+        let dup = recent.contains { ($0["k"] as? String) == k && abs((($0["a"] as? NSNumber)?.doubleValue ?? -1) - p.amount) < 0.01 && abs((($0["ts"] as? NSNumber)?.doubleValue ?? 0) - ts) < 15 * 60_000 }
+        recent.append(["k": k, "a": p.amount, "ts": ts])
+        UserDefaults.standard.set(Array(recent.suffix(8)), forKey: "masareef_recent")
+        if dup {
+            notify(id: "dup-\(k)", title: "⚠️ عملية مكررة؟", text: "اتسحب \(fmt(p.amount)) ر.س من \(p.merchant) مرتين ورا بعض — اتأكد إنها مش مكررة")
+            return
+        }
+        let m = doubles(cfg["usual"])[k] ?? 0
+        if m > 0 && p.amount >= 150 && p.amount >= 3 * m {
+            notify(id: "big-\(k)", title: "👀 عملية أكبر من عادتك", text: "\(fmt(p.amount)) ر.س في \(p.merchant) — عادتك هناك حوالي \(fmt(m))")
         }
     }
 

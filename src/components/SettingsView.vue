@@ -9,10 +9,23 @@ import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
 import UpdateBanner from './UpdateBanner.vue'
 import { update, checkUpdate } from '../lib/updater.js'
+import { exportBackup, importBackup } from '../lib/backup.js'
 
 const emit = defineEmits(['go'])
 const msg = ref('')
 const fileEl = ref(null)
+const bkEl = ref(null)
+const bkMsg = ref('')
+async function doExport() {
+  try { await exportBackup(); bkMsg.value = isNative ? '' : 'اتحفظ الملف في التنزيلات ✅' } catch (e) { if (!/cancel/i.test(String(e))) bkMsg.value = 'معرفتش أحفظ النسخة: ' + (e.message || e) }
+}
+async function doImport(e) {
+  const f = e.target.files[0]
+  e.target.value = ''
+  if (!f) return
+  if (!confirm('هترجّع إعداداتك ومصروفاتك اليدوية من الملف ده، واللي موجود دلوقتي هيتبدّل. تكمل؟')) return
+  try { await importBackup(f) } catch (err) { bkMsg.value = err.message || String(err) }
+}
 function save() { saveSettings(); reparse() }
 async function saveMoney() {
   saveSettings()
@@ -112,6 +125,17 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
     </section>
 
     <section class="card">
+      <h2>نسخة احتياطية</h2>
+      <p class="muted sm">ملف فيه إعداداتك وحدودك وبطاقاتك ومصروفاتك اليدوية — ترجّعه لو غيّرت الموبايل أو مسحت التطبيق.</p>
+      <div class="bk">
+        <button class="btn" @click="doExport">📤 احفظ نسخة</button>
+        <button class="btn ghost" @click="bkEl.click()">📥 رجّع من نسخة</button>
+      </div>
+      <input ref="bkEl" type="file" accept=".json,application/json" hidden @change="doImport" />
+      <p v-if="bkMsg" class="note">{{ bkMsg }}</p>
+    </section>
+
+    <section class="card">
       <h2>التحديثات</h2>
       <p class="muted sm" v-if="isIOS">على آيفون التحديث بيوصلك من SideStore أو TestFlight.</p>
       <p class="muted sm" v-else-if="!isNative">نسخة الويب بتتحدّث لوحدها كل ما تفتحها وانت متصل بالنت.</p>
@@ -155,4 +179,6 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
 .about { text-align: center; margin: 18px 20px; line-height: 1.7 }
 .navrow2 { width: 100%; text-align: right; border: 0; background: var(--surface-2); border-radius: 14px; padding: 12px; font: inherit; color: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 3px }
 .navrow2 b { font-variant-numeric: tabular-nums; font-size: 14px }
+.bk { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.bk .btn { margin: 0 }
 </style>

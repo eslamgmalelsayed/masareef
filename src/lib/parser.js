@@ -153,6 +153,7 @@ export function parseMessages(messages, profile) {
     if (!b.includes('debited with an amount') && SKIP.test(first) && !/شراء|Purchase|حوالة|transfer/i.test(first)) continue
     if (/OTP|رمز|verification|security code|كلمة مرور|Insufficient|Declined|not allowed|مرفوض|غير كاف/i.test(b)) continue
     if (/الرقم السري|لمره واحده|لمرة واحدة|تم تغيير الحد|one time/i.test(b)) continue
+    if (BNPL_RX.test(b)) continue // رسايل تابي/تمارا نفسها (مش البنك) — ليها حساب لوحدها
     const ts = Number(msg.date)
     const r = classify(msg.address, b, ts, profile)
     if (!r || r[0] === 'ignore') continue
@@ -196,6 +197,11 @@ function meta(b) {
   // رسوم العمليات بعملة أجنبية (الراجحي بيكتبها: رسوم وضريبة: 9.06 SAR)
   const fx = b.match(/رسوم وضريبة\s*[:：]\s*([\d,]+(?:\.\d+)?)/)
   if (fx) { const v = num(fx[1]); if (v) o.fx = v }
+  // رسوم الحوالة الدولية (الرسوم:SAR 17.25 / رسوم:SR 17.25)
+  if (/حوالة.*دولية|دولية/.test(b.split('\n')[0])) {
+    const fee = b.match(/(?:ال)?رسوم\s*[:：]\s*(?:SAR|SR|ر\.?س)?\s*([\d,]+(?:\.\d+)?)/)
+    if (fee) { const v = num(fee[1]); if (v) o.fee = v }
+  }
   // رسايل سداد الكريدت: الرصيد فيها مش واضح هو للحساب ولا للكارت، فبنتجاهله
   const bal = /سداد/.test(b.split('\n')[0]) ? null : b.match(/(?:رصيد|Your balance|Balance)\s*[:：]?\s*(?:SAR|SR)?\s*([\d,]+(?:\.\d+)?)\s*(?:SAR|SR)?/i)
   if (bal) { const v = num(bal[1]); if (v !== null) o.bal = v }
@@ -325,4 +331,33 @@ export function messagesFromText(text) {
     out.push({ address: bankOf(address) ? address : '__ios__', body, date: Number.isFinite(date) ? date : Date.now() - (blocks.length - i++) * 1000 })
   }
   return out
+}
+
+// ===== تابي وتمارا: الرسايل اللي بيبعتوها هم (مش البنك) — منها بنعرف خطة التقسيط =====
+export const BNPL_SENDERS = ['tabby', 'tamara', 'tamara due']
+const BNPL_RX = /purchase at .+ is confirmed\. Track your upcoming payments|Split in \d+ payment|tamara\.go\.link|tabby\.sa/i
+
+/** خطط التقسيط: [{prov, store, total, n?, ts, due?}] */
+export function parseBnplMessages(messages) {
+  const out = []
+  const seen = new Set()
+  for (const m of messages) {
+    const b = String(m.body || '').replace(/\s+/g, ' ')
+    const ts = Number(m.date)
+    let r = b.match(/Your SAR ([\d,.]+) purchase at (.+?) is confirmed/i)
+    if (r) {
+      const o = { prov: 'tabby', store: r[2].trim(), total: num(r[1]), ts }
+      const k = 'T' + o.store + o.total + Math.round(ts / 864e5)
+      if (!seen.has(k)) { seen.add(k); out.push(o) }
+      continue
+    }
+    r = b.match(/Split in (\d+) payment confirmation: Store: (.+?) Order: ([\d,.]+) SAR(?: Date: (\d{1,2})\/(\d{1,2})\/(\d{4}))?/i)
+    if (r) {
+      const o = { prov: 'tamara', n: Number(r[1]), store: r[2].trim(), total: num(r[3]), ts }
+      if (r[4]) o.due = +new Date(Number(r[6]), Number(r[5]) - 1, Number(r[4]))
+      const k = 'M' + o.store + o.total + Math.round(ts / 864e5)
+      if (!seen.has(k)) { seen.add(k); out.push(o) }
+    }
+  }
+  return out.sort((a, b) => a.ts - b.ts)
 }

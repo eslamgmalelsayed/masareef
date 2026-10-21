@@ -59,3 +59,9 @@ h2 { font-size: 15.5px; font-weight: 600; margin: 0 }
 .fab:active { transform: scale(.95) }
 
 .splash .btn.ghost2 { background: var(--surface); color: var(--ink); border: 1px solid var(--line) }
+/* صفحات فرعية: زرار الرجوع */
+.hd .back { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 18px; cursor: pointer; flex: none }
+.hd.sub { align-items: center }
+.hd.sub h1 { font-size: 21px }
+.empty { text-align: center; padding: 26px 10px; color: var(--ink-3); font-size: 13.5px; line-height: 1.7 }
+.empty b { display: block; font-size: 28px; margin-bottom: 4px }
