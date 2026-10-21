@@ -11,10 +11,11 @@ const tools = toolsList
   <Transition name="qs" appear>
     <div class="scrim" @click.self="emit('close')">
       <div class="sheet">
-        <div class="top"><div class="grab"></div><button class="x" aria-label="اقفل" @click="emit('close')">×</button></div>
+        <div class="grab"></div>
+        <div class="head"><b>إضافة</b><button class="x" aria-label="اقفل" @click="emit('close')">×</button></div>
         <div class="adds">
           <button class="add main" @click="emit('add', {})"><span>✍️</span>ضيف مصروف</button>
-          <button class="add" @click="emit('add', { paste: true })"><span>📋</span>الصق رسالة بنك</button>
+          <button class="add" @click="emit('add', { paste: true })"><span>📋</span>الصق رسالة</button>
         </div>
         <div class="lbl">أدوات الفلوس</div>
         <div class="grid">
@@ -32,11 +33,12 @@ const tools = toolsList
 <style scoped>
 .scrim { position: fixed; inset: 0; z-index: 60; background: rgba(15, 23, 20, .45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: flex-end }
 .sheet { width: 100%; max-width: 560px; margin: 0 auto; max-height: 86vh; overflow-y: auto; background: var(--bg); border-radius: 26px 26px 0 0; padding: 10px 14px calc(16px + env(safe-area-inset-bottom)) }
-.top { position: relative; height: 18px; margin-bottom: 8px }
-.grab { width: 40px; height: 4px; border-radius: 9px; background: var(--line); margin: 0 auto }
-.x { position: absolute; left: 0; top: -6px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--surface-2); color: var(--ink-2); font-size: 20px; line-height: 1; cursor: pointer }
-.adds { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px }
-.add { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 10px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer }
+.grab { width: 40px; height: 4px; border-radius: 9px; background: var(--line); margin: 0 auto 10px }
+.head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 10px }
+.head b { font-size: 16px }
+.x { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface-2); color: var(--ink-2); font-size: 20px; line-height: 1; display: grid; place-items: center; cursor: pointer }
+.adds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.add { display: flex; align-items: center; justify-content: center; gap: 8px; height: 54px; padding: 0 10px; white-space: nowrap; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer }
 .add span { font-size: 18px }
 .add.main { background: var(--accent); border-color: var(--accent); color: #fff }
 .lbl { font-size: 12.5px; color: var(--ink-3); font-weight: 600; margin: 16px 4px 8px }
