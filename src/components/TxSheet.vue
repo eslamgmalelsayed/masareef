@@ -6,8 +6,8 @@ import { fmt2, fmt, fmtDate } from '../lib/format.js'
 
 const props = defineProps({ t: Object })
 const emit = defineEmits(['close', 'edit'])
-const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي' }
-const isOut = computed(() => !['refund', 'salary', 'in'].includes(props.t.k))
+const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت' }
+const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer'].includes(props.t.k))
 const same = computed(() => {
   if (props.t.k === 'manual') return { n: 0, a: 0 }
   const k = merchantKey(props.t.m)
@@ -36,7 +36,7 @@ function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(p
         <h3>غيّر البند</h3>
         <div class="muted xs" style="margin-bottom: 10px" v-if="t.k !== 'manual'">هيتطبّق على كل عمليات «{{ t.m }}»</div>
         <div class="grid">
-          <button v-for="c in CATEGORIES" :key="c.id" class="cbtn" :class="{ on: c.id === t.c }" @click="pick(c.id)">
+          <button v-for="c in CATEGORIES.filter((x) => !x.hidden)" :key="c.id" class="cbtn" :class="{ on: c.id === t.c }" @click="pick(c.id)">
             <span class="ci" :style="{ color: c.color }">{{ c.icon }}</span><span>{{ c.name }}</span>
           </button>
         </div>

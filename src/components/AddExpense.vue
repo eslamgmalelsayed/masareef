@@ -18,7 +18,7 @@ const fromCash = ref(e ? !!e.fromCash : false)
 const amtEl = ref(null)
 
 // البنود اللي منطقي تضيفها بإيدك (من غير التحويلات والسحب)
-const cats = CATEGORIES.filter((c) => !['transfer', 'intl', 'cash', 'fee'].includes(c.id))
+const cats = CATEGORIES.filter((c) => !c.hidden && !['transfer', 'intl', 'cash', 'fee'].includes(c.id))
 const valid = computed(() => Number(amount.value) > 0)
 
 const canPaste = !isNative || isIOS

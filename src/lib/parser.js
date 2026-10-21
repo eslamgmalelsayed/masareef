@@ -101,11 +101,13 @@ export function classify(addr, b, ts, profile) {
   if (/top ?up|topup|Adding money|إضافة الأموال|شحن/i.test(b)) return ['ignore', a, 'topup']
   if (f.startsWith('اليكترون')) return ['in', a, '']
   if (f.startsWith('بطاقة ائتمانية:تحويل')) return ['ignore', a, 'cc-transfer']
-  if (/سداد البطاقة|credit card payment/i.test(b)) return ['ignore', a, 'cc']
+  if (/سداد البطاقة|credit card payment/i.test(b)) return ['ccpay', a, 'سداد البطاقة الائتمانية']
   if (/إيداع|ايداع/.test(f)) return ['in', a, 'إيداع']
   if (/رسوم/.test(f)) return ['fee', a, f.replace(/\s*\|.*/, '')]
   if (/ATM|صراف|سحب/.test(f)) return ['cash', a, 'سحب نقدي']
-  if (/(بطاقة ائتمانية|بطاقة فيزا):سداد/.test(f) || b.includes('خدمات مصرف الراجحي')) return ['ignore', a, 'cc-pay']
+  // سداد بطاقة بنك تاني باستخدام كريدت كارد (مثلًا من الإنماء لبطاقة الراجحي)
+  if (b.includes('خدمات مصرف الراجحي') && /البطاقة الائتمانية/.test(b)) return ['ccxfer', a, 'سداد بطاقة الراجحي بالكريدت']
+  if (/(بطاقة ائتمانية|بطاقة فيزا):سداد/.test(f) || b.includes('خدمات مصرف الراجحي')) return ['ccpay', a, 'سداد البطاقة الائتمانية']
   if (/دولية|International/i.test(f)) {
     if (/عكسية/.test(f)) return ['refund', a, 'حوالة عكسية']
     return ['intl', a, counterparty(b)]
@@ -165,10 +167,36 @@ export function parseMessages(messages, profile) {
       k: r[0],
       m: (r[0] === 'gov' ? 'وزارة الداخلية – ' + name : name || '—').slice(0, 48),
       b: bank,
+      ...meta(b),
     })
+  }
+  // الكروت الائتمانية: أي كارت اتسدد أو اتذكر إنه "ائتمانية/credit"
+  const credit = new Set()
+  for (const t of out) if (t.card && (t.k === 'ccpay' || t.k === 'ccxfer' || t.cr)) credit.add(t.b + t.card)
+  for (const t of out) {
+    if (t.card && credit.has(t.b + t.card)) t.cc = 1
+    delete t.cr
   }
   out.sort((x, y) => y.ts - x.ts)
   return out
+}
+
+/** آخر ٤ أرقام من الكارت + الرصيد اللي في الرسالة (لو موجودين) */
+function meta(b) {
+  const o = {}
+  const card =
+    b.match(/(?:من )?البطاقة الائتمانية\s*[:：]\s*(\d{4})/) ||
+    b.match(/بطاقة\s*(?:(?:ال)?ائتمانية|فيزا|مدى)?\s*[:：]?\s*\*{0,4}\s*(?:فيزا|مدى)?\s*\*{0,4}(\d{4})(?!\d)/) ||
+    b.match(/عبر\s*[:：]?\s*(\d{4})\s*;/) ||
+    b.match(/عبر\s*[:：]?\s*(?:فيزا|مدى)\s*;\s*(\d{4})/) ||
+    b.match(/(?:Card|Via)\s*[:：]?\s*\*+(\d{4})/i) ||
+    b.match(/(?:مدى|mada|فيزا|VISA)\s*\*\s*(\d{4})/i)
+  if (card) o.card = card[1]
+  if (/ائتمان|credit card/i.test(b)) o.cr = 1
+  // رسايل سداد الكريدت: الرصيد فيها مش واضح هو للحساب ولا للكارت، فبنتجاهله
+  const bal = /سداد/.test(b.split('\n')[0]) ? null : b.match(/(?:رصيد|Your balance|Balance)\s*[:：]?\s*(?:SAR|SR)?\s*([\d,]+(?:\.\d+)?)\s*(?:SAR|SR)?/i)
+  if (bal) { const v = num(bal[1]); if (v !== null) o.bal = v }
+  return o
 }
 
 function hash(s) {

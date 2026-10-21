@@ -20,6 +20,7 @@ export const CATEGORIES = [
   { id: 'transfer', name: 'تحويلات لأشخاص', color: '#0f766e', icon: '↔️' },
   { id: 'intl', name: 'حوالات دولية', color: '#b45309', icon: '🌍' },
   { id: 'other', name: 'أخرى', color: '#94a3b8', icon: '•' },
+  { id: 'ccpay', name: 'سداد بطاقات ائتمانية', color: '#64748b', icon: '💳', hidden: true }, // مش مصروف — تحويل لسداد الكريدت
 ]
 export const CAT = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]))
 
@@ -41,7 +42,7 @@ export const RULES = [
   ['paypal', /PAYPAL|PAYMOB|ACCEPT/i],
 ]
 
-const KIND_CAT = { transfer: 'transfer', intl: 'intl', cash: 'cash', gov: 'gov', fee: 'fee' }
+const KIND_CAT = { transfer: 'transfer', intl: 'intl', cash: 'cash', gov: 'gov', fee: 'fee', ccpay: 'ccpay', ccxfer: 'ccpay' }
 
 /** مفتاح ثابت للتاجر علشان التصنيف اليدوي يتطبق على كل عملياته */
 export function merchantKey(name) {
@@ -53,6 +54,7 @@ export function merchantKey(name) {
 }
 
 export function categorize(tx, overrides = {}) {
+  if (tx.k === 'ccpay' || tx.k === 'ccxfer') return 'ccpay'
   const key = merchantKey(tx.m)
   if (key && overrides[key]) return overrides[key]
   if (KIND_CAT[tx.k]) return KIND_CAT[tx.k]

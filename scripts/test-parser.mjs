@@ -10,7 +10,7 @@ console.timeEnd('parse')
 const k = {}, c = {}
 for (const t of tx) {
   k[t.k] = (k[t.k] || 0) + 1
-  if (t.k !== 'refund' && t.k !== 'salary' && t.k !== 'in') { const cc = categorize(t); c[cc] = (c[cc] || 0) + t.a }
+  if (!['refund', 'salary', 'in', 'ccpay', 'ccxfer'].includes(t.k)) { const cc = categorize(t); c[cc] = (c[cc] || 0) + t.a }
 }
 console.log(msgs.length, tx.length, k)
 for (const [id, v] of Object.entries(c).sort((a, b) => b[1] - a[1])) console.log(Math.round(v), CAT[id].name)

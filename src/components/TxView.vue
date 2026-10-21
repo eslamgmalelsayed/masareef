@@ -6,11 +6,12 @@ import { fmt, relDay, startOfDay } from '../lib/format.js'
 import TxRow from './TxRow.vue'
 import DateRange from './DateRange.vue'
 
-const props = defineProps({ cat: String, range: Object })
+const props = defineProps({ cat: String, range: Object, bank: String })
 const emit = defineEmits(['open'])
 const q = ref('')
+const bankF = ref(props.bank || '')
 const cat = ref(props.cat || '')
-const kind = ref('out') // out | in | all
+const kind = ref(props.bank ? 'all' : 'out') // out | in | all
 const shown = ref(60)
 const range = ref(props.range || null)
 const showDates = ref(!!props.range)
@@ -20,9 +21,10 @@ watch([q, cat, kind, range], () => (shown.value = 60))
 const OUT = new Set(['purchase', 'transfer', 'intl', 'cash', 'bill', 'gov', 'fee', 'manual'])
 const rows = computed(() => {
   let r = allTx.value.filter((t) => t.k !== 'cashAdj')
+  if (bankF.value) r = r.filter((t) => t.b === bankF.value)
   if (showDates.value && range.value && range.value.id !== 'all') r = r.filter((t) => t.d >= range.value.from && t.d <= range.value.to)
   if (kind.value === 'out') r = r.filter((t) => OUT.has(t.k))
-  else if (kind.value === 'in') r = r.filter((t) => !OUT.has(t.k))
+  else if (kind.value === 'in') r = r.filter((t) => ['salary', 'in', 'refund'].includes(t.k))
   if (cat.value) r = r.filter((t) => t.c === cat.value)
   else if (kind.value === 'out' && !state.settings.includeTransfers) r = r.filter((t) => !TRANSFER_CATS.has(t.c))
   const s = q.value.trim().toLowerCase()
@@ -41,7 +43,7 @@ const groups = computed(() => {
   }
   return g
 })
-const usedCats = computed(() => CATEGORIES.filter((c) => allTx.value.some((t) => t.c === c.id)))
+const usedCats = computed(() => CATEGORIES.filter((c) => !c.hidden && allTx.value.some((t) => t.c === c.id)))
 </script>
 
 <template>
@@ -61,6 +63,7 @@ const usedCats = computed(() => CATEGORIES.filter((c) => allTx.value.some((t) =>
       <button class="pill" :class="{ on: !cat }" @click="cat = ''">كل البنود</button>
       <button v-for="c in usedCats" :key="c.id" class="pill" :class="{ on: cat === c.id }" @click="cat = cat === c.id ? '' : c.id">{{ c.icon }} {{ c.name }}</button>
     </div>
+    <div v-if="bankF" class="bankchip">🏦 {{ bankF }} <button class="link" @click="bankF = ''">✕</button></div>
     <div class="muted sm summary">{{ rows.length.toLocaleString('en-US') }} عملية · {{ fmt(total) }} ر.س</div>
 
     <section v-for="g in groups" :key="g.k" class="card day">
@@ -81,6 +84,7 @@ const usedCats = computed(() => CATEGORIES.filter((c) => allTx.value.some((t) =>
 .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface-2); border-radius: 12px; padding: 3px; margin: 10px 0 }
 .seg button { border: 0; background: none; font: inherit; font-size: 13.5px; padding: 8px; border-radius: 10px; color: var(--ink-2); cursor: pointer }
 .seg button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08) }
+.bankchip { display: inline-flex; gap: 8px; align-items: center; background: var(--accent-soft); border-radius: 99px; padding: 5px 12px; font-size: 13px; margin: 0 4px 6px }
 .summary { margin: 4px 4px 10px }
 .day { padding-top: 10px; padding-bottom: 4px }
 .dh { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--ink-2); padding-bottom: 2px }
