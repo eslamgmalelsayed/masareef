@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { allTx } from '../lib/store.js'
 import { fmt, fmtDate } from '../lib/format.js'
 import DateRange from './DateRange.vue'
+import { creditCards, utilLevel } from '../lib/credit.js'
 
 const emit = defineEmits(['go'])
 const range = ref(null)
@@ -42,8 +43,14 @@ const banks = computed(() => {
       else if (SPEND.has(t.k) || t.k === 'ccxfer' || t.k === 'cash') c.spent += t.a
     }
   }
+  // كل بطاقة ائتمانية معروفة (من الرسايل أو ضفتها بإيدك) تظهر تحت بنكها حتى لو مفيش عمليات في الفترة
+  for (const cc of creditCards.value) {
+    const b = (by[cc.bank] ||= { name: cc.bank, spend: 0, credit: 0, cash: 0, out: 0, ccpay: 0, ccxfer: 0, inc: 0, n: 0, bal: null, cards: {} })
+    const c = (b.cards[cc.card] ||= { card: cc.card, spent: 0, paid: 0, n: 0 })
+    c.info = cc
+  }
   return Object.values(by)
-    .map((b) => ({ ...b, cardList: Object.values(b.cards).filter((c) => c.n || (c.avail && c.avail.ts >= +R.value.from)), total: b.spend + b.cash + b.out }))
+    .map((b) => ({ ...b, cardList: Object.values(b.cards).filter((c) => c.n || c.info || (c.avail && c.avail.ts >= +R.value.from)), total: b.spend + b.cash + b.out }))
     .filter((b) => b.n || b.bal || b.cardList.length)
     .sort((a, b) => b.total - a.total)
 })
@@ -83,7 +90,18 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
       </div>
 
       <div v-for="c in b.cardList" :key="c.card" class="cc" @click="emit('go', 'credit', b.name + '|' + c.card)">
-        <div class="cct"><span>💳 بطاقة ائتمانية ••{{ c.card }} <span class="muted xs">تفاصيل ←</span></span><span v-if="c.avail" class="muted xs">المتاح {{ fmt(c.avail.v) }} · {{ fmtDate(c.avail.ts, { day: 'numeric', month: 'short' }) }}</span></div>
+        <div class="cct"><span>💳 {{ c.info ? c.info.name : 'بطاقة ائتمانية ••' + c.card }} <span class="muted xs">تفاصيل ←</span></span><span v-if="c.avail" class="muted xs">المتاح {{ fmt(c.avail.v) }} · {{ fmtDate(c.avail.ts, { day: 'numeric', month: 'short' }) }}</span></div>
+        <div v-if="c.info && c.info.outstanding != null" class="ccs">
+          <div class="ccsr">
+            <span>المستحق <b :class="utilLevel(c.info.util)">{{ fmt(Math.max(0, c.info.outstanding)) }}</b><small class="muted" v-if="c.info.limit"> من {{ fmt(c.info.limit) }}{{ c.info.limitIsInferred ? ' (تقديري)' : '' }}</small></span>
+            <span v-if="c.info.util != null" class="muted xs">{{ Math.round(c.info.util * 100) }}%</span>
+          </div>
+          <div v-if="c.info.util != null" class="bar"><i :class="utilLevel(c.info.util)" :style="{ width: Math.min(100, c.info.util * 100) + '%' }"></i></div>
+        </div>
+        <div v-if="c.info && c.info.nextDue" class="due xs" :class="{ soon: c.info.daysToDue <= 3 }">
+          🗓️ السداد {{ c.info.daysToDue === 0 ? 'النهارده' : c.info.daysToDue === 1 ? 'بكرة' : 'بعد ' + c.info.daysToDue + ' يوم' }} · {{ fmtDate(c.info.nextDue, { day: 'numeric', month: 'short' }) }}
+        </div>
+        <div v-else-if="c.info && c.info.limitIsInferred" class="muted xs hint">اضغط واكتب الحد ويوم السداد علشان الأرقام تبقى مظبوطة</div>
         <div class="ccr">
           <div><small class="muted">اتصرف</small><b>{{ fmt(c.spent) }}</b></div>
           <div><small class="muted">اتسدد</small><b class="good">{{ fmt(c.paid) }}</b></div>
@@ -114,5 +132,14 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
 .ccr > div { display: flex; flex-direction: column }
 .ccr b { font-variant-numeric: tabular-nums }
 .good { color: var(--good) } .bad { color: var(--bad) }
+.ccs { margin-top: 8px }
+.ccsr { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px }
+.ccsr b { font-size: 16px; font-variant-numeric: tabular-nums }
+.bar { height: 6px; border-radius: 4px; background: var(--bar-dim); margin-top: 6px; overflow: hidden }
+.bar i { display: block; height: 100%; border-radius: 4px; background: var(--good) }
+.bar i.warn, b.warn { background: #d97706 } b.warn { background: none; color: #d97706 }
+.bar i.over { background: var(--bad) } b.over { color: var(--bad) } b.ok { color: var(--good) }
+.due { margin-top: 8px; color: var(--ink-2) } .due.soon { color: var(--bad); font-weight: 600 }
+.hint { margin-top: 6px }
 .note { text-align: center; margin: 14px 20px }
 </style>

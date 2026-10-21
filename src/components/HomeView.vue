@@ -9,7 +9,6 @@ import TxRow from './TxRow.vue'
 import UpdateBanner from './UpdateBanner.vue'
 import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
-import { creditCards, utilLevel } from '../lib/credit.js'
 import { isNative } from '../lib/smsSource.js'
 
 const emit = defineEmits(['open', 'go'])
@@ -118,18 +117,6 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       </div>
     </section>
 
-    <section class="card" v-if="creditCards.length">
-      <div class="row-b"><h2>💳 بطاقاتك الائتمانية</h2><button class="link" @click="emit('go', 'credit')">التفاصيل ←</button></div>
-      <button v-for="c in creditCards" :key="c.key" class="ccrow" :class="utilLevel(c.util)" @click="emit('go', 'credit', c.key)">
-        <div class="cct"><span>{{ c.name }}</span><b>{{ c.outstanding == null ? '—' : fmt(Math.max(0, c.outstanding)) }} <small class="muted">ر.س مستحق</small></b></div>
-        <div v-if="c.limit" class="lb"><i :style="{ width: Math.min(100, (c.util || 0) * 100) + '%' }"></i></div>
-        <div class="ccm muted xs">
-          <span v-if="c.limit">{{ Math.round((c.util || 0) * 100) }}٪ من {{ fmt(c.limit) }}</span>
-          <span v-if="c.nextDue" :class="{ soon: c.daysToDue <= 3 }">{{ c.daysToDue === 0 ? 'السداد النهارده!' : 'السداد بعد ' + c.daysToDue + ' يوم' }}</span>
-          <span v-else>حدد ميعاد السداد</span>
-        </div>
-      </button>
-    </section>
 
     <section v-if="prevSame" class="card cmp">
       <span class="arrow" :class="prevSame.diff > 0 ? 'up' : 'down'">{{ prevSame.diff > 0 ? '▲' : '▼' }}</span>
@@ -195,11 +182,8 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .arrow.up { background: #fee2e2; color: #dc2626 } .arrow.down { background: #dcfce7; color: #15803d }
 .rates { display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; margin-top: 8px }
 .rates > div { display: flex; flex-direction: column; font-size: 13px }
-.ccrow { display: block; width: 100%; text-align: right; border: 0; background: var(--surface-2); border-radius: 14px; padding: 10px 12px; margin-top: 8px; font: inherit; color: inherit; cursor: pointer }
 .cct { display: flex; justify-content: space-between; gap: 8px; font-size: 14px }
 .cct b { font-variant-numeric: tabular-nums }
-.ccrow .lb { margin-top: 8px; background: var(--surface) }
-.ccrow.ok .lb i { background: var(--good) } .ccrow.warn .lb i { background: #f59e0b } .ccrow.over .lb i { background: var(--bad) }
 .ccm { display: flex; justify-content: space-between; margin-top: 6px }
 .ccm .soon { color: var(--bad); font-weight: 600 }
 .lrow { padding: 6px 0 }
