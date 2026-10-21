@@ -1,6 +1,7 @@
 // اختبارات الحسابات: الاشتراكات، الأقساط، الكريدت، الديون، الحدود، والخصوصية
 import { describe, it, expect, beforeEach } from 'vitest'
-import { state, allTx, effLimits, cycles } from '../src/lib/store.js'
+import { state, allTx, effLimits, cycles, setCategory, clearOverride } from '../src/lib/store.js'
+import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
 import { simulate, manualDebts, saveDebt, lent, autoLent, notLoan, ignorePerson, totals } from '../src/lib/debts.js'
@@ -106,6 +107,31 @@ describe('التحويل لشخص = سلفة', () => {
   it('التحويلات القديمة قبل ما الميزة تشتغل مش بتتحسب', () => {
     state.smsTx = [tx(60, 'transfer', 1000, 'OLD')]
     expect(autoLent.value.length).toBe(0)
+  })
+})
+
+describe('نقل محل لبند تاني (مش لازم يتلغي)', () => {
+  it('النقل بيفضل بعد ما الرسايل تتقري من جديد (تحديث / سحب للتحديث)', () => {
+    state.overrides = {}
+    state.smsTx = [tx(3, 'purchase', 20, 'ROKON RAIDAN')]
+    expect(allTx.value[0].c).toBe('other')
+    setCategory(allTx.value[0], 'grocery')
+    state.smsTx = [tx(3, 'purchase', 20, 'ROKON RAIDAN'), tx(1, 'purchase', 15, 'ROKON RAIDAN')] // قراية جديدة = objects جديدة
+    expect(allTx.value.every((t) => t.c === 'grocery')).toBe(true)
+    clearOverride(merchantKey('ROKON RAIDAN'))
+    expect(allTx.value[0].c).toBe('other')
+  })
+  it('النقل اليدوي أقوى من القواعد التلقائية', () => {
+    state.smsTx = [tx(1, 'purchase', 30, 'PANDA')]
+    expect(allTx.value[0].c).toBe('grocery')
+    setCategory(allTx.value[0], 'food')
+    expect(allTx.value[0].c).toBe('food')
+    state.overrides = {}
+  })
+  it('مفتاح المحل ثابت — لو اتغيّر، كل النقل اللي عملته يضيع', () => {
+    // لو الاختبار ده فشل: متغيّرش merchantKey (أو اعمل migration للـ overrides)
+    expect(['ROKON RAIDAN', 'noon.com', 'TAP * Anthropic', 'PAYPAL *SPOTIFY', 'سوبر ماركت الأمانة', 'AL HAMMAD'].map(merchantKey))
+      .toEqual(['ROKONRAID', 'NOONCOM', 'ANTHROPIC', 'SPOTIFY', 'سوبرماركت', 'ALHAMMAD'])
   })
 })
 

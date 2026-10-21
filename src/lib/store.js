@@ -187,6 +187,13 @@ export function setCategory(tx, catId) {
   state.overrides = { ...state.overrides, [key]: catId }
   LS.set('overrides', state.overrides)
 }
+/** تراجع عن نقل محل لبند (يرجع للتصنيف التلقائي) */
+export function clearOverride(key) {
+  const o = { ...state.overrides }
+  delete o[key]
+  state.overrides = o
+  LS.set('overrides', state.overrides)
+}
 export function resetOverrides() {
   state.overrides = {}
   LS.set('overrides', {})

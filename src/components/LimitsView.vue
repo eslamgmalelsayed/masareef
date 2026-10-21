@@ -5,7 +5,7 @@ import { CATEGORIES } from '../lib/categories.js'
 import { isNative, requestNotifications, notify } from '../lib/smsSource.js'
 import { fmt, DAY } from '../lib/format.js'
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'go'])
 const notifOk = ref(null)
 const OUT = new Set(['purchase', 'transfer', 'intl', 'cash', 'bill', 'gov', 'fee', 'manual', 'cashAdj'])
 
@@ -59,7 +59,10 @@ const groupRows = computed(() => (state.settings.groups || []).map((g) => ({
   avg: g.cats.reduce((x, c) => x + (avg3.value[c] || 0), 0),
 })))
 const gEdit = ref(null) // {id?, name, cats, limit}
-function newGroup() { gEdit.value = { name: '', cats: [], limit: '' } }
+function newGroup(cat) {
+  gEdit.value = { name: '', cats: cat ? [cat] : [], limit: '' }
+  setTimeout(() => document.querySelector('.gform')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+}
 function editGroup(g) { gEdit.value = { id: g.id, name: g.name, cats: [...g.cats], limit: g.limit || '' } }
 function toggleCat(id) {
   const c = gEdit.value.cats
@@ -169,7 +172,7 @@ function suggest(r) {
           <button class="link" @click="gEdit = null">إلغاء</button>
         </div>
       </div>
-      <button v-else class="addg" @click="newGroup">＋ ادمج بنود في حد واحد</button>
+      <button v-else class="addg" @click="newGroup()">＋ ادمج بنود في حد واحد</button>
     </section>
 
     <h2 class="sec">حدود البنود (لكل راتب)</h2>
@@ -201,7 +204,11 @@ function suggest(r) {
             <span v-else>{{ Math.round((r.spent / r.limit) * 100) }}٪ · الحد = {{ salPct(r.limit) }}</span>
           </div>
         </template>
-        <button v-else-if="r.avg >= 50" class="link xs sug" @click="suggest(r)">اقترح حد ({{ fmt(Math.ceil(r.avg / 50) * 50) }})</button>
+        <div class="racts">
+          <button v-if="!r.base && r.avg >= 50" class="link xs" @click="suggest(r)">اقترح حد ({{ fmt(Math.ceil(r.avg / 50) * 50) }})</button>
+          <button class="link xs" @click="newGroup(r.id)">🔗 ادمجه مع بند تاني</button>
+          <button v-if="r.id === 'other' && r.spent + r.avg > 0" class="link xs" @click="emit('go', 'sortother')">🧹 رتّب أخرى</button>
+        </div>
       </div>
     </section>
 
@@ -255,6 +262,6 @@ function suggest(r) {
 .over .bar i { background: var(--bad) }
 .stat { display: flex; justify-content: space-between; color: var(--ink-3); margin-top: 4px }
 .over .stat { color: var(--bad) }
-.sug { margin: 6px 50px 0 0 }
+.racts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 50px 0 0 }
 .test { display: block; width: 100%; padding: 13px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer }
 </style>
