@@ -8,6 +8,8 @@ import CatBars from './CatBars.vue'
 import TxRow from './TxRow.vue'
 import UpdateBanner from './UpdateBanner.vue'
 import InstallHint from './InstallHint.vue'
+import WebImport from './WebImport.vue'
+import { isNative } from '../lib/smsSource.js'
 
 const emit = defineEmits(['open', 'go'])
 const now = new Date()
@@ -82,6 +84,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 
     <UpdateBanner compact />
     <InstallHint dismissible />
+    <WebImport v-if="!isNative" compact />
 
     <section class="hero" :class="totalLevel">
       <div class="row">

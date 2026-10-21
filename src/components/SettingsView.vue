@@ -6,6 +6,7 @@ import { fmtDate, fmt } from '../lib/format.js'
 import NotifyTest from './NotifyTest.vue'
 import IosSetup from './IosSetup.vue'
 import InstallHint from './InstallHint.vue'
+import WebImport from './WebImport.vue'
 import UpdateBanner from './UpdateBanner.vue'
 import { update, checkUpdate } from '../lib/updater.js'
 
@@ -71,6 +72,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
     </section>
 
     <InstallHint />
+    <WebImport v-if="!isNative" />
     <IosSetup v-if="isIOS" />
     <NotifyTest />
 

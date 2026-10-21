@@ -1,5 +1,5 @@
 import { reactive, computed, watch } from 'vue'
-import { parseMessages, messagesFromXml, messagesFromJson, BANKS, detectProfile } from './parser.js'
+import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile } from './parser.js'
 import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
 import { isNative, readSms, saveNativeConfig } from './smsSource.js'
 
@@ -114,7 +114,7 @@ export function reparse() {
 
 export async function importFile(file) {
   const text = await file.text()
-  const msgs = /^\s*[[{]/.test(text) ? messagesFromJson(text) : messagesFromXml(text)
+  const msgs = /^\s*[[{]/.test(text) ? messagesFromJson(text) : /<smses|<sms\s/.test(text) ? messagesFromXml(text) : messagesFromText(text)
   learnProfile(msgs, true)
   const tx = parseMessages(msgs, profile())
   const byId = new Map(state.importedTx.map((t) => [t.id, t]))

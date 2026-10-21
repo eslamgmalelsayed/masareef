@@ -12,6 +12,7 @@ import LimitsView from './components/LimitsView.vue'
 import AddExpense from './components/AddExpense.vue'
 import { checkUpdate } from './lib/updater.js'
 import IosSetup from './components/IosSetup.vue'
+import WebImport from './components/WebImport.vue'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -71,7 +72,7 @@ const tabs = [
       <template v-if="!isNative">
         <button class="btn" @click="adding = { paste: true }">📋 الصق أول رسالة بنك</button>
         <button class="btn ghost2" @click="adding = {}">✍️ أضف مصروف بإيدك</button>
-        <button class="link" style="margin-top: 10px" @click="go('settings')">أو استورد ملف رسايل من الإعدادات</button>
+        <WebImport style="text-align: right; margin-top: 16px; width: 100%" />
       </template>
       <button v-else class="btn" @click="go('settings')">روح للإعدادات</button>
     </div>

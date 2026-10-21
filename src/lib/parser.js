@@ -269,3 +269,29 @@ export function detectProfile(messages) {
   const displayName = ranked.find(([w]) => /[؀-ۿ]/.test(w))?.[0] || ''
   return { accounts: own, selfNames: [...names], displayName }
 }
+
+/**
+ * ملف الاختصار على آيفون: كل رسالة = سطر التاريخ، وبعده نص الرسالة، وبعدها سطر =====
+ * (لو التاريخ مش مفهوم بنستخدم ترتيب الرسالة في الملف)
+ */
+export function messagesFromText(text) {
+  const out = []
+  const blocks = String(text).replace(/\r/g, '').split(/^\s*={3,}\s*$/m)
+  let i = 0
+  for (const raw of blocks) {
+    const lines = raw.split('\n').map((l) => l.trimEnd())
+    while (lines.length && !lines[0].trim()) lines.shift()
+    if (!lines.length) continue
+    let date = NaN
+    const first = lines[0].trim()
+    const iso = Date.parse(first.replace(' ', 'T'))
+    if (/\d{4}-\d{2}-\d{2}/.test(first) && Number.isFinite(iso)) { date = iso; lines.shift() }
+    else if (/^\d{10,13}$/.test(first)) { date = Number(first.length === 10 ? first + '000' : first); lines.shift() }
+    let address = '__ios__'
+    if (lines[0] && /^(from|من|الراسل)\s*[:：]/i.test(lines[0])) address = lines.shift().split(/[:：]/).slice(1).join(':').trim() || '__ios__'
+    const body = lines.join('\n').trim()
+    if (!body) continue
+    out.push({ address: bankOf(address) ? address : '__ios__', body, date: Number.isFinite(date) ? date : Date.now() - (blocks.length - i++) * 1000 })
+  }
+  return out
+}
