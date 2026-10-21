@@ -1,6 +1,5 @@
 <script setup>
 import { toolsList } from '../lib/toolsList.js'
-import { isNative } from '../lib/smsSource.js'
 
 // زرار +: إضافة مصروف + كل أدوات الفلوس في مكان واحد
 const emit = defineEmits(['close', 'add', 'go'])
@@ -15,7 +14,6 @@ const tools = toolsList
         <div class="head"><b>إضافة</b><button class="x" aria-label="اقفل" @click="emit('close')">×</button></div>
         <div class="adds">
           <button class="add main" @click="emit('add', {})"><span>✍️</span>ضيف مصروف</button>
-          <button class="add" @click="emit('add', { paste: true })"><span>📋</span>الصق رسالة</button>
         </div>
         <div class="lbl">أدوات الفلوس</div>
         <div class="grid">
@@ -37,7 +35,7 @@ const tools = toolsList
 .head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 10px }
 .head b { font-size: 16px }
 .x { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface-2); color: var(--ink-2); font-size: 20px; line-height: 1; display: grid; place-items: center; cursor: pointer }
-.adds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.adds { display: grid; grid-template-columns: 1fr; gap: 8px }
 .add { display: flex; align-items: center; justify-content: center; gap: 8px; height: 54px; padding: 0 10px; white-space: nowrap; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer }
 .add span { font-size: 18px }
 .add.main { background: var(--accent); border-color: var(--accent); color: #fff }
