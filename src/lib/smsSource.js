@@ -46,3 +46,9 @@ export async function simulatePurchase(body) {
 export async function addMessage(body, address = '__ios__') {
   return SmsReader.addMessage({ body, address })
 }
+
+/** تذكيرات ميعاد السداد — بتتجدول في الموبايل نفسه */
+export async function scheduleReminders(items) {
+  if (!isNative) return
+  try { await SmsReader.scheduleReminders({ items }) } catch (e) { console.warn('reminders', e) }
+}

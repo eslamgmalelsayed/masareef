@@ -16,6 +16,7 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
         CAPPluginMethod(name: "notificationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "testNotification", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "simulate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scheduleReminders", returnType: CAPPluginReturnPromise),
     ]
 
     public override func load() {
@@ -74,6 +75,26 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
                 call.reject("notifications not allowed"); return
             }
             LimitStore.notify(id: "test-\(call.getInt("id") ?? 4242)", title: title, text: text)
+            call.resolve()
+        }
+    }
+
+    /// تذكيرات ميعاد سداد الكريدت: items = [{id, at(ms), title, text}]
+    @objc func scheduleReminders(_ call: CAPPluginCall) {
+        let items = call.getArray("items", JSObject.self) ?? []
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { reqs in
+            center.removePendingNotificationRequests(withIdentifiers: reqs.map { $0.identifier }.filter { $0.hasPrefix("due-") })
+            for o in items {
+                guard let id = o["id"] as? String, let at = (o["at"] as? NSNumber)?.doubleValue else { continue }
+                let secs = at / 1000 - Date().timeIntervalSince1970
+                if secs <= 1 { continue }
+                let c = UNMutableNotificationContent()
+                c.title = (o["title"] as? String) ?? ""
+                c.body = (o["text"] as? String) ?? ""
+                c.sound = .default
+                center.add(UNNotificationRequest(identifier: id, content: c, trigger: UNTimeIntervalNotificationTrigger(timeInterval: secs, repeats: false)))
+            }
             call.resolve()
         }
     }

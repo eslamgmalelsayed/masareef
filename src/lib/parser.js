@@ -193,6 +193,9 @@ function meta(b) {
     b.match(/(?:مدى|mada|فيزا|VISA)\s*\*\s*(\d{4})/i)
   if (card) o.card = card[1]
   if (/ائتمان|credit card/i.test(b)) o.cr = 1
+  // رسوم العمليات بعملة أجنبية (الراجحي بيكتبها: رسوم وضريبة: 9.06 SAR)
+  const fx = b.match(/رسوم وضريبة\s*[:：]\s*([\d,]+(?:\.\d+)?)/)
+  if (fx) { const v = num(fx[1]); if (v) o.fx = v }
   // رسايل سداد الكريدت: الرصيد فيها مش واضح هو للحساب ولا للكارت، فبنتجاهله
   const bal = /سداد/.test(b.split('\n')[0]) ? null : b.match(/(?:رصيد|Your balance|Balance)\s*[:：]?\s*(?:SAR|SR)?\s*([\d,]+(?:\.\d+)?)\s*(?:SAR|SR)?/i)
   if (bal) { const v = num(bal[1]); if (v !== null) o.bal = v }

@@ -10,18 +10,20 @@ const props = defineProps({ cat: String, range: Object, bank: String })
 const emit = defineEmits(['open'])
 const q = ref('')
 const bankF = ref(props.bank || '')
+const ccOnly = ref(false)
 const cat = ref(props.cat || '')
 const kind = ref(props.bank ? 'all' : 'out') // out | in | all
 const shown = ref(60)
 const range = ref(props.range || null)
 const showDates = ref(!!props.range)
 watch(() => props.cat, (v) => { cat.value = v || ''; shown.value = 60 })
-watch([q, cat, kind, range], () => (shown.value = 60))
+watch([q, cat, kind, range, ccOnly], () => (shown.value = 60))
 
 const OUT = new Set(['purchase', 'transfer', 'intl', 'cash', 'bill', 'gov', 'fee', 'manual'])
 const rows = computed(() => {
   let r = allTx.value.filter((t) => t.k !== 'cashAdj')
   if (bankF.value) r = r.filter((t) => t.b === bankF.value)
+  if (ccOnly.value) r = r.filter((t) => t.cc)
   if (showDates.value && range.value && range.value.id !== 'all') r = r.filter((t) => t.d >= range.value.from && t.d <= range.value.to)
   if (kind.value === 'out') r = r.filter((t) => OUT.has(t.k))
   else if (kind.value === 'in') r = r.filter((t) => ['salary', 'in', 'refund'].includes(t.k))
@@ -60,6 +62,7 @@ const usedCats = computed(() => CATEGORIES.filter((c) => !c.hidden && allTx.valu
       <button :class="{ on: kind === 'all' }" @click="kind = 'all'">الكل</button>
     </div>
     <div class="pills scroll" v-if="kind !== 'in'">
+      <button class="pill" :class="{ on: ccOnly }" @click="ccOnly = !ccOnly">💳 كريدت بس</button>
       <button class="pill" :class="{ on: !cat }" @click="cat = ''">كل البنود</button>
       <button v-for="c in usedCats" :key="c.id" class="pill" :class="{ on: cat === c.id }" @click="cat = cat === c.id ? '' : c.id">{{ c.icon }} {{ c.name }}</button>
     </div>

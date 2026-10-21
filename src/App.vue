@@ -14,6 +14,7 @@ import { checkUpdate } from './lib/updater.js'
 import IosSetup from './components/IosSetup.vue'
 import WebImport from './components/WebImport.vue'
 import BanksView from './components/BanksView.vue'
+import CreditView from './components/CreditView.vue'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -23,7 +24,8 @@ const sheet = ref(null)
 const adding = ref(null) // null | {} (جديد) | tx (تعديل)
 
 const prevTab = ref('home')
-function go(t, cat = '', range = null, bank = '') { if (t === 'limits') prevTab.value = tab.value; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
+const creditSel = ref('')
+function go(t, cat = '', range = null, bank = '') { if (t === 'limits' || t === 'credit') prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
 onMounted(() => { syncSms(); checkUpdate() })
 
@@ -32,7 +34,7 @@ if (isNative) {
   CapApp.addListener('backButton', () => {
     if (adding.value) adding.value = null
     else if (sheet.value) sheet.value = null
-    else if (tab.value === 'limits') go(prevTab.value)
+    else if (tab.value === 'limits' || tab.value === 'credit') go(prevTab.value)
     else if (tab.value !== 'home') go('home')
     else CapApp.exitApp()
   })
@@ -53,6 +55,7 @@ const tabs = [
   <main>
     <SettingsView v-if="tab === 'settings'" @go="go" />
     <LimitsView v-else-if="tab === 'limits'" @back="go(prevTab)" />
+    <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="go(prevTab)" @open="(t) => (sheet = t)" @go="go" />
 
     <div v-else-if="state.status === 'loading' && !allTx.length" class="splash">
       <div class="spinner"></div>
@@ -88,7 +91,7 @@ const tabs = [
     </template>
     
     <nav class="tabbar">
-      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') }" @click="go(t.id)">
+      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') }" @click="go(t.id)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="t.i" /></svg>
         <span>{{ t.l }}</span>
       </button>

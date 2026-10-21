@@ -11,7 +11,8 @@ const emit = defineEmits(['go'])
 const range = ref(null)
 const R = computed(() => range.value || { from: new Date(Date.now() - 30 * DAY), to: new Date() })
 
-const rows = computed(() => spendTx.value.filter((t) => t.d >= R.value.from && t.d <= R.value.to))
+const ccOnly = ref(false)
+const rows = computed(() => spendTx.value.filter((t) => t.d >= R.value.from && t.d <= R.value.to && (!ccOnly.value || t.cc)))
 const days = computed(() => Math.max(1, Math.round((R.value.to - R.value.from) / DAY)))
 const total = computed(() => sum(rows.value))
 const salary = computed(() => salaryFor(R.value.from, R.value.to))
@@ -88,6 +89,7 @@ const pctSal = (v) => (salary.value ? Math.round((v / salary.value) * 100) + '٪
   <div class="view">
     <header class="hd"><h1>التحليل</h1></header>
     <DateRange v-model="range" />
+    <div class="pills"><button class="pill" :class="{ on: !ccOnly }" @click="ccOnly = false">كل المصروفات</button><button class="pill" :class="{ on: ccOnly }" @click="ccOnly = true">💳 الكريدت بس</button></div>
 
     <section class="hero" :class="level">
       <div class="lbl">صرفت في الفترة دي</div>

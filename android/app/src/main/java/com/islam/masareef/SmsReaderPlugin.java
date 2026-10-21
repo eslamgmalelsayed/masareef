@@ -92,6 +92,17 @@ public class SmsReaderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void scheduleReminders(PluginCall call) {
+        try {
+            JSArray items = call.getArray("items");
+            ReminderReceiver.schedule(getContext(), items == null ? new JSArray() : items);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("schedule failed: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void notificationStatus(PluginCall call) {
         JSObject r = new JSObject();
         r.put("granted", Build.VERSION.SDK_INT < 33 || getPermissionState("notifications") == PermissionState.GRANTED);

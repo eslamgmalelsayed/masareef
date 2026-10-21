@@ -82,8 +82,8 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
         <div class="cell" v-if="b.ccxfer"><span>🔁 سداد بطاقة تانية بالكريدت</span><b>{{ fmt(b.ccxfer) }}</b></div>
       </div>
 
-      <div v-for="c in b.cardList" :key="c.card" class="cc">
-        <div class="cct"><span>💳 بطاقة ائتمانية ••{{ c.card }}</span><span v-if="c.avail" class="muted xs">المتاح {{ fmt(c.avail.v) }} · {{ fmtDate(c.avail.ts, { day: 'numeric', month: 'short' }) }}</span></div>
+      <div v-for="c in b.cardList" :key="c.card" class="cc" @click="emit('go', 'credit', b.name + '|' + c.card)">
+        <div class="cct"><span>💳 بطاقة ائتمانية ••{{ c.card }} <span class="muted xs">تفاصيل ←</span></span><span v-if="c.avail" class="muted xs">المتاح {{ fmt(c.avail.v) }} · {{ fmtDate(c.avail.ts, { day: 'numeric', month: 'short' }) }}</span></div>
         <div class="ccr">
           <div><small class="muted">اتصرف</small><b>{{ fmt(c.spent) }}</b></div>
           <div><small class="muted">اتسدد</small><b class="good">{{ fmt(c.paid) }}</b></div>
@@ -108,7 +108,7 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px }
 .cell { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-2) }
 .cell b { font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums }
-.cc { margin-top: 10px; border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px }
+.cc { cursor: pointer; margin-top: 10px; border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px }
 .cct { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; font-weight: 500; flex-wrap: wrap }
 .ccr { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; margin-top: 8px }
 .ccr > div { display: flex; flex-direction: column }
