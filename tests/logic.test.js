@@ -4,7 +4,7 @@ import { state, allTx, effLimits, cycles } from '../src/lib/store.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
 import { simulate, manualDebts, saveDebt } from '../src/lib/debts.js'
-import { safeToSpend, funds, saveFund, emergency } from '../src/lib/tools.js'
+import { safeToSpend, funds, saveFund, emergency, zakat, netWorth, saveAssets } from '../src/lib/tools.js'
 import { fmt, setPrivacy } from '../src/lib/format.js'
 
 const DAY = 864e5
@@ -19,7 +19,7 @@ beforeEach(() => {
   state.bnplSms = []
   state.importedBnpl = []
   state.status = 'ready'
-  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, cards: {}, subsHidden: [], flagsSeen: [] }
+  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [] }
   setPrivacy(false)
 })
 
@@ -125,6 +125,17 @@ describe('تنبيه العملية الغريبة', () => {
     const t1 = tx(1, 'purchase', 45, 'STARBUCKS'), t2 = { ...tx(1, 'purchase', 45, 'STARBUCKS'), ts: t1.ts + 60e3 }
     state.smsTx = [t1, t2]
     expect(unusual.value.some((f) => f.type === 'dup')).toBe(true)
+  })
+})
+
+describe('الممتلكات والزكاة', () => {
+  it('الدهب بالجرام، والعربية مش عليها زكاة', () => {
+    state.settings.zakat = { gram: 400 }
+    saveAssets([{ type: 'gold', name: 'دهب', grams: 100 }, { type: 'car', name: 'عربية', v: 50000 }, { type: 'cash', name: 'كاش', v: 10000 }])
+    expect(netWorth.value.other).toBe(40000 + 50000 + 10000)
+    expect(zakat.value.extra).toBe(50000) // الدهب + الكاش بس
+    expect(zakat.value.reached).toBe(true) // النصاب ٨٥ × ٤٠٠ = ٣٤٬٠٠٠
+    expect(zakat.value.amount).toBeCloseTo(50000 * 0.025, 2)
   })
 })
 

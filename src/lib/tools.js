@@ -128,13 +128,24 @@ export const balances = computed(() => {
   }
   return Object.values(by).filter((o) => Date.now() - o.ts < 400 * DAY).sort((a, b) => b.v - a.v)
 })
-export const assets = computed(() => state.settings.assets || [])
-export function saveAssets(arr) { setList('assets', arr) }
+// أنواع الممتلكات: الزكاة افتراضيًا على الكاش والدهب والاستثمار — مش على البيت والعربية اللي بتستخدمهم
+export const ASSET_TYPES = [
+  { id: 'cash', ic: '💵', t: 'كاش', zakat: true },
+  { id: 'gold', ic: '🪙', t: 'دهب', zakat: true },
+  { id: 'invest', ic: '📈', t: 'أسهم واستثمار', zakat: true },
+  { id: 'property', ic: '🏠', t: 'عقار / أرض', zakat: false },
+  { id: 'car', ic: '🚗', t: 'عربية', zakat: false },
+  { id: 'other', ic: '📦', t: 'حاجة تانية', zakat: false },
+]
+/** قيمة الدهب بتتحسب من الجرامات × سعر الجرام اللي في صفحة الزكاة */
+export const assetValue = (a) => (a.type === 'gold' && Number(a.grams) && Number((state.settings.zakat || {}).gram) ? Number(a.grams) * Number(state.settings.zakat.gram) : Number(a.v) || 0)
+export const assets = computed(() => (state.settings.assets || []).map((a) => ({ ...a, value: assetValue(a), zk: a.zakat ?? (ASSET_TYPES.find((t) => t.id === (a.type || 'other'))?.zakat ?? true) })))
+export function saveAssets(arr) { setList('assets', arr.map(({ value, zk, ...a }) => a)) }
 
 export const netWorth = computed(() => {
   const ex = new Set(state.settings.nwExclude || [])
   const bank = balances.value.filter((b) => !ex.has(b.b)).reduce((x, b) => x + b.v, 0)
-  const other = assets.value.reduce((x, a) => x + (Number(a.v) || 0), 0)
+  const other = assets.value.reduce((x, a) => x + a.value, 0)
   const recv = lent.value.filter((d) => !d.done).reduce((x, d) => x + d.left, 0)
   const debt = owedOpen.value.reduce((x, d) => x + d.left, 0)
   return { bank, other, recv, debt, net: bank + other + recv - debt }
@@ -164,7 +175,7 @@ export const zakat = computed(() => {
   const gram = Number(z.gram) || 0
   const nisab = gram * 85
   const bank = netWorth.value.bank
-  const extra = assets.value.filter((a) => a.zakat !== false).reduce((x, a) => x + (Number(a.v) || 0), 0)
+  const extra = assets.value.filter((a) => a.zk).reduce((x, a) => x + a.value, 0)
   const recv = z.withLent ? netWorth.value.recv : 0
   const debt = z.minusDebt ? netWorth.value.debt : 0
   const base = Math.max(0, bank + extra + recv - debt)

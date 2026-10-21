@@ -35,7 +35,7 @@ function setHawl(e) { saveZakat({ hawl: e.target.value ? +new Date(e.target.valu
     <section class="card">
       <h2>الحساب</h2>
       <div class="r"><span>رصيد البنوك</span><b>{{ fmt(Z.bank) }}</b></div>
-      <div class="r"><span>حاجات تانية تملكها <button class="link xs" @click="emit('go', 'worth')">تعديل</button></span><b>{{ fmt(Z.extra) }}</b></div>
+      <div class="r"><span>ممتلكات عليها زكاة <button class="link xs" @click="emit('go', 'worth')">تعديل</button></span><b>{{ fmt(Z.extra) }}</b></div>
       <label class="r chk"><span><input type="checkbox" :checked="!!z.withLent" @change="(e) => saveZakat({ withLent: e.target.checked })" /> ضيف الفلوس اللي ليك عند الناس</span><b>{{ fmt(Z.recv) }}</b></label>
       <label class="r chk"><span><input type="checkbox" :checked="!!z.minusDebt" @change="(e) => saveZakat({ minusDebt: e.target.checked })" /> اطرح الديون اللي عليك</span><b>{{ Z.debt ? '−' + fmt(Z.debt) : '0' }}</b></label>
       <div class="r tot"><span>المال اللي عليه زكاة</span><b>{{ fmt(Z.base) }}</b></div>

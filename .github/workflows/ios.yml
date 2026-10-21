@@ -1,7 +1,6 @@
 name: Build iOS (IPA)
+# متوقف مؤقتًا — التركيز دلوقتي على أندرويد. تقدر تشغّله بإيدك من Actions ← Run workflow
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

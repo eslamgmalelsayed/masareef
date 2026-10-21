@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { balances, assets, saveAssets, netWorth, bankHistory } from '../lib/tools.js'
+import { balances, assets, saveAssets, netWorth, bankHistory, ASSET_TYPES } from '../lib/tools.js'
 import { state, saveSettings } from '../lib/store.js'
 import { fmt, fmtDate } from '../lib/format.js'
 
@@ -13,13 +13,18 @@ function toggleBank(b) {
   state.settings.nwExclude = [...s]
   saveSettings()
 }
-const nA = ref({ name: '', v: '' })
+const nA = ref({ type: 'cash', name: '', v: '', grams: '' })
+const T = (id) => ASSET_TYPES.find((t) => t.id === (id || 'other')) || ASSET_TYPES[5]
+const gram = computed(() => Number((state.settings.zakat || {}).gram) || 0)
 function addAsset() {
-  if (!nA.value.name.trim() || !Number(nA.value.v)) return
-  saveAssets([...assets.value, { name: nA.value.name.trim(), v: Number(nA.value.v) }])
-  nA.value = { name: '', v: '' }
+  const a = nA.value
+  const isGold = a.type === 'gold' && Number(a.grams) && gram.value
+  if (!isGold && !Number(a.v)) return
+  saveAssets([...assets.value, { type: a.type, name: a.name.trim() || T(a.type).t, v: isGold ? 0 : Number(a.v), grams: a.type === 'gold' ? Number(a.grams) || '' : '' }])
+  nA.value = { type: a.type, name: '', v: '', grams: '' }
 }
-function setAsset(i, v) { const a = [...assets.value]; a[i] = { ...a[i], v: Number(v) || 0 }; saveAssets(a) }
+function setAsset(i, v) { const a = [...assets.value]; a[i] = a[i].type === 'gold' && a[i].grams && gram.value ? { ...a[i], grams: Number(v) || 0 } : { ...a[i], v: Number(v) || 0 }; saveAssets(a) }
+function toggleZakat(i) { const a = [...assets.value]; a[i] = { ...a[i], zakat: !a[i].zk }; saveAssets(a) }
 function delAsset(i) { saveAssets(assets.value.filter((_, k) => k !== i)) }
 const maxH = computed(() => Math.max(1, ...bankHistory.value.map((h) => Math.abs(h.nw ?? h.v))))
 </script>
@@ -37,7 +42,7 @@ const maxH = computed(() => Math.max(1, ...bankHistory.value.map((h) => Math.abs
       <b dir="ltr">{{ N.net < 0 ? '−' : '' }}{{ fmt(Math.abs(N.net)) }}<small> ر.س</small></b>
       <div class="split">
         <div><span class="lbl">في البنوك</span><b>{{ fmt(N.bank) }}</b></div>
-        <div><span class="lbl">حاجات تانية + ليك</span><b>{{ fmt(N.other + N.recv) }}</b></div>
+        <div><span class="lbl">ممتلكات + ليك</span><b>{{ fmt(N.other + N.recv) }}</b></div>
         <div><span class="lbl">عليك</span><b>{{ fmt(N.debt) }}</b></div>
       </div>
     </section>
@@ -54,17 +59,25 @@ const maxH = computed(() => Math.max(1, ...bankHistory.value.map((h) => Math.abs
     </section>
 
     <section class="card">
-      <h2>حاجات تانية تملكها</h2>
-      <div v-for="(a, i) in assets" :key="i" class="row">
-        <span class="nm">{{ a.name }}</span>
-        <input class="v" type="number" inputmode="numeric" :value="a.v" @change="(e) => setAsset(i, e.target.value)" />
+      <h2>ممتلكاتك</h2>
+      <div v-for="(a, i) in assets" :key="i" class="arow">
+        <span class="aic">{{ T(a.type).ic }}</span>
+        <span class="nm">{{ a.name }}<small class="muted" v-if="a.type === 'gold' && a.grams"> · {{ a.grams }} جرام</small>
+          <button class="zk" :class="{ on: a.zk }" @click="toggleZakat(i)">{{ a.zk ? 'عليه زكاة' : 'مفيش زكاة' }}</button>
+        </span>
+        <input class="v" type="number" inputmode="numeric" :value="a.type === 'gold' && a.grams && gram ? a.grams : a.v" @change="(e) => setAsset(i, e.target.value)" />
+        <span class="val" v-if="a.type === 'gold' && a.grams && gram">{{ fmt(a.value) }}</span>
         <button class="x" @click="delAsset(i)">×</button>
       </div>
+      <div class="types"><button v-for="t in ASSET_TYPES" :key="t.id" :class="{ on: nA.type === t.id }" @click="nA.type = t.id">{{ t.ic }} {{ t.t }}</button></div>
       <div class="addrow">
-        <input v-model="nA.name" placeholder="كاش، دهب، استثمار…" />
-        <input v-model="nA.v" type="number" inputmode="numeric" placeholder="القيمة" />
+        <input v-model="nA.name" :placeholder="T(nA.type).t + ' (اسم اختياري)'" />
+        <input v-if="nA.type === 'gold' && gram" v-model="nA.grams" type="number" inputmode="decimal" placeholder="كام جرام" />
+        <input v-else v-model="nA.v" type="number" inputmode="numeric" placeholder="القيمة" />
         <button @click="addAsset">ضيف</button>
       </div>
+      <p class="muted xs foot" v-if="nA.type === 'gold'">{{ gram ? 'قيمة الدهب بتتحسب لوحدها من سعر الجرام (' + fmt(gram) + ') اللي في صفحة الزكاة' : 'اكتب سعر جرام الدهب في صفحة الزكاة علشان تكتب بالجرام ويتحسب لوحده' }}</p>
+      <p class="muted xs foot" v-else-if="nA.type === 'car' || nA.type === 'property'">اكتب قيمته لو بعته النهارده. البيت والعربية اللي بتستخدمهم مش عليهم زكاة.</p>
       <div class="links">
         <button class="link xs" @click="emit('go', 'debts')">الديون ({{ fmt(N.debt) }} عليك · {{ fmt(N.recv) }} ليك) ←</button>
       </div>
@@ -104,6 +117,16 @@ h2 small { font-size: 11.5px; font-weight: 400 }
 .addrow input[type=number] { flex: .6 }
 .addrow button { border: 0; border-radius: 12px; padding: 0 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
 .links { margin-top: 10px }
+.arow { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px }
+.aic { font-size: 18px; width: 26px; text-align: center }
+.arow .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px }
+.zk { border: 0; border-radius: 99px; padding: 1px 8px; font: inherit; font-size: 10.5px; background: var(--surface-2); color: var(--ink-3); cursor: pointer }
+.zk.on { background: var(--accent-soft); color: var(--accent) }
+.arow .v { width: 88px; font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); text-align: center }
+.val { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums }
+.types { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px }
+.types button { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 99px; padding: 6px 10px; font: inherit; font-size: 12.5px; cursor: pointer }
+.types button.on { background: var(--accent); border-color: var(--accent); color: #fff }
 .hrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13.5px }
 .hrow .m { width: 58px; flex: none; color: var(--ink-2) }
 .bar { flex: 1; height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden }
