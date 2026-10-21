@@ -1,7 +1,7 @@
 <script setup>
 import { ask, choose } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
-import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose } from '../lib/debts.js'
+import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose, setAutoLentRange, autoLentRange } from '../lib/debts.js'
 import { state, saveSettings } from '../lib/store.js'
 import { savings } from '../lib/insights.js'
 import { fmt, fmtDate, DAY } from '../lib/format.js'
@@ -207,6 +207,10 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
           <span><b>اعتبر أي تحويل لشخص سلفة</b><br /><small class="muted">بيتجمع هنا لوحده — ولو تحويل مش سلفة اضغط عليه وشيله</small></span>
           <input type="checkbox" :checked="autoLentOn" @change="(e) => setAutoLent(e.target.checked)" />
         </label>
+        <div v-if="autoLentOn" class="range">
+          <span class="muted xs">التحويلات من</span>
+          <div class="rseg"><button v-for="o in [[1, 'شهر'], [3, '٣ شهور'], [6, '٦ شهور'], [12, 'سنة'], [0, 'الكل']]" :key="o[0]" :class="{ on: autoLentRange === o[0] }" @click="setAutoLentRange(o[0])">{{ o[1] }}</button></div>
+        </div>
         <div v-if="!lentOpen.length" class="empty"><b>🤝</b>محدش مستلف منك{{ autoLentOn ? ' — أول ما تحوّل لحد هيظهر هنا' : '' }}</div>
         <div v-for="d in lentOpen" :key="d.id" class="item" @click="openLent(d)">
           <span class="ic av">{{ d.name.trim().charAt(0) }}</span>
@@ -393,7 +397,11 @@ h2 { font-size: 15.5px; margin: 0 0 10px }
 .prow span { flex: 1 }
 .prow b { font-variant-numeric: tabular-nums }
 h3.sm { margin: 16px 0 6px; font-size: 13.5px }
-.autosw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13.5px }
+.autosw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 10px; font-size: 13.5px }
+.range { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; border-bottom: 1px solid var(--line) }
+.rseg { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface-2); border-radius: 10px; padding: 2px }
+.rseg button { border: 0; background: none; font: inherit; font-size: 12px; padding: 6px 2px; border-radius: 8px; color: var(--ink-2); cursor: pointer; white-space: nowrap }
+.rseg button.on { background: var(--surface); color: var(--ink); font-weight: 600 }
 .autosw input { width: 20px; height: 20px; accent-color: var(--accent); flex: none }
 .notloan { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); border-radius: 99px; padding: 3px 10px; font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap }
 </style>

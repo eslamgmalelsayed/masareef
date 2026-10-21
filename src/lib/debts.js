@@ -79,8 +79,11 @@ export const owedOpen = computed(() => owed.value.filter((d) => !d.done && d.lef
 const personKey = (name) => norm(String(name || '').replace(/[,،]?\s*\d+\s*$/, '')).slice(0, 24)
 export const autoLentOn = computed(() => state.settings.autoLent !== false)
 // بنبدأ من آخر ٣٠ يوم قبل ما الميزة تشتغل — مش كل التحويلات القديمة
-if (!state.settings.autoLentFrom) { state.settings.autoLentFrom = Date.now() - 30 * DAY; saveSettings() }
-const autoFrom = () => state.settings.autoLentFrom || Date.now() - 30 * DAY
+if (state.settings.autoLentFrom == null) { state.settings.autoLentFrom = Date.now() - 30 * DAY; saveSettings() }
+const autoFrom = () => (state.settings.autoLentFrom === 0 ? 0 : state.settings.autoLentFrom || Date.now() - 30 * DAY)
+/** من إمتى نعتبر التحويلات سلف: عدد شهور لورا (0 = من أول رسالة) */
+export function setAutoLentRange(months) { setS('autoLentFrom', months ? Date.now() - months * 30.44 * DAY : 0); setS('autoLentRange', months) }
+export const autoLentRange = computed(() => (state.settings.autoLentRange ?? 1))
 export const autoLent = computed(() => {
   if (!autoLentOn.value) return []
   const from = autoFrom()

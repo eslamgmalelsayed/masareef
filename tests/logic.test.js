@@ -4,7 +4,7 @@ import { state, allTx, effLimits, cycles, setCategory, clearOverride } from '../
 import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
-import { simulate, manualDebts, saveDebt, lent, autoLent, notLoan, ignorePerson, totals } from '../src/lib/debts.js'
+import { simulate, manualDebts, saveDebt, lent, autoLent, notLoan, ignorePerson, totals, setAutoLentRange } from '../src/lib/debts.js'
 import { safeToSpend, funds, saveFund, emergency, zakat, netWorth, saveAssets } from '../src/lib/tools.js'
 import { fmt, setPrivacy } from '../src/lib/format.js'
 
@@ -104,9 +104,14 @@ describe('التحويل لشخص = سلفة', () => {
     ignorePerson(autoLent.value.find((d) => d.name === 'K FAHMY').key)
     expect(lent.value.some((d) => d.name === 'K FAHMY')).toBe(false)
   })
-  it('التحويلات القديمة قبل ما الميزة تشتغل مش بتتحسب', () => {
-    state.smsTx = [tx(60, 'transfer', 1000, 'OLD')]
+  it('الفترة: آخر شهر افتراضيًا، وتقدر توسّعها لحد "الكل"', () => {
+    state.smsTx = [tx(60, 'transfer', 1000, 'OLD'), tx(400, 'transfer', 300, 'OLD')]
     expect(autoLent.value.length).toBe(0)
+    setAutoLentRange(3)
+    expect(autoLent.value[0].amount).toBe(1000)
+    setAutoLentRange(0)
+    expect(autoLent.value[0].amount).toBe(1300)
+    expect(autoLent.value[0].txs.length).toBe(2)
   })
 })
 
