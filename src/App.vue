@@ -15,6 +15,7 @@ import IosSetup from './components/IosSetup.vue'
 import WebImport from './components/WebImport.vue'
 import BanksView from './components/BanksView.vue'
 import CreditView from './components/CreditView.vue'
+import PullRefresh from './components/PullRefresh.vue'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -28,6 +29,7 @@ const creditSel = ref('')
 function go(t, cat = '', range = null, bank = '') { if (t === 'limits' || t === 'credit') prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
 onMounted(() => { syncSms(); checkUpdate() })
+const refresh = () => Promise.all([syncSms(), checkUpdate()])
 
 // زرار الرجوع في أندرويد
 if (isNative) {
@@ -53,6 +55,7 @@ const tabs = [
 
 <template>
   <main>
+    <PullRefresh :on-refresh="refresh" :disabled="!!sheet || !!adding" />
     <SettingsView v-if="tab === 'settings'" @go="go" />
     <LimitsView v-else-if="tab === 'limits'" @back="go(prevTab)" />
     <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="go(prevTab)" @open="(t) => (sheet = t)" @go="go" />
