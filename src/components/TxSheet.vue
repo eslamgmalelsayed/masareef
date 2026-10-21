@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
+import { showToast } from '../lib/toast.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
 import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson } from '../lib/debts.js'
 import { unusual, dismissFlag } from '../lib/insights.js'
@@ -18,7 +19,17 @@ const same = computed(() => {
   const r = allTx.value.filter((x) => merchantKey(x.m) === k && x.k === props.t.k)
   return { n: r.length, a: r.reduce((s, x) => s + x.a, 0) }
 })
-function pick(id) { setCategory(props.t, id); emit('close') }
+function pick(id) {
+  const t = props.t
+  if (id === t.c) return emit('close')
+  const prev = t.c
+  const n = t.k === 'manual' ? 1 : allTx.value.filter((x) => merchantKey(x.m) === merchantKey(t.m) && x.k === t.k).length
+  setCategory(t, id)
+  // لو العملية دي عليها تنبيه وانت راجعتها — نقفله
+  if (flag.value) dismissFlag(flag.value.id)
+  emit('close')
+  showToast(`✓ ${t.k === 'manual' ? 'المصروف' : n > 1 ? `كل عمليات ${t.m} (${n})` : t.m} اتنقلت لـ ${CAT[id].name}`, () => setCategory(t, prev))
+}
 // لو العملية دي عليها تنبيه (مكررة / أكبر من عادتك) — نعرضه هنا ونقفله من هنا
 const flag = computed(() => unusual.value.find((f) => f.tx.id === props.t.id) || null)
 function okFlag() { dismissFlag(flag.value.id); emit('close') }

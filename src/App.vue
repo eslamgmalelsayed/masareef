@@ -6,6 +6,7 @@ import { privacy } from './lib/format.js'
 import LockScreen from './components/LockScreen.vue'
 import AppDialog from './components/AppDialog.vue'
 import QuickSheet from './components/QuickSheet.vue'
+import AppToast from './components/AppToast.vue'
 import { App as CapApp } from '@capacitor/app'
 import HomeView from './components/HomeView.vue'
 import AnalysisView from './components/AnalysisView.vue'
@@ -102,6 +103,7 @@ const tabs = [
   <main>
     <LockScreen v-if="locked" :error="lockErr" @unlock="unlock" />
     <AppDialog />
+    <AppToast />
     <PullRefresh :on-refresh="refresh" :disabled="!!sheet || !!adding" />
     <SettingsView v-if="tab === 'settings'" @go="go" />
     <LimitsView v-else-if="tab === 'limits'" @back="back" @go="go" />
