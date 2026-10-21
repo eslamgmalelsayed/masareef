@@ -77,10 +77,14 @@ async function clearImp() { if (await ask('تمسح العمليات اللي ا
         <input type="number" inputmode="numeric" min="1" max="31" v-model.number="state.settings.salaryDay" @change="saveMoney" :placeholder="salaryDay ? 'تلقائي: يوم ' + salaryDay + ' في الشهر' : 'مثلًا 27'" />
         <small class="muted" v-if="nextSalaryDate">الراتب الجاي متوقع {{ fmtDate(nextSalaryDate, { weekday: 'long', day: 'numeric', month: 'long' }) }} (لو جه جمعة أو سبت بنقدّمه للخميس)</small>
       </label>
-      <button class="fld navrow2" @click="emit('go', 'limits')">
-        <span>حدود الصرف (يومي · أسبوعي · شهري)</span>
-        <b>{{ fmt(dayLimit) }} / يوم · {{ fmt(weekLimit) }} / أسبوع · {{ fmt(totalLimit) }} / راتب</b>
-        <small class="muted">صرفت لحد دلوقتي {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} ({{ totalLimit ? Math.round((cycleSpent / totalLimit) * 100) : 0 }}٪) · اضغط للتعديل ←</small>
+      <button class="navrow2" @click="emit('go', 'limits')">
+        <span class="n2ic">🔔</span>
+        <span class="n2mid">
+          <span class="n2t">حدود الصرف</span>
+          <b>يوم {{ fmt(dayLimit) }} · أسبوع {{ fmt(weekLimit) }} · راتب {{ fmt(totalLimit) }}</b>
+          <small class="muted">صرفت {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} ({{ totalLimit ? Math.round((cycleSpent / totalLimit) * 100) : 0 }}٪)</small>
+        </span>
+        <span class="n2go">تعديل<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg></span>
       </button>
       <label class="sw">
         <span><b>نبّهني لما أقرّب أو أعدّي الحد</b><br /><small class="muted">إشعار عند ٨٠٪ وعند تخطي الحد</small></span>
@@ -207,8 +211,13 @@ async function clearImp() { if (await ask('تمسح العمليات اللي ا
 .det { background: var(--accent-soft); border-radius: 14px; padding: 10px 12px; margin-top: 10px }
 .det .chip { display: inline-block; background: var(--surface); border-radius: 99px; padding: 3px 10px; font-size: 12.5px; margin: 6px 0 0 6px; font-variant-numeric: tabular-nums }
 .about { text-align: center; margin: 18px 20px; line-height: 1.7 }
-.navrow2 { width: 100%; text-align: right; border: 0; background: var(--surface-2); border-radius: 14px; padding: 12px; font: inherit; color: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 3px }
-.navrow2 b { font-variant-numeric: tabular-nums; font-size: 14px }
+.navrow2 { width: 100%; margin-top: 12px; text-align: right; border: 1px solid var(--line); background: var(--surface); border-radius: 16px; padding: 12px; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); transition: transform .1s, background .15s }
+.navrow2:active { transform: scale(.98); background: var(--surface-2) }
+.n2ic { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); display: grid; place-items: center; font-size: 18px; flex: none }
+.n2mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+.n2t { font-size: 13px; color: var(--ink-2) }
+.navrow2 b { font-variant-numeric: tabular-nums; font-size: 13.5px }
+.n2go { flex: none; display: flex; align-items: center; gap: 2px; color: var(--accent); font-size: 13px; font-weight: 600; background: var(--accent-soft); border-radius: 99px; padding: 6px 8px 6px 10px }
 .bk { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
 .bk .btn { margin: 0 }
 </style>
