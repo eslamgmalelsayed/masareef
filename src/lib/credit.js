@@ -51,9 +51,21 @@ export const creditCards = computed(() => {
     const [kb, kc] = key.split('|')
     const withBal = list.filter((t) => t.bal != null)
     const last = withBal[0] || null
-    // الحد التقديري: أعلى "متاح" ظهر في آخر سنة، مقرّب لأقرب ١٠٠٠
-    const yearBal = withBal.filter((t) => now - t.ts < 365 * DAY).map((t) => t.bal)
-    const inferred = yearBal.length ? Math.max(1000, Math.round(Math.max(...yearBal) / 1000) * 1000) : 0
+    // الحد التقديري = المتاح + المستحق. المتاح بييجي في الرسالة، والمستحق بنعرفه من أول رسالة فيها رصيد:
+    // قبلها المستحق كان صفر أو أكتر، فالحد ≥ (أول متاح + اللي اتصرف قبله − اللي اتسدد قبله).
+    // وكمان الحد ≥ أعلى متاح ظهر (مقرّب لتحت لأقرب ١٠٠٠، علشان لو سددت زيادة المتاح بيعدّي الحد شوية)
+    let inferred = 0
+    if (withBal.length) {
+      let net = 0, first = null
+      for (let i = list.length - 1; i >= 0; i--) {
+        const t = list[i]
+        if (t.k === 'ccpay' || t.k === 'refund') net -= t.a
+        else if (SPEND.has(t.k)) net += t.a
+        if (t.bal != null) { first = t.bal + net; break }
+      }
+      const maxBal = Math.max(...withBal.map((t) => t.bal))
+      inferred = Math.max(1000, Math.round((first || 0) / 100) * 100, Math.floor(maxBal / 1000) * 1000)
+    }
     const limit = Number(s.limit) || inferred
     const alertPct = s.alertPct === 0 ? 0 : Number(s.alertPct) || 80 // 0 = التنبيه مقفول
 
@@ -69,7 +81,7 @@ export const creditCards = computed(() => {
       outstanding = base.owed
       for (const t of list) {
         if (t.ts <= base.ts) break
-        if (t.k === 'ccpay') outstanding -= t.a
+        if (t.k === 'ccpay' || t.k === 'refund') outstanding -= t.a
         else if (SPEND.has(t.k) && (t.bal == null || base.src === 'manual')) outstanding += t.a
       }
     }
