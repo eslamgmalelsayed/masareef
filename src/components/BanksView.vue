@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { allTx } from '../lib/store.js'
+import { allTx, state, addBank, dismissBank, removeBank } from '../lib/store.js'
+import { KNOWN_NAMES } from '../lib/parser.js'
+import { fmtDate as fd } from '../lib/format.js'
 import { fmt, fmtDate } from '../lib/format.js'
 import DateRange from './DateRange.vue'
 import { creditCards, utilLevel } from '../lib/credit.js'
@@ -62,6 +64,15 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
     <header class="hd"><h1>البنوك</h1></header>
     <DateRange v-model="range" />
 
+    <section v-for="b in state.bankSuggestions.slice(0, 2)" :key="b.address" class="card newbank">
+      <b>🏦 بنك جديد؟</b>
+      <div class="sm">لقينا {{ b.n }} رسالة شكلها عمليات بنكية من <b dir="ltr">{{ b.address }}</b> — آخرها {{ fd(b.last, { day: 'numeric', month: 'short' }) }}</div>
+      <div class="nbact">
+        <button class="add" @click="addBank(b.address)">ضيفه{{ KNOWN_NAMES[b.address.toLowerCase()] ? ' (' + KNOWN_NAMES[b.address.toLowerCase()] + ')' : '' }}</button>
+        <button class="link" @click="dismissBank(b.address)">مش بنك</button>
+      </div>
+    </section>
+
     <section class="sum">
       <div><span class="muted xs">المصروفات</span><b>{{ fmt(totals.spend) }}</b></div>
       <div><span class="muted xs">منها بالكريدت</span><b>{{ fmt(totals.credit) }}</b></div>
@@ -110,6 +121,10 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
       </div>
     </section>
     <p v-if="!banks.length" class="muted" style="text-align: center; margin-top: 40px">مفيش عمليات في الفترة دي</p>
+    <div v-if="Object.keys(state.settings.extraBanks || {}).length" class="card extra">
+      <b class="sm">بنوك ضفتها</b>
+      <div v-for="(n, k) in state.settings.extraBanks" :key="k" class="exrow"><span>{{ n }} <small class="muted" dir="ltr">{{ k }}</small></span><button class="link xs" @click="removeBank(k)">شيله</button></div>
+    </div>
     <p class="muted xs note">الأرقام من رسايل البنك. "آخر رصيد" و"المتاح" بيظهروا لو البنك بيكتبهم في الرسالة.</p>
   </div>
 </template>
@@ -142,4 +157,9 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
 .due { margin-top: 8px; color: var(--ink-2) } .due.soon { color: var(--bad); font-weight: 600 }
 .hint { margin-top: 6px }
 .note { text-align: center; margin: 14px 20px }
+.newbank { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); display: flex; flex-direction: column; gap: 6px }
+.nbact { display: flex; align-items: center; gap: 14px; margin-top: 4px }
+.nbact .add { border: 0; border-radius: 12px; padding: 9px 16px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
+.extra { display: flex; flex-direction: column; gap: 6px }
+.exrow { display: flex; justify-content: space-between; align-items: center; font-size: 14px }
 </style>

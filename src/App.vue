@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { state, syncSms, allTx } from './lib/store.js'
+import { state, syncSms, allTx, findNewBanks } from './lib/store.js'
 import { isNative, isIOS, biometricAuth } from './lib/smsSource.js'
 import { privacy } from './lib/format.js'
 import LockScreen from './components/LockScreen.vue'
@@ -22,6 +22,12 @@ import CommitView from './components/CommitView.vue'
 import TransfersView from './components/TransfersView.vue'
 import SavingsView from './components/SavingsView.vue'
 import DebtsView from './components/DebtsView.vue'
+import ToolsView from './components/ToolsView.vue'
+import FundsView from './components/FundsView.vue'
+import WorthView from './components/WorthView.vue'
+import ZakatView from './components/ZakatView.vue'
+import EventsView from './components/EventsView.vue'
+import './lib/tools.js'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -32,6 +38,9 @@ const adding = ref(null) // null | {} (جديد) | tx (تعديل)
 
 const prevTab = ref('home')
 const creditSel = ref('')
+// رجوع: للصفحة الفرعية اللي قبلها (لو جيت من الأدوات) أو للتاب
+function back() { const p = stack.pop(); if (p) { tab.value = p; window.scrollTo(0, 0) } else go(prevTab.value) }
+
 // ===== قفل التطبيق =====
 const locked = ref(isNative && !!state.settings.lock)
 const lockErr = ref('')
@@ -48,10 +57,12 @@ async function unlock() {
 // إخفاء المبالغ: نغبّش الرسوم البيانية كمان
 watch(() => privacy.on, (v) => document.body.classList.toggle('privacy', v), { immediate: true })
 
-const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts']
-function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t) && !SUB.includes(tab.value)) prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
+const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
+const HOME_SUB = ['commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
+const stack = []
+function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t)) { if (!SUB.includes(tab.value)) { prevTab.value = tab.value; stack.length = 0 } else if (tab.value !== t) stack.push(tab.value) } else stack.length = 0; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
-onMounted(() => { syncSms(); checkUpdate() })
+onMounted(() => { syncSms().then(findNewBanks); checkUpdate() })
 const refresh = () => Promise.all([syncSms(), checkUpdate()])
 
 // زرار الرجوع في أندرويد
@@ -59,7 +70,7 @@ if (isNative) {
   CapApp.addListener('backButton', () => {
     if (adding.value) adding.value = null
     else if (sheet.value) sheet.value = null
-    else if (SUB.includes(tab.value)) go(prevTab.value)
+    else if (SUB.includes(tab.value)) back()
     else if (tab.value !== 'home') go('home')
     else CapApp.exitApp()
   })
@@ -86,12 +97,17 @@ const tabs = [
     <LockScreen v-if="locked" :error="lockErr" @unlock="unlock" />
     <PullRefresh :on-refresh="refresh" :disabled="!!sheet || !!adding" />
     <SettingsView v-if="tab === 'settings'" @go="go" />
-    <LimitsView v-else-if="tab === 'limits'" @back="go(prevTab)" />
-    <CommitView v-else-if="tab === 'commit'" @back="go(prevTab)" @open="(t) => (sheet = t)" />
-    <TransfersView v-else-if="tab === 'transfers'" @back="go(prevTab)" @open="(t) => (sheet = t)" />
-    <SavingsView v-else-if="tab === 'savings'" @back="go(prevTab)" />
-    <DebtsView v-else-if="tab === 'debts'" @back="go(prevTab)" @go="go" />
-    <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="go(prevTab)" @open="(t) => (sheet = t)" @go="go" />
+    <LimitsView v-else-if="tab === 'limits'" @back="back" />
+    <CommitView v-else-if="tab === 'commit'" @back="back" @open="(t) => (sheet = t)" />
+    <TransfersView v-else-if="tab === 'transfers'" @back="back" @open="(t) => (sheet = t)" />
+    <SavingsView v-else-if="tab === 'savings'" @back="back" />
+    <DebtsView v-else-if="tab === 'debts'" @back="back" @go="go" />
+    <ToolsView v-else-if="tab === 'tools'" @back="back" @go="go" />
+    <FundsView v-else-if="tab === 'funds'" @back="back" />
+    <WorthView v-else-if="tab === 'worth'" @back="back" @go="go" />
+    <ZakatView v-else-if="tab === 'zakat'" @back="back" @go="go" />
+    <EventsView v-else-if="tab === 'events'" @back="back" @open="(t) => (sheet = t)" />
+    <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="back" @open="(t) => (sheet = t)" @go="go" />
 
     <div v-else-if="state.status === 'loading' && !allTx.length" class="splash">
       <div class="spinner"></div>
@@ -127,7 +143,7 @@ const tabs = [
     </template>
     
     <nav class="tabbar">
-      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') || (t.id === 'home' && ['commit', 'transfers', 'savings', 'debts'].includes(tab)) }" @click="go(t.id)">
+      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') || (t.id === 'home' && HOME_SUB.includes(tab)) }" @click="go(t.id)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="t.i" /></svg>
         <span>{{ t.l }}</span>
       </button>

@@ -1,7 +1,7 @@
 import { reactive, computed, watch, ref } from 'vue'
-import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile, BNPL_SENDERS, parseBnplMessages } from './parser.js'
+import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile, BNPL_SENDERS, parseBnplMessages, setExtraBanks, KNOWN_NAMES } from './parser.js'
 import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
-import { isNative, readSms, saveNativeConfig } from './smsSource.js'
+import { isNative, readSms, saveNativeConfig, listSenders } from './smsSource.js'
 import { privacy } from './format.js'
 
 const LS = {
@@ -42,6 +42,7 @@ export const state = reactive({
   manualTx: LS.get('manualTx', []), // مصاريف بتضيفها بإيدك
   webMsgs: LS.get('webMsgs', []), // نسخة الويب: رسايل بنك ملزوقة بإيدك
   bnplSms: [], // خطط تابي/تمارا من رسايلهم
+  bankSuggestions: [], // بنوك جديدة لقيناها
   importedBnpl: LS.get('importedBnpl', []),
   status: 'idle', // idle | loading | ready | denied | error
   error: '',
@@ -49,6 +50,36 @@ export const state = reactive({
 })
 
 export function saveSettings() { LS.set('settings', state.settings) }
+setExtraBanks(state.settings.extraBanks)
+const allSenders = () => [...Object.keys(BANKS), ...Object.keys(state.settings.extraBanks || {})]
+
+/** بنك جديد: راسلين بيبعتوا رسايل شكلها عمليات بنكية ومش في القائمة */
+export async function findNewBanks() {
+  const dismissed = new Set(state.settings.bankDismiss || [])
+  const list = await listSenders([...allSenders(), ...BNPL_SENDERS])
+  state.bankSuggestions = list.filter((x) => !dismissed.has(x.address.toLowerCase())).sort((a, b) => b.n - a.n)
+}
+export function addBank(address, name) {
+  const k = address.trim().toLowerCase()
+  state.settings.extraBanks = { ...(state.settings.extraBanks || {}), [k]: name || KNOWN_NAMES[k] || address }
+  setExtraBanks(state.settings.extraBanks)
+  state.bankSuggestions = state.bankSuggestions.filter((x) => x.address.toLowerCase() !== k)
+  saveSettings()
+  syncSms()
+}
+export function dismissBank(address) {
+  state.settings.bankDismiss = [...(state.settings.bankDismiss || []), address.toLowerCase()]
+  state.bankSuggestions = state.bankSuggestions.filter((x) => x.address.toLowerCase() !== address.toLowerCase())
+  saveSettings()
+}
+export function removeBank(k) {
+  const m = { ...(state.settings.extraBanks || {}) }
+  delete m[k]
+  state.settings.extraBanks = m
+  setExtraBanks(m)
+  saveSettings()
+  syncSms()
+}
 
 const split = (s) => String(s || '').split(/[,،\n]/).map((x) => x.trim()).filter(Boolean)
 /** القيم اللي بتكتبها بإيدك ليها الأولوية، وإلا اللي اتعرف عليه تلقائيًا */
@@ -86,7 +117,7 @@ export async function syncSms() {
   state.status = 'loading'
   state.error = ''
   try {
-    const all = await readSms([...Object.keys(BANKS), ...BNPL_SENDERS])
+    const all = await readSms([...allSenders(), ...BNPL_SENDERS])
     const isBnpl = (m) => BNPL_SENDERS.includes(String(m.address || '').trim().toLowerCase())
     rawSms = all.filter((m) => !isBnpl(m))
     state.bnplSms = parseBnplMessages(all.filter(isBnpl).concat(rawSms))
@@ -288,6 +319,23 @@ export function salaryFor(from, to) {
 }
 
 /** مصروف الدورة الحالية لكل بند (شامل التحويلات — الحد بيتحسب على البند نفسه) */
+/** صرف كل بند في الراتب اللي فات */
+export const prevCycleByCat = computed(() => {
+  const c = cycles.value
+  if (c.length < 2) return null
+  const p = c[c.length - 2]
+  const m = {}
+  for (const t of allTx.value) if (OUT_KINDS.has(t.k) && t.d >= p.from && t.d <= p.to) m[t.c] = (m[t.c] || 0) + t.a
+  return m
+})
+/** حدود البنود الفعلية: لو الترحيل شغال، الباقي (أو الزيادة) من الراتب اللي فات بيتنقل */
+export const effLimits = computed(() => {
+  const L = state.settings.limits || {}
+  const prev = prevCycleByCat.value
+  if (!state.settings.rollover || !prev) return L
+  return Object.fromEntries(Object.entries(L).map(([k, v]) => [k, Math.max(0, Math.round(v + (v - (prev[k] || 0))))]))
+})
+
 export const cycleByCat = computed(() => {
   const start = currentCycle.value.from
   const m = {}
@@ -390,7 +438,7 @@ function pushNativeConfig() {
     cycle: currentCycle.value.id,
     totals: { ...cycleByCat.value, __total: cycleSpent.value, __day: daySpent.value, __week: weekSpent.value },
     limits: {
-      ...(state.settings.limits || {}),
+      ...effLimits.value,
       ...Object.fromEntries((state.settings.groups || []).filter((g) => g.limit && g.cats.length).map((g) => [g.id, g.limit])),
       ...(state.settings.totalAlert !== false && totalLimit.value ? { __total: totalLimit.value } : {}),
       ...(state.settings.totalAlert !== false && dayLimit.value ? { __day: dayLimit.value } : {}),
@@ -401,14 +449,14 @@ function pushNativeConfig() {
     names: { ...Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name])), __total: 'إجمالي المصروفات', __day: 'الصرف اليومي', __week: 'الصرف الأسبوعي', ...Object.fromEntries((state.settings.groups || []).map((g) => [g.id, g.name])) },
     rules: RULES.map(([c, rx]) => [c, rx.source]),
     overrides: state.overrides,
-    senders: Object.keys(BANKS),
+    senders: allSenders().map((x) => x.toLowerCase()),
     widget: { day: dayLimit.value, cycle: totalLimit.value, daySpent: daySpent.value, cycleSpent: cycleSpent.value, hide: privacy.on },
     ...nativeExtra,
   })
 }
 let pushTimer = null
 watch(
-  () => [state.status, nativeExtra, privacy.on, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, nativeExtra, privacy.on, state.settings.extraBanks, state.settings.rollover, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

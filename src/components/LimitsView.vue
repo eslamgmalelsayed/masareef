@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays, saveGroup, deleteGroup } from '../lib/store.js'
+import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays, saveGroup, deleteGroup, effLimits, prevCycleByCat } from '../lib/store.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { isNative, requestNotifications, notify } from '../lib/smsSource.js'
 import { fmt, DAY } from '../lib/format.js'
@@ -26,10 +26,10 @@ const avg3 = computed(() => {
 const salPct = (v) => (lastSalary.value ? Math.round((v / lastSalary.value) * 100) + '٪ من الراتب' : '')
 
 const rows = computed(() =>
-  CATEGORIES.filter((c) => !c.hidden).map((c) => ({ ...c, spent: cycleByCat.value[c.id] || 0, avg: avg3.value[c.id] || 0, limit: state.settings.limits?.[c.id] || 0 }))
+  CATEGORIES.filter((c) => !c.hidden).map((c) => { const base = state.settings.limits?.[c.id] || 0; const limit = effLimits.value[c.id] || 0; return { ...c, spent: cycleByCat.value[c.id] || 0, avg: avg3.value[c.id] || 0, base, limit, carry: limit - base } })
     .sort((a, b) => b.avg - a.avg),
 )
-const level = (r) => (!r.limit ? '' : r.spent >= r.limit ? 'over' : r.spent >= 0.8 * r.limit ? 'warn' : 'ok')
+const level = (r) => (!r.base && !r.limit ? '' : r.spent >= r.limit ? 'over' : r.spent >= 0.8 * r.limit ? 'warn' : 'ok')
 
 // حدود الصرف: بتكتب واحد بس والباقي بيتحسب منه (اليومي × ٧ = الأسبوعي، اليومي × أيام الراتب = الشهري)
 const NAMES = { day: 'اليومي', week: 'الأسبوعي', month: 'الشهري' }
@@ -173,6 +173,10 @@ function suggest(r) {
     </section>
 
     <h2 class="sec">حدود البنود (لكل راتب)</h2>
+    <label class="card sw3">
+      <span><b>رحّل الباقي للراتب الجاي</b><br /><small class="muted">لو صرفت أقل من الحد، الباقي يتضاف على حد الراتب الجاي — ولو زودت، الزيادة تتخصم منه</small></span>
+      <input type="checkbox" :checked="!!state.settings.rollover" @change="(e) => { state.settings.rollover = e.target.checked; saveSettings() }" />
+    </label>
     <section class="card">
       <div v-for="r in rows" :key="r.id" class="lim" :class="level(r)">
         <div class="top">
@@ -185,15 +189,16 @@ function suggest(r) {
             </div>
           </div>
           <label class="inp">
-            <input type="number" inputmode="numeric" min="0" step="50" :value="r.limit || ''" placeholder="بدون حد" @change="(e) => change(r, e)" />
+            <input type="number" inputmode="numeric" min="0" step="50" :value="r.base || ''" placeholder="بدون حد" @change="(e) => change(r, e)" />
           </label>
         </div>
-        <template v-if="r.limit">
-          <div class="bar"><i :style="{ width: Math.min(100, (r.spent / r.limit) * 100) + '%' }"></i></div>
+        <template v-if="r.base">
+          <div class="bar"><i :style="{ width: Math.min(100, (r.spent / Math.max(1, r.limit)) * 100) + '%' }"></i></div>
           <div class="xs stat">
             <span v-if="r.spent < r.limit">باقي {{ fmt(r.limit - r.spent) }} ر.س</span>
             <span v-else>عدّيت الحد بـ {{ fmt(r.spent - r.limit) }} ر.س</span>
-            <span>{{ Math.round((r.spent / r.limit) * 100) }}٪ · الحد = {{ salPct(r.limit) }}</span>
+            <span v-if="r.carry">{{ r.carry > 0 ? '+' : '−' }}{{ fmt(Math.abs(r.carry)) }} من الراتب اللي فات · {{ Math.round((r.spent / Math.max(1, r.limit)) * 100) }}٪</span>
+            <span v-else>{{ Math.round((r.spent / r.limit) * 100) }}٪ · الحد = {{ salPct(r.limit) }}</span>
           </div>
         </template>
         <button v-else-if="r.avg >= 50" class="link xs sug" @click="suggest(r)">اقترح حد ({{ fmt(Math.ceil(r.avg / 50) * 50) }})</button>
@@ -210,6 +215,8 @@ function suggest(r) {
 .sec { font-size: 15px; margin: 6px 4px 8px }
 .pi { background: var(--surface-2) }
 .sec-note { margin: -4px 4px 8px }
+.sw3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; font-size: 13.5px }
+.sw3 input { width: 20px; height: 20px; accent-color: var(--accent); flex: none }
 .gic { background: var(--surface-2); font-size: 12px; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 0 }
 .gic i { font-style: normal; line-height: 1.1 }
 .addg { width: 100%; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: none; color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px }

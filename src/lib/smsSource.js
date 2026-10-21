@@ -68,3 +68,9 @@ export async function biometricAuth(title = 'افتح مصاريفي') {
   if (!isNative) return { ok: true }
   try { return await SmsReader.biometricAuth({ title }) } catch (e) { return { ok: false, error: String(e) } }
 }
+
+/** راسلين جداد شكلهم بنوك: [{address, n, last}] */
+export async function listSenders(known) {
+  if (!isNative || isIOS) return []
+  try { return (await SmsReader.listSenders({ known })).senders || [] } catch { return [] }
+}

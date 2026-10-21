@@ -1,8 +1,7 @@
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { allTx, state, saveSettings, income } from './store.js'
-import { creditCards, dueReminders } from './credit.js'
+import { creditCards } from './credit.js'
 import { activePlans } from './insights.js'
-import { scheduleReminders } from './smsSource.js'
 
 const DAY = 864e5
 const norm = (s) => String(s || '').toLowerCase().replace(/[\s,،.*\-_]/g, '')
@@ -137,14 +136,7 @@ export const debtReminders = computed(() => {
   }
   return out
 })
-let lastSig = ''
-watch([dueReminders, debtReminders], ([a, b]) => {
-  const items = [...a, ...b]
-  const sig = JSON.stringify(items.map((x) => [x.id, x.text]))
-  if (sig === lastSig) return
-  lastSig = sig
-  scheduleReminders(items)
-}, { immediate: true })
+// الجدولة نفسها في tools.js (بتجمع الكريدت + الديون + الزكاة)
 
 /** رسالة لطيفة تفكّر بيها حد بالفلوس اللي عليه */
 export function nudgeText(d) {

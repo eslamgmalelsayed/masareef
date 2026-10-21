@@ -20,6 +20,7 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
         CAPPluginMethod(name: "scheduleReminders", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveCredit", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "biometricAvailable", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listSenders", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "biometricAuth", returnType: CAPPluginReturnPromise),
     ]
 
@@ -104,6 +105,9 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
     }
 
     // ===== قفل التطبيق بـ Face ID / Touch ID / رمز الموبايل =====
+    /// على آيفون مفيش صندوق رسايل نقرا منه — البنك الجديد بيتضاف من الاختصار
+    @objc func listSenders(_ call: CAPPluginCall) { call.resolve(["senders": []]) }
+
     @objc func biometricAvailable(_ call: CAPPluginCall) {
         let c = LAContext()
         var err: NSError?

@@ -63,6 +63,43 @@ public class SmsReaderPlugin extends Plugin {
         }
     }
 
+    // ===== بنك جديد؟ بندوّر على راسلين بيبعتوا رسايل شكلها عمليات بنكية (بنرجّع الاسم والعدد بس — مش الرسايل) =====
+    private static final java.util.regex.Pattern P_MONEY = java.util.regex.Pattern.compile("(SAR|SR|ر\\.?\\s?س|ريال)\\s*[\\d,]+|[\\d,]+(\\.\\d+)?\\s*(SAR|SR|ر\\.?\\s?س|ريال)", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern P_TX = java.util.regex.Pattern.compile("شراء|Purchase|حوالة|خصم|debited|credited|إيداع|ايداع|سحب|withdraw|POS", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern P_BANKY = java.util.regex.Pattern.compile("بطاقة|card|مدى|mada|حساب|account|IBAN|آيبان|ايبان|حوالة|transfer", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern P_NOT = java.util.regex.Pattern.compile("OTP|رمز التحقق|verification|code|كود|باقة|bundle|recharge|شحن|عرض|offer|٪|%|كوبون|coupon|نقاط|points", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    @PluginMethod
+    public void listSenders(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) { JSObject r = new JSObject(); r.put("senders", new JSArray()); call.resolve(r); return; }
+        Set<String> known = new HashSet<>();
+        JSArray arr = call.getArray("known");
+        if (arr != null) for (int i = 0; i < arr.length(); i++) { try { known.add(arr.getString(i).trim().toLowerCase(Locale.ROOT)); } catch (Exception ignored) { } }
+        new Thread(() -> {
+            java.util.Map<String, long[]> by = new java.util.HashMap<>();
+            long since = System.currentTimeMillis() - 120L * 86400000L;
+            try (Cursor c = getContext().getContentResolver().query(Uri.parse("content://sms/inbox"), new String[] { "address", "body", "date" }, "date > ?", new String[] { String.valueOf(since) }, null)) {
+                if (c != null) while (c.moveToNext()) {
+                    String a = c.getString(0), b = c.getString(1);
+                    if (a == null || b == null) continue;
+                    String k = a.trim().toLowerCase(Locale.ROOT);
+                    if (known.contains(k) || k.matches("^\\+?\\d+$") || k.endsWith("-ad")) continue;
+                    if (!P_MONEY.matcher(b).find() || !P_TX.matcher(b).find() || !P_BANKY.matcher(b).find() || P_NOT.matcher(b).find()) continue;
+                    long[] o = by.get(a.trim());
+                    if (o == null) { o = new long[2]; by.put(a.trim(), o); }
+                    o[0]++; o[1] = Math.max(o[1], c.getLong(2));
+                }
+            } catch (Exception ignored) { }
+            JSArray out = new JSArray();
+            for (java.util.Map.Entry<String, long[]> e : by.entrySet()) {
+                if (e.getValue()[0] < 5) continue;
+                JSObject o = new JSObject(); o.put("address", e.getKey()); o.put("n", e.getValue()[0]); o.put("last", e.getValue()[1]);
+                out.put(o);
+            }
+            JSObject r = new JSObject(); r.put("senders", out); call.resolve(r);
+        }).start();
+    }
+
     // ===== قفل التطبيق بالبصمة / الوش / رمز الموبايل =====
     private int authenticators() {
         return Build.VERSION.SDK_INT >= 30

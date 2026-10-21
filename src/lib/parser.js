@@ -13,10 +13,16 @@ export const BANKS = {
   __ios__: 'رسالة بنك', // رسالة جت من اختصار آيفون من غير اسم الراسل
 }
 
+// بنوك ضفتها انت (التطبيق اقترحها لما لقى رسايل شكلها عمليات بنكية من راسل جديد)
+const EXTRA = {}
+export function setExtraBanks(map) { for (const k of Object.keys(EXTRA)) delete EXTRA[k]; Object.assign(EXTRA, map || {}) }
+// أسماء عربي للبنوك المعروفة لما تتضاف
+export const KNOWN_NAMES = { riyadbank: 'الرياض', sab: 'ساب', anb: 'العربي', bsf: 'الفرنسي', albilad: 'البلاد', bankalbilad: 'البلاد', aljazira: 'الجزيرة', bankaljazira: 'الجزيرة', saib: 'الاستثمار', d360: 'D360', barq: 'برق', 'mobily pay': 'Mobily Pay', tiqmo: 'tiqmo', 'friendi pay': 'Friendi Pay', alrajhib: 'الراجحي' }
+
 export function bankOf(address) {
   if (!address) return null
   const k = address.trim().toLowerCase()
-  return BANKS[k] || null
+  return BANKS[k] || EXTRA[k] || null
 }
 
 const NUM = String.raw`([\d,]+(?:\.\d*)?)`

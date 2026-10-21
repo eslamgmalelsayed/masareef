@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, dayLimit, weekLimit, levelOf } from '../lib/store.js'
+import { computed, ref } from 'vue'
+import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, effLimits, dayLimit, weekLimit, levelOf } from '../lib/store.js'
 import { CAT } from '../lib/categories.js'
 import { privacy, setPrivacy, fmt, fmtDate, sum, byCategory, startOfDay, startOfWeek, DAY } from '../lib/format.js'
 import BarChart from './BarChart.vue'
@@ -11,6 +11,7 @@ import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
 import { totals as debtTotals } from '../lib/debts.js'
+import { safeToSpend, activeEvent } from '../lib/tools.js'
 import { commitments, transfers, savings, saveGoal, unusual, dismissFlag, salarySummary, dismissSummary } from '../lib/insights.js'
 
 const emit = defineEmits(['open', 'go'])
@@ -30,7 +31,8 @@ const week = computed(() => sum(since(startOfWeek())))
 
 // الأيام اللي فاضلة للراتب الجاي، والمسموح تصرفه في اليوم
 const daysLeft = computed(() => (nextSalaryDate.value ? Math.max(1, Math.ceil((nextSalaryDate.value - now) / DAY)) : 0))
-const perDayAllowed = computed(() => (saveGoal.value ? savings.value.perDay : daysLeft.value && left.value > 0 ? left.value / daysLeft.value : 0))
+const perDayAllowed = computed(() => safeToSpend.value.perDay)
+const showSafe = ref(false)
 const elapsed = computed(() => Math.max(1, (now - cyc.value.from) / DAY))
 const projected = computed(() => {
   const total = elapsed.value + daysLeft.value
@@ -66,7 +68,7 @@ const last6 = computed(() => {
 
 const limits = computed(() =>
   [
-    ...Object.entries(state.settings.limits || {}).map(([id, limit]) => ({ id, limit, spent: cycleByCat.value[id] || 0, label: CAT[id].icon + ' ' + CAT[id].name })),
+    ...Object.entries(effLimits.value).filter(([, l]) => l > 0).map(([id, limit]) => ({ id, limit, spent: cycleByCat.value[id] || 0, label: CAT[id].icon + ' ' + CAT[id].name })),
     ...(state.settings.groups || []).filter((g) => g.limit).map((g) => ({ id: g.id, limit: g.limit, spent: g.cats.reduce((x, c) => x + (cycleByCat.value[c] || 0), 0), label: g.cats.slice(0, 3).map((c) => CAT[c]?.icon).join('') + ' ' + g.name })),
   ]
     .map((r) => ({ ...r, pct: r.spent / r.limit, lvl: r.spent >= r.limit ? 'over' : r.spent >= 0.8 * r.limit ? 'warn' : 'ok' }))
@@ -113,7 +115,11 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
         <div class="split3">
           <div :class="'pl ' + levelOf(today, dayLimit)"><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div><div v-if="dayLimit" class="of">من {{ fmt(dayLimit) }}</div></div>
           <div :class="'pl ' + levelOf(week, weekLimit)"><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div><div v-if="weekLimit" class="of">من {{ fmt(weekLimit) }}</div></div>
-          <div><div class="lbl">تقدر تصرف/يوم<template v-if="saveGoal"> 🎯</template></div><div class="mid">{{ fmt(perDayAllowed) }}</div></div>
+          <div class="safe" @click="showSafe = !showSafe"><div class="lbl">تقدر تصرف/يوم ⓘ</div><div class="mid">{{ fmt(perDayAllowed) }}</div></div>
+        </div>
+        <div v-if="showSafe" class="safebox" @click="showSafe = false">
+          <div v-for="p in safeToSpend.parts" :key="p.k" class="sr"><span>{{ p.label }}</span><b dir="ltr">{{ p.v < 0 ? '−' : '' }}{{ fmt(Math.abs(p.v)) }}</b></div>
+          <div class="sr tot"><span>÷ {{ safeToSpend.days }} يوم للراتب</span><b>{{ fmt(perDayAllowed) }} / يوم</b></div>
         </div>
         <div class="foot" v-if="nextSalaryDate">
           الراتب الجاي تقريبًا {{ fmtDate(nextSalaryDate, { day: 'numeric', month: 'short' }) }} (بعد {{ daysLeft }} يوم) · بالمعدل ده هتقفل على {{ fmt(projected) }} ({{ Math.round((projected / limit) * 100) }}٪ من الحد)
@@ -133,13 +139,18 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       <button class="chip" @click="emit('go', 'debts')">
         <span class="ci">💸</span><span><small>{{ debtTotals.lent > 0 ? 'عليّا · ليّا' : 'الديون' }}</small><b>{{ debtTotals.owed || debtTotals.lent ? fmt(debtTotals.owed) + (debtTotals.lent > 0 ? ' · ' + fmt(debtTotals.lent) : '') : 'ضيف ←' }}</b></span>
       </button>
-      <button class="chip" v-if="transfers.count" @click="emit('go', 'transfers')">
-        <span class="ci">🌍</span><span><small>حوالات الراتب ده</small><b>{{ fmt(transfers.cycle) }}</b></span>
-      </button>
       <button class="chip" @click="emit('go', 'savings')">
         <span class="ci">🎯</span><span><small>{{ saveGoal ? (savings.onTrack ? 'الادخار: ماشي صح' : 'الادخار: متأخر') : 'هدف الادخار' }}</small><b>{{ saveGoal ? fmt(Math.max(0, savings.projected)) + ' / ' + fmt(saveGoal) : 'حدده ←' }}</b></span>
       </button>
+      <button class="chip tools" @click="emit('go', 'tools')">
+        <span class="ci">🧰</span><span><small>كل الأدوات</small><b>صناديق · زكاة · ثروة…</b></span>
+      </button>
     </div>
+
+    <section v-if="activeEvent" class="card note evb" @click="emit('go', 'events')">
+      <b>{{ activeEvent.icon }} {{ activeEvent.name }} شغال</b>
+      <div class="sm">صرفت <b>{{ fmt(activeEvent.total) }}</b> في {{ activeEvent.days }} {{ activeEvent.days === 1 ? 'يوم' : 'أيام' }} · اضغط علشان تقفله</div>
+    </section>
 
     <section v-if="salarySummary" class="card note sum">
       <button class="x" @click="dismissSummary(salarySummary.id)">×</button>
@@ -253,4 +264,10 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .ntx { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; color: inherit; text-align: right; cursor: pointer }
 .eye { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; flex: none; align-self: center }
 .eye.on { background: var(--accent); border-color: var(--accent); color: #fff }
+.safe { cursor: pointer }
+.safebox { margin-top: 12px; background: rgba(255,255,255,.1); border-radius: 14px; padding: 8px 12px; font-size: 12.5px; cursor: pointer }
+.safebox .sr { display: flex; justify-content: space-between; padding: 4px 0 }
+.safebox .sr b { font-variant-numeric: tabular-nums }
+.safebox .tot { border-top: 1px solid rgba(255,255,255,.2); margin-top: 4px; padding-top: 8px; font-weight: 600 }
+.note.evb { border-color: #0369a1; background: color-mix(in srgb, #0369a1 7%, var(--surface)); cursor: pointer }
 </style>

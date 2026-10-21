@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { savings } from '../lib/insights.js'
+import { safeToSpend } from '../lib/tools.js'
 import { state, saveSettings } from '../lib/store.js'
 import { fmt } from '../lib/format.js'
 
@@ -39,7 +40,7 @@ function setGoal(e) {
       <span class="lbl">ده اللي متوقع يفضل معاك آخر الراتب</span>
       <div class="track"><i :style="{ width: pct + '%' }"></i></div>
       <div class="split">
-        <div><span class="lbl">تقدر تصرف/يوم</span><b>{{ fmt(S.perDay) }}</b></div>
+        <div><span class="lbl">تقدر تصرف/يوم</span><b>{{ fmt(safeToSpend.perDay) }}</b></div>
         <div><span class="lbl">فاضل للراتب</span><b>{{ S.daysLeft }} يوم</b></div>
         <div><span class="lbl">معاك دلوقتي</span><b>{{ fmt(Math.max(0, S.soFar)) }}</b></div>
       </div>

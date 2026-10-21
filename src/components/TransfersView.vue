@@ -1,11 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { transfers } from '../lib/insights.js'
+import { remit, saveRemit } from '../lib/tools.js'
 import { fmt, fmtDate } from '../lib/format.js'
 
 const emit = defineEmits(['back', 'open'])
 const T = computed(() => transfers.value)
 const open = ref('')
+const R = computed(() => remit.value)
 const maxM = computed(() => Math.max(1, ...T.value.months.map((m) => m.v)))
 </script>
 
@@ -26,6 +28,26 @@ const maxM = computed(() => Math.max(1, ...T.value.months.map((m) => m.v)))
           <div><span class="lbl">الراتب ده</span><b>{{ fmt(T.cycle) }}</b></div>
           <div><span class="lbl">متوسط الشهر</span><b>{{ fmt(T.year / 12) }}</b></div>
           <div><span class="lbl">رسوم دفعتها</span><b>{{ fmt(T.fees) }}</b></div>
+        </div>
+      </section>
+
+      <section class="card plan">
+        <h2>خطة الحوالات</h2>
+        <div class="two">
+          <label><span>ببعت كل راتب</span><input type="number" inputmode="numeric" :value="R.target || ''" placeholder="مثلًا 3000" @change="(e) => saveRemit({ target: Number(e.target.value) || '' })" /></label>
+          <label><span>سعر الريال بالجنيه</span><input type="number" inputmode="decimal" :value="R.rate || ''" placeholder="اختياري" @change="(e) => saveRemit({ rate: Number(e.target.value) || '' })" /></label>
+        </div>
+        <template v-if="R.target">
+          <div class="pbar"><i :style="{ width: R.pct * 100 + '%' }"></i></div>
+          <div class="pst sm"><span>بعت {{ fmt(R.sent) }} من {{ fmt(R.target) }}<template v-if="R.rate"> (≈ {{ fmt(R.sent * R.rate) }} جنيه)</template></span><span v-if="R.left">باقي {{ fmt(R.left) }}</span><span v-else class="good">✓ خلصت</span></div>
+          <p class="muted xs">الباقي بيتطرح من "تقدر تصرف/يوم" علشان تفضل فاكره.</p>
+        </template>
+        <div v-if="R.avgFee" class="tip">
+          💡 متوسط رسوم الحوالة {{ fmt(R.avgFee) }} ر.س ({{ (R.feePct * 100).toFixed(1) }}٪ من اللي بتبعته).
+          <template v-if="R.mergeSave > 20"> لو جمعت حوالات كل شهر في حوالة واحدة كنت وفرت حوالي <b>{{ fmt(R.mergeSave) }} ر.س</b> في السنة ({{ R.extraCount }} حوالة زيادة).</template>
+        </div>
+        <div v-if="R.banks.length > 1" class="banks">
+          <div v-for="b in R.banks" :key="b.b" class="brow"><span>{{ b.b }}</span><span class="muted">{{ b.n }} حوالة · رسوم {{ fmt(b.avgFee) }} للحوالة</span></div>
         </div>
       </section>
 
@@ -90,4 +112,15 @@ h2 { font-size: 15.5px; margin: 0 0 10px }
 .hrow:last-child { border-bottom: 0 }
 .hrow b { font-variant-numeric: tabular-nums }
 .foot { margin: 8px 0 0 }
+.plan .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px }
+.plan label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-2) }
+.plan input { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 9px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); outline: none; min-width: 0 }
+.pbar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 12px 0 6px }
+.pbar i { display: block; height: 100%; background: var(--accent); border-radius: 99px }
+.pst { display: flex; justify-content: space-between; gap: 8px }
+.good { color: var(--good) }
+.tip { margin-top: 12px; background: var(--accent-soft); color: var(--ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.7 }
+.banks { margin-top: 8px }
+.brow { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line) }
+.brow:last-child { border-bottom: 0 }
 </style>
