@@ -108,7 +108,7 @@ enum LimitEngine {
         for r in rules where r.count == 2 {
             if test(r[1], merchant, ci: true) { return r[0] }
         }
-        return "other"
+        return "shop"
     }
 
     /// notified: "cat@limit" → آخر مستوى اتبعت له إشعار

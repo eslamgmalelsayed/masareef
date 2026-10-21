@@ -207,7 +207,7 @@ function suggest(r) {
         <div class="racts">
           <button v-if="!r.base && r.avg >= 50" class="link xs" @click="suggest(r)">اقترح حد ({{ fmt(Math.ceil(r.avg / 50) * 50) }})</button>
           <button class="link xs" @click="newGroup(r.id)">🔗 ادمجه مع بند تاني</button>
-          <button v-if="r.id === 'other' && r.spent + r.avg > 0" class="link xs" @click="emit('go', 'sortother')">🧹 رتّب أخرى</button>
+          <button v-if="(r.id === 'other' || r.id === 'shop') && r.spent + r.avg > 0" class="link xs" @click="emit('go', 'sortother')">🧹 رتّب المحلات</button>
         </div>
       </div>
     </section>

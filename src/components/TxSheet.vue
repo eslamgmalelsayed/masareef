@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
+import CatPicker from './CatPicker.vue'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
 import { debtFromTx, txHasDebt, autoLentTxIds, notLoan } from '../lib/debts.js'
@@ -57,11 +58,7 @@ function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(p
       <template v-if="isOut">
         <h3>غيّر البند</h3>
         <div class="muted xs" style="margin-bottom: 10px" v-if="t.k !== 'manual'">هيتطبّق على كل عمليات «{{ t.m }}»</div>
-        <div class="grid">
-          <button v-for="c in CATEGORIES.filter((x) => !x.hidden)" :key="c.id" class="cbtn" :class="{ on: c.id === t.c }" @click="pick(c.id)">
-            <span class="ci" :style="{ color: c.color }">{{ c.icon }}</span><span>{{ c.name }}</span>
-          </button>
-        </div>
+        <CatPicker :selected="t.c" :exclude="['ccpay']" @pick="pick" />
       </template>
       <div v-if="t.k === 'manual'" class="mact">
         <button class="ed" @click="emit('edit', t)">✏️ تعديل</button>

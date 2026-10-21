@@ -11,7 +11,7 @@ import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
 import { totals as debtTotals } from '../lib/debts.js'
-import { safeToSpend, activeEvent } from '../lib/tools.js'
+import { safeToSpend, activeEvent, zakat } from '../lib/tools.js'
 import { commitments, transfers, savings, saveGoal, unusual, dismissFlag, salarySummary, dismissSummary } from '../lib/insights.js'
 
 const emit = defineEmits(['open', 'go'])
@@ -142,8 +142,11 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       <button class="chip" @click="emit('go', 'savings')">
         <span class="ci">🎯</span><span><small>{{ saveGoal ? (savings.onTrack ? 'الادخار: ماشي صح' : 'الادخار: متأخر') : 'هدف الادخار' }}</small><b>{{ saveGoal ? fmt(Math.max(0, savings.projected)) + ' / ' + fmt(saveGoal) : 'حدده ←' }}</b></span>
       </button>
+      <button class="chip" @click="emit('go', 'zakat')">
+        <span class="ci">🕌</span><span><small>{{ zakat.due ? 'الزكاة ' + fmtDate(zakat.due, { day: 'numeric', month: 'short' }) : 'الزكاة' }}</small><b>{{ zakat.amount ? fmt(zakat.amount) : zakat.nisab ? (zakat.reached ? '—' : 'أقل من النصاب') : 'احسبها ←' }}</b></span>
+      </button>
       <button class="chip tools" @click="emit('go', 'tools')">
-        <span class="ci">🧰</span><span><small>كل الأدوات</small><b>صناديق · زكاة · ثروة…</b></span>
+        <span class="ci">🧰</span><span><small>كل الأدوات</small><b>صناديق · ثروة · سفر…</b></span>
       </button>
     </div>
 

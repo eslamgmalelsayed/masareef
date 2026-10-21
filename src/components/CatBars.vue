@@ -1,24 +1,25 @@
 <script setup>
 import { computed } from 'vue'
-import { CAT } from '../lib/categories.js'
+import { CAT, GROUP } from '../lib/categories.js'
 import { fmt } from '../lib/format.js'
 
-const props = defineProps({ rows: Array, limit: { type: Number, default: 99 }, base: { type: Number, default: 0 } }) // rows: [[catId, amount]]
+const props = defineProps({ rows: Array, limit: { type: Number, default: 99 }, base: { type: Number, default: 0 }, top: { type: Number, default: 0 } }) // rows: [[catId, amount]]
 const emit = defineEmits(['pick'])
 const total = computed(() => props.base || props.rows.reduce((s, r) => s + r[1], 0) || 1)
-const max = computed(() => (props.rows[0] ? props.rows[0][1] : 1))
+const M = (id) => CAT[id] || GROUP[id] || { name: id, icon: '•', color: '#94a3b8' }
+const max = computed(() => props.top || (props.rows[0] ? props.rows[0][1] : 1))
 </script>
 
 <template>
   <div class="cats">
     <button v-for="[id, v] in rows.slice(0, limit)" :key="id" class="cat" @click="emit('pick', id)">
-      <span class="ic" :style="{ background: CAT[id].color + '1f', color: CAT[id].color }">{{ CAT[id].icon }}</span>
+      <span class="ic" :style="{ background: M(id).color + '1f', color: M(id).color }">{{ M(id).icon }}</span>
       <span class="body">
         <span class="top">
-          <span class="nm">{{ CAT[id].name }}</span>
+          <span class="nm">{{ M(id).name }}<small v-if="GROUP[id]" class="cnt"> · {{ GROUP[id].cats.length }} بنود</small></span>
           <span class="v">{{ fmt(v) }} <small>{{ ((v / total) * 100).toFixed(0) }}٪</small></span>
         </span>
-        <span class="bar"><i :style="{ width: (v / max) * 100 + '%', background: CAT[id].color }"></i></span>
+        <span class="bar"><i :style="{ width: (v / max) * 100 + '%', background: M(id).color }"></i></span>
       </span>
     </button>
     <p v-if="!rows.length" class="empty">مفيش مصاريف في الفترة دي</p>
@@ -33,6 +34,7 @@ const max = computed(() => (props.rows[0] ? props.rows[0][1] : 1))
 .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px }
 .top { display: flex; justify-content: space-between; gap: 8px; font-size: 14px }
 .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.cnt { color: var(--ink-3); font-size: 11.5px }
 .v { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap }
 .v small { color: var(--ink-3); font-weight: 400; font-size: 12px; margin-right: 4px }
 .bar { height: 5px; background: var(--surface-2); border-radius: 99px; overflow: hidden }

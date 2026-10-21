@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { spendTx, cycles, salaryFor, allTx, totalLimit, income } from '../lib/store.js'
-import { CAT, merchantKey } from '../lib/categories.js'
+import { CAT, merchantKey, GROUPS, GROUP_OF } from '../lib/categories.js'
 import { fmt, fmtDate, sum, byCategory, DAY } from '../lib/format.js'
 import BarChart from './BarChart.vue'
 import CatBars from './CatBars.vue'
@@ -25,6 +25,16 @@ const level = computed(() => (!limitFor.value ? '' : total.value > limitFor.valu
 const pctOfSalary = computed(() => (salary.value ? (total.value / salary.value) * 100 : 0))
 const saved = computed(() => salary.value - total.value)
 const cats = computed(() => byCategory(rows.value))
+// عرض بالمجموعات (تسوق، أكل، بيت…) — ودوس على المجموعة تشوف بنودها
+const catView = ref((() => { try { return localStorage.getItem('catView') || 'groups' } catch { return 'groups' } })())
+function setCatView(v) { catView.value = v; try { localStorage.setItem('catView', v) } catch {} }
+const groupRows = computed(() => {
+  const m = {}
+  for (const [c, v] of cats.value) { const g = GROUP_OF[c] || 'g_other'; m[g] = (m[g] || 0) + v }
+  return Object.entries(m).sort((a, b) => b[1] - a[1])
+})
+const openGroup = ref('')
+const groupCats = (g) => cats.value.filter(([c]) => (GROUP_OF[c] || 'g_other') === g)
 const cs = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
 
 // مقارنة بالراتب اللي فات في نفس عدد الأيام
@@ -120,9 +130,17 @@ const pctSal = (v) => (salary.value ? Math.round((v / salary.value) * 100) + '٪
     </section>
 
     <section class="card">
-      <h2>أكتر المصاريف فين</h2>
-      <div class="muted sm" style="margin-bottom: 6px">النسبة من الراتب · دوس على بند تشوف عملياته</div>
-      <CatBars :rows="cats" :base="salary || 0" @pick="(c) => emit('go', 'tx', c, range)" />
+      <div class="row-b"><h2>أكتر المصاريف فين</h2>
+        <div class="vseg"><button :class="{ on: catView === 'groups' }" @click="setCatView('groups')">مجموعات</button><button :class="{ on: catView === 'cats' }" @click="setCatView('cats')">بنود</button></div>
+      </div>
+      <div class="muted sm" style="margin-bottom: 6px">النسبة من الراتب · {{ catView === 'groups' ? 'دوس على مجموعة تشوف بنودها' : 'دوس على بند تشوف عملياته' }}</div>
+      <template v-if="catView === 'groups'">
+        <template v-for="[g, v] in groupRows" :key="g">
+          <CatBars :rows="[[g, v]]" :top="groupRows[0][1]" :base="salary || cats.reduce((x, r) => x + r[1], 0)" @pick="openGroup = openGroup === g ? '' : g" />
+          <div v-if="openGroup === g" class="sub"><CatBars :rows="groupCats(g)" :base="salary || 0" @pick="(c) => emit('go', 'tx', c, range)" /></div>
+        </template>
+      </template>
+      <CatBars v-else :rows="cats" :base="salary || 0" @pick="(c) => emit('go', 'tx', c, range)" />
     </section>
 
     <section class="card">
@@ -165,4 +183,8 @@ const pctSal = (v) => (salary.value ? Math.round((v / salary.value) * 100) + '٪
 .dot { width: 8px; height: 8px; border-radius: 3px; flex: none }
 .mn { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .ma { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 60px; text-align: left }
+.vseg { display: flex; background: var(--surface-2); border-radius: 10px; padding: 2px }
+.vseg button { border: 0; background: none; font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 8px; color: var(--ink-2); cursor: pointer }
+.vseg button.on { background: var(--surface); color: var(--ink); font-weight: 600 }
+.sub { margin: 0 14px 8px 0; padding-right: 10px; border-right: 2px solid var(--line) }
 </style>

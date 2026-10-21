@@ -114,12 +114,15 @@ describe('نقل محل لبند تاني (مش لازم يتلغي)', () => {
   it('النقل بيفضل بعد ما الرسايل تتقري من جديد (تحديث / سحب للتحديث)', () => {
     state.overrides = {}
     state.smsTx = [tx(3, 'purchase', 20, 'ROKON RAIDAN')]
-    expect(allTx.value[0].c).toBe('other')
+    expect(allTx.value[0].c).toBe('shop') // محل مش معروف → تسوق ومحلات
     setCategory(allTx.value[0], 'grocery')
     state.smsTx = [tx(3, 'purchase', 20, 'ROKON RAIDAN'), tx(1, 'purchase', 15, 'ROKON RAIDAN')] // قراية جديدة = objects جديدة
     expect(allTx.value.every((t) => t.c === 'grocery')).toBe(true)
     clearOverride(merchantKey('ROKON RAIDAN'))
+    expect(allTx.value[0].c).toBe('shop')
+    setCategory(allTx.value[0], 'other') // وتقدر ترجّعه أخرى بإيدك
     expect(allTx.value[0].c).toBe('other')
+    state.overrides = {}
   })
   it('النقل اليدوي أقوى من القواعد التلقائية', () => {
     state.smsTx = [tx(1, 'purchase', 30, 'PANDA')]
@@ -132,6 +135,16 @@ describe('نقل محل لبند تاني (مش لازم يتلغي)', () => {
     // لو الاختبار ده فشل: متغيّرش merchantKey (أو اعمل migration للـ overrides)
     expect(['ROKON RAIDAN', 'noon.com', 'TAP * Anthropic', 'PAYPAL *SPOTIFY', 'سوبر ماركت الأمانة', 'AL HAMMAD'].map(merchantKey))
       .toEqual(['ROKONRAID', 'NOONCOM', 'ANTHROPIC', 'SPOTIFY', 'سوبرماركت', 'ALHAMMAD'])
+  })
+})
+
+describe('مجموعات البنود', () => {
+  it('كل بند ليه مجموعة واحدة بالظبط', async () => {
+    const { CATEGORIES, GROUPS, GROUP_OF } = await import('../src/lib/categories.js')
+    for (const c of CATEGORIES.filter((x) => !x.hidden)) expect(GROUP_OF[c.id], c.id).toBeTruthy()
+    const all = GROUPS.flatMap((g) => g.cats)
+    expect(new Set(all).size).toBe(all.length)
+    expect(GROUPS.find((g) => g.id === 'g_shop').cats).toEqual(expect.arrayContaining(['shop', 'online', 'clothes']))
   })
 })
 

@@ -5,6 +5,7 @@ export const CATEGORIES = [
   { id: 'food', name: 'مطاعم وكافيهات', color: '#db2777', icon: '☕' },
   { id: 'transport', name: 'مواصلات وبنزين', color: '#0891b2', icon: '🚗' },
   { id: 'travel', name: 'سفر وطيران وفنادق', color: '#0369a1', icon: '✈️' },
+  { id: 'shop', name: 'تسوق ومحلات', color: '#e11d48', icon: '🛍️' }, // أي محل التطبيق مايعرفهوش بيروح هنا
   { id: 'online', name: 'تسوق أونلاين', color: '#9333ea', icon: '📦' },
   { id: 'clothes', name: 'ملابس وموضة', color: '#c026d3', icon: '👕' },
   { id: 'bnpl', name: 'تقسيط (تابي / تمارا)', color: '#7c3aed', icon: '💳' },
@@ -64,7 +65,22 @@ export function categorize(tx, overrides = {}) {
     return 'bills'
   }
   for (const [c, rx] of RULES) if (rx.test(tx.m)) return c
-  return 'other'
+  // محل مش معروف → تسوق ومحلات (تقدر تنقله لأخرى أو لأي بند بإيدك)
+  return 'shop'
 }
 
 export const TRANSFER_CATS = new Set(['transfer', 'intl'])
+
+/** مجموعات البنود — للعرض والاختيار (البند نفسه مبيتغيرش) */
+export const GROUPS = [
+  { id: 'g_shop', name: 'تسوق', icon: '🛍️', color: '#e11d48', cats: ['shop', 'online', 'clothes'] },
+  { id: 'g_food', name: 'أكل', icon: '🍽️', color: '#db2777', cats: ['grocery', 'food', 'delivery'] },
+  { id: 'g_home', name: 'بيت وفواتير', icon: '🏠', color: '#2563eb', cats: ['rent', 'bills', 'telecom', 'subs'] },
+  { id: 'g_move', name: 'مواصلات وسفر', icon: '🚗', color: '#0891b2', cats: ['transport', 'travel'] },
+  { id: 'g_life', name: 'صحة وتعليم وحكومة', icon: '🩺', color: '#dc2626', cats: ['health', 'edu', 'gov'] },
+  { id: 'g_money', name: 'فلوس وأقساط', icon: '💳', color: '#7c3aed', cats: ['bnpl', 'cash', 'fee', 'paypal'] },
+  { id: 'g_people', name: 'تحويلات', icon: '↔️', color: '#0f766e', cats: ['transfer', 'intl'] },
+  { id: 'g_other', name: 'أخرى', icon: '•', color: '#94a3b8', cats: ['other'] },
+]
+export const GROUP_OF = Object.fromEntries(GROUPS.flatMap((g) => g.cats.map((c) => [c, g.id])))
+export const GROUP = Object.fromEntries(GROUPS.map((g) => [g.id, g]))

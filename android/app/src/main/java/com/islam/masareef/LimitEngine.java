@@ -136,7 +136,7 @@ public final class LimitEngine {
                 } catch (Exception ignored) { }
             }
         }
-        return "other";
+        return "shop"; // محل مش معروف → تسوق ومحلات (زي categories.js)
     }
 
     /**

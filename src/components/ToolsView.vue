@@ -19,7 +19,7 @@ const tools = computed(() => [
   { id: 'zakat', ic: '🕌', t: 'الزكاة', s: zakat.value.due ? 'الجاية ' + fmtDate(zakat.value.due, { day: 'numeric', month: 'short' }) : 'احسبها وفكّرني بميعادها' },
   { id: 'events', ic: '✈️', t: 'السفر والمناسبات', s: activeEvent.value ? `${activeEvent.value.name} شغال` : 'رحلة، رمضان، العيد…' },
   { id: 'credit', ic: '💳', t: 'البطاقات الائتمانية', s: creditCards.value.length ? `${creditCards.value.length} بطاقة` : 'ضيف بطاقة' },
-  { id: 'sortother', ic: '🧹', t: 'رتّب "أخرى"', s: 'انقل المحلات لبنودها الصح' },
+  { id: 'sortother', ic: '🧹', t: 'رتّب المحلات', s: 'المحلات اللي التطبيق ماعرفهاش' },
   { id: 'limits', ic: '🔔', t: 'الحدود والتنبيهات', s: 'يومي · أسبوعي · شهري · بنود' },
 ])
 </script>
