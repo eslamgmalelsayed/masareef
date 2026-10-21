@@ -87,7 +87,7 @@ async function clearImp() { if (await ask('تمسح العمليات اللي ا
         <span class="n2go">تعديل<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg></span>
       </button>
       <label class="sw">
-        <span><b>نبّهني لما أقرّب أو أعدّي الحد</b><br /><small class="muted">إشعار عند ٨٠٪ وعند تخطي الحد</small></span>
+        <span><b>نبّهني لما أقرّب أو أعدّي الحد</b><br /><small class="muted">النسبة بتتغير من صفحة الحدود والتنبيهات</small></span>
         <input type="checkbox" :checked="state.settings.totalAlert !== false" @change="(e) => { state.settings.totalAlert = e.target.checked; saveMoney() }" />
       </label>
     </section>

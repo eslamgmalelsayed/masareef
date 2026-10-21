@@ -161,7 +161,7 @@ public final class LimitStore {
                 totals.put(g, sum);
             }
         }
-        List<LimitEngine.Alert> alerts = LimitEngine.evaluate(totals, doubles(cfg.optJSONObject("limits")), notified);
+        List<LimitEngine.Alert> alerts = LimitEngine.evaluate(totals, doubles(cfg.optJSONObject("limits")), notified, cfg.optDouble("warnPct", 80));
 
         try {
             JSONObject lv = new JSONObject();

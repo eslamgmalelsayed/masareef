@@ -78,6 +78,17 @@ public class LimitEngineTest {
     }
 
     @Test
+    public void warnPercentIsConfigurable() {
+        java.util.Map<String, Double> totals = new java.util.HashMap<>(), limits = new java.util.HashMap<>();
+        totals.put("food", 85.0); limits.put("food", 100.0);
+        assertEquals(80, LimitEngine.evaluate(totals, limits, new java.util.HashMap<>(), 80).get(0).level);
+        assertTrue(LimitEngine.evaluate(totals, limits, new java.util.HashMap<>(), 90).isEmpty());
+        assertTrue(LimitEngine.evaluate(totals, limits, new java.util.HashMap<>(), 0).isEmpty());
+        totals.put("food", 120.0);
+        assertEquals(100, LimitEngine.evaluate(totals, limits, new java.util.HashMap<>(), 0).get(0).level);
+    }
+
+    @Test
     public void weekStartsOnSunday() {
         Calendar c = Calendar.getInstance();
         c.set(2026, Calendar.OCTOBER, 21, 15, 0, 0); // أربعاء

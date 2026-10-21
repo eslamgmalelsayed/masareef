@@ -157,7 +157,7 @@ enum LimitStore {
         for (g, cats) in (cfg["groups"] as? [String: Any]) ?? [:] {
             totals[g] = ((cats as? [Any]) ?? []).reduce(0.0) { $0 + (totals[($1 as? String) ?? ""] ?? 0) }
         }
-        let alerts = LimitEngine.evaluate(totals: totals, limits: doubles(cfg["limits"]), notified: &notified)
+        let alerts = LimitEngine.evaluate(totals: totals, limits: doubles(cfg["limits"]), notified: &notified, warnPct: (cfg["warnPct"] as? NSNumber)?.doubleValue ?? 80)
         if let d = try? JSONSerialization.data(withJSONObject: ["cycle": cycle, "levels": notified]) {
             UserDefaults.standard.set(d, forKey: kNotified)
         }

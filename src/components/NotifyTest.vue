@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { isNative, notificationStatus, requestNotifications, notify, simulatePurchase } from '../lib/smsSource.js'
-import { totalLimit, cycleSpent } from '../lib/store.js'
+import { totalLimit, cycleSpent, warnPct } from '../lib/store.js'
 import { CAT } from '../lib/categories.js'
 // الإشعار بيطلع برّه التطبيق — الأرقام فيه عادية حتى لو المبالغ مخفية جوه
 const fmt = (n) => Math.round(n || 0).toLocaleString('en-US')
@@ -35,8 +35,8 @@ async function run(fn, done) {
 
 const lim = () => totalLimit.value || 10000
 const tests = [
-  { icon: '🔔', t: 'إشعار عادي', fn: () => notify('إشعارات مصاريفي شغالة ✅', 'هيوصلك تنبيه لما توصل ٨٠٪ وعند تخطي أي حد', 4242), done: () => 'اتبعت إشعار' },
-  { icon: '🟠', t: 'قرّبت ٨٠٪', fn: () => notify('صرفت ٨٠٪ من حد المصروفات', `صرفت ${fmt(lim() * 0.8)} من ${fmt(lim())} ر.س — باقي ${fmt(lim() * 0.2)} (تجربة)`, 4244), done: () => 'اتبعت تنبيه ٨٠٪' },
+  { icon: '🔔', t: 'إشعار عادي', fn: () => notify('إشعارات مصاريفي شغالة ✅', `هيوصلك تنبيه لما توصل ${warnPct.value || 100}٪ وعند تخطي أي حد`, 4242), done: () => 'اتبعت إشعار' },
+  { icon: '🟠', t: 'قرّبت من الحد', fn: () => { const r = (warnPct.value || 80) / 100; return notify(`صرفت ${Math.round(r * 100)}٪ من حد المصروفات`, `صرفت ${fmt(lim() * r)} من ${fmt(lim())} ر.س — باقي ${fmt(lim() * (1 - r))} (تجربة)`, 4244) }, done: () => 'اتبعت تنبيه القرب من الحد' },
   { icon: '🔴', t: 'عدّيت الحد', fn: () => notify('عدّيت حد المصروفات للراتب ده 🔴', `صرفت ${fmt(lim() * 1.05)} ر.س والحد ${fmt(lim())} ر.س — زيادة ${fmt(lim() * 0.05)} (تجربة)`, 4245), done: () => 'اتبعت تنبيه تخطي الحد' },
   {
     icon: '🧪', t: 'رسالة شراء وهمية',

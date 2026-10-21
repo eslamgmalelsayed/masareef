@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { spendTx, cycles, salaryFor, allTx, totalLimit, income } from '../lib/store.js'
+import { spendTx, cycles, salaryFor, allTx, totalLimit, income, warnRatio } from '../lib/store.js'
 import { CAT, merchantKey, GROUPS, GROUP_OF } from '../lib/categories.js'
 import { fmt, fmtDate, sum, byCategory, DAY } from '../lib/format.js'
 import BarChart from './BarChart.vue'
@@ -21,7 +21,7 @@ const limitFor = computed(() => {
   if (range.value?.id === 'c0') return totalLimit.value
   return income.value && salary.value && totalLimit.value !== income.value ? salary.value * (totalLimit.value / income.value) : salary.value
 })
-const level = computed(() => (!limitFor.value ? '' : total.value > limitFor.value ? 'over' : total.value >= 0.8 * limitFor.value && range.value?.id === 'c0' ? 'warn' : ''))
+const level = computed(() => (!limitFor.value ? '' : total.value > limitFor.value ? 'over' : total.value >= warnRatio.value * limitFor.value && range.value?.id === 'c0' ? 'warn' : ''))
 const pctOfSalary = computed(() => (salary.value ? (total.value / salary.value) * 100 : 0))
 const saved = computed(() => salary.value - total.value)
 const cats = computed(() => byCategory(rows.value))

@@ -404,13 +404,16 @@ export const daySpent = computed(() => spendTx.value.filter((t) => t.d >= period
 export const weekSpent = computed(() => spendTx.value.filter((t) => t.d >= periodStarts.value.week).reduce((s, t) => s + t.a, 0))
 export const dayLimit = computed(() => (periodBase.value?.k === 'day' ? periodBase.value.v : Math.round(perDay.value)))
 export const weekLimit = computed(() => (periodBase.value?.k === 'week' ? periodBase.value.v : Math.round(perDay.value * 7)))
-export const levelOf = (spent, limit) => (!limit ? '' : spent > limit ? 'over' : spent >= 0.8 * limit ? 'warn' : 'ok')
+/** نسبة التنبيه الأول (افتراضيًا ٨٠٪) — 0 = تنبيه لما تعدّي الحد بس */
+export const warnPct = computed(() => (state.settings.warnPct === 0 ? 0 : Number(state.settings.warnPct) || 80))
+export const warnRatio = computed(() => (warnPct.value ? warnPct.value / 100 : Infinity))
+export const levelOf = (spent, limit) => (!limit ? '' : spent > limit ? 'over' : spent >= warnRatio.value * limit ? 'warn' : 'ok')
 
 /** حالة الحد: ok | warn (٨٠٪+) | over */
 export const totalLevel = computed(() => {
   const l = totalLimit.value
   if (!l) return 'ok'
-  return cycleSpent.value > l ? 'over' : cycleSpent.value >= 0.8 * l ? 'warn' : 'ok'
+  return cycleSpent.value > l ? 'over' : cycleSpent.value >= warnRatio.value * l ? 'warn' : 'ok'
 })
 
 /** حدود مجمّعة: أكتر من بند تحت حد واحد (مثلًا تسوق أونلاين + ملابس) */
@@ -457,13 +460,14 @@ function pushNativeConfig() {
     rules: RULES.map(([c, rx]) => [c, rx.source]),
     overrides: state.overrides,
     senders: allSenders().map((x) => x.toLowerCase()),
+    warnPct: warnPct.value,
     widget: { day: dayLimit.value, cycle: totalLimit.value, daySpent: daySpent.value, cycleSpent: cycleSpent.value, hide: privacy.on },
     ...nativeExtra,
   })
 }
 let pushTimer = null
 watch(
-  () => [state.status, nativeExtra, privacy.on, state.settings.extraBanks, state.settings.rollover, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, nativeExtra, privacy.on, state.settings.extraBanks, state.settings.rollover, state.settings.warnPct, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

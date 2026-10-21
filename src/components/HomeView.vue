@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, effLimits, dayLimit, weekLimit, levelOf } from '../lib/store.js'
+import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, effLimits, warnRatio, dayLimit, weekLimit, levelOf } from '../lib/store.js'
 import { CAT } from '../lib/categories.js'
 import { privacy, setPrivacy, fmt, fmtDate, sum, byCategory, startOfDay, startOfWeek, DAY } from '../lib/format.js'
 import BarChart from './BarChart.vue'
@@ -71,7 +71,7 @@ const limits = computed(() =>
     ...Object.entries(effLimits.value).filter(([, l]) => l > 0).map(([id, limit]) => ({ id, limit, spent: cycleByCat.value[id] || 0, label: CAT[id].icon + ' ' + CAT[id].name })),
     ...(state.settings.groups || []).filter((g) => g.limit).map((g) => ({ id: g.id, limit: g.limit, spent: g.cats.reduce((x, c) => x + (cycleByCat.value[c] || 0), 0), label: g.cats.slice(0, 3).map((c) => CAT[c]?.icon).join('') + ' ' + g.name })),
   ]
-    .map((r) => ({ ...r, pct: r.spent / r.limit, lvl: r.spent >= r.limit ? 'over' : r.spent >= 0.8 * r.limit ? 'warn' : 'ok' }))
+    .map((r) => ({ ...r, pct: r.spent / r.limit, lvl: r.spent >= r.limit ? 'over' : r.spent >= warnRatio.value * r.limit ? 'warn' : 'ok' }))
     .sort((a, b) => b.pct - a.pct),
 )
 const topCats = computed(() => byCategory(cycleRows.value))

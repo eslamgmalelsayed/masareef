@@ -1,6 +1,6 @@
 // اختبارات الحسابات: الاشتراكات، الأقساط، الكريدت، الديون، الحدود، والخصوصية
 import { describe, it, expect, beforeEach } from 'vitest'
-import { state, allTx, effLimits, cycles, setCategory, clearOverride } from '../src/lib/store.js'
+import { state, allTx, effLimits, cycles, setCategory, clearOverride, levelOf } from '../src/lib/store.js'
 import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
@@ -162,6 +162,19 @@ describe('الحدود', () => {
     expect(effLimits.value.food).toBe(500)
     state.settings.rollover = true
     expect(effLimits.value.food).toBe(700)
+  })
+})
+
+describe('نسبة التنبيه', () => {
+  it('افتراضيًا ٨٠٪، وبتتغير، و٠ = لما تعدّي بس', () => {
+    expect(levelOf(80, 100)).toBe('warn')
+    state.settings.warnPct = 90
+    expect(levelOf(85, 100)).toBe('ok')
+    expect(levelOf(90, 100)).toBe('warn')
+    state.settings.warnPct = 0
+    expect(levelOf(99, 100)).toBe('ok')
+    expect(levelOf(101, 100)).toBe('over')
+    delete state.settings.warnPct
   })
 })
 

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays, saveGroup, deleteGroup, effLimits, prevCycleByCat } from '../lib/store.js'
+import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays, saveGroup, deleteGroup, effLimits, prevCycleByCat, warnPct, warnRatio } from '../lib/store.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { isNative, requestNotifications, notify } from '../lib/smsSource.js'
 import { fmt, DAY } from '../lib/format.js'
@@ -29,7 +29,7 @@ const rows = computed(() =>
   CATEGORIES.filter((c) => !c.hidden).map((c) => { const base = state.settings.limits?.[c.id] || 0; const limit = effLimits.value[c.id] || 0; return { ...c, spent: cycleByCat.value[c.id] || 0, avg: avg3.value[c.id] || 0, base, limit, carry: limit - base } })
     .sort((a, b) => b.avg - a.avg),
 )
-const level = (r) => (!r.base && !r.limit ? '' : r.spent >= r.limit ? 'over' : r.spent >= 0.8 * r.limit ? 'warn' : 'ok')
+const level = (r) => (!r.base && !r.limit ? '' : r.spent >= r.limit ? 'over' : r.spent >= warnRatio.value * r.limit ? 'warn' : 'ok')
 
 // حدود الصرف: بتكتب واحد بس والباقي بيتحسب منه (اليومي × ٧ = الأسبوعي، اليومي × أيام الراتب = الشهري)
 const NAMES = { day: 'اليومي', week: 'الأسبوعي', month: 'الشهري' }
@@ -47,6 +47,14 @@ async function setPeriod(p, e) {
   setPeriodLimit(p.k, v)
   if (v && state.settings.totalAlert === false) { state.settings.totalAlert = true; saveSettings() }
   if (v && isNative && notifOk.value !== true) notifOk.value = await requestNotifications()
+}
+// نسبة التنبيه: -1 = التنبيهات مقفولة، 0 = لما أعدّي الحد بس
+function setWarn(v) {
+  const y = window.scrollY
+  if (v < 0) state.settings.totalAlert = false
+  else { state.settings.totalAlert = true; state.settings.warnPct = v }
+  saveSettings()
+  requestAnimationFrame(() => window.scrollTo(0, y))
 }
 function toggleAlert(e) { const y = window.scrollY; state.settings.totalAlert = e.target.checked; saveSettings(); requestAnimationFrame(() => window.scrollTo(0, y)) }
 
@@ -100,7 +108,7 @@ function suggest(r) {
       <span></span>
     </header>
     <p class="muted sm intro">
-      حط حد للصرف اليومي أو الأسبوعي أو لكل راتب، أو لأي بند، وهيوصلك إشعار لما توصل <b>٨٠٪</b> ولما <b>تعدّي الحد</b> — حتى لو التطبيق مقفول، أول ما توصل رسالة الشراء من البنك.
+      حط حد للصرف اليومي أو الأسبوعي أو لكل راتب، أو لأي بند، وهيوصلك إشعار لما توصل <b>{{ warnPct ? warnPct + '٪' : 'الحد' }}</b> ولما <b>تعدّي الحد</b> — حتى لو التطبيق مقفول، أول ما توصل رسالة الشراء من البنك.
     </p>
     <div v-if="notifOk === false" class="warnbox">الإشعارات مقفولة للتطبيق — افتحها من إعدادات الموبايل ← التطبيقات ← مصاريفي ← الإشعارات</div>
 
@@ -128,10 +136,15 @@ function suggest(r) {
           </div>
         </template>
       </div>
-      <label class="sw2">
-        <span>نبّهني عند ٨٠٪ ولما أعدّي أي حد منهم</span>
-        <input type="checkbox" :checked="state.settings.totalAlert !== false" @change="toggleAlert" />
-      </label>
+      <div class="warnrow">
+        <span>نبّهني لما أوصل</span>
+        <div class="wseg">
+          <button v-for="v in [50, 70, 80, 90]" :key="v" :class="{ on: state.settings.totalAlert !== false && warnPct === v }" @click="setWarn(v)">{{ v }}٪</button>
+          <button :class="{ on: state.settings.totalAlert !== false && warnPct === 0 }" @click="setWarn(0)">لما أعدّي بس</button>
+          <button :class="{ on: state.settings.totalAlert === false }" @click="setWarn(-1)">مقفول</button>
+        </div>
+        <small class="muted">بتتطبّق على كل الحدود: اليومي والأسبوعي والشهري والبنود والمجموعات — ودايمًا بيجيلك تنبيه لما تعدّي الحد</small>
+      </div>
     </section>
 
     <h2 class="sec">حدود مجمّعة</h2>
@@ -212,7 +225,7 @@ function suggest(r) {
       </div>
     </section>
 
-    <button v-if="isNative" class="test" @click="notify('إشعارات مصاريفي شغالة ✅', 'هيوصلك تنبيه لما توصل ٨٠٪ وعند تخطي أي حد', 4242).catch(() => {})">🔔 جرّب إشعار</button>
+    <button v-if="isNative" class="test" @click="notify('إشعارات مصاريفي شغالة ✅', 'هيوصلك تنبيه لما تقرّب وعند تخطي أي حد', 4242).catch(() => {})">🔔 جرّب إشعار</button>
     <p class="muted xs" style="text-align: center; margin: 14px 20px">حدود البنود والشهري بتبدأ من جديد مع نزول كل راتب، واليومي كل يوم، والأسبوعي كل أحد. اكتب ٠ أو امسح الرقم علشان تلغي الحد.</p>
   </div>
 </template>
@@ -241,6 +254,11 @@ function suggest(r) {
 .inp small { font-size: 10.5px; color: var(--ink-3); white-space: nowrap }
 .inp.own small { color: var(--accent) }
 .inp:not(.own) input::placeholder { font-weight: 600; font-size: 15px; color: var(--ink-3) }
+.warnrow { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; font-size: 13.5px }
+.wseg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--surface-2); border-radius: 12px; padding: 3px }
+.wseg button { border: 0; background: none; font: inherit; font-size: 13px; padding: 8px 2px; border-radius: 9px; color: var(--ink-2); cursor: pointer; white-space: nowrap }
+.wseg button:nth-child(n+5) { grid-column: span 2 }
+.wseg button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06) }
 .sw2 { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; font-size: 13.5px }
 .sw2 input { width: 20px; height: 20px; accent-color: var(--accent) }
 .back { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 18px; cursor: pointer }

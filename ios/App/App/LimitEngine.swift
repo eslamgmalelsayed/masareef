@@ -112,11 +112,11 @@ enum LimitEngine {
     }
 
     /// notified: "cat@limit" → آخر مستوى اتبعت له إشعار
-    static func evaluate(totals: [String: Double], limits: [String: Double], notified: inout [String: Int]) -> [Alert] {
+    static func evaluate(totals: [String: Double], limits: [String: Double], notified: inout [String: Int], warnPct: Double = 80) -> [Alert] {
         var out: [Alert] = []
         for (cat, limit) in limits where limit > 0 {
             let spent = totals[cat] ?? 0
-            let level = spent >= limit ? 100 : spent >= 0.8 * limit ? 80 : 0
+            let level = spent >= limit ? 100 : warnPct > 0 && spent >= warnPct / 100 * limit ? 80 : 0
             let key = "\(cat)@\(Int(limit.rounded()))"
             if level > (notified[key] ?? 0) {
                 out.append(Alert(cat: cat, level: level, spent: spent, limit: limit))

@@ -144,13 +144,18 @@ public final class LimitEngine {
      * لو الحد اتغير، المفتاح بيتغير فالإشعارات بترجع تشتغل للحد الجديد.
      */
     public static List<Alert> evaluate(Map<String, Double> totals, Map<String, Double> limits, Map<String, Integer> notified) {
+        return evaluate(totals, limits, notified, 80);
+    }
+
+    /** warnPct: نسبة التنبيه الأول (٠ = بس لما تعدّي الحد) */
+    public static List<Alert> evaluate(Map<String, Double> totals, Map<String, Double> limits, Map<String, Integer> notified, double warnPct) {
         List<Alert> out = new ArrayList<>();
         for (Map.Entry<String, Double> e : limits.entrySet()) {
             double limit = e.getValue() == null ? 0 : e.getValue();
             if (limit <= 0) continue;
             String cat = e.getKey();
             double spent = totals.containsKey(cat) && totals.get(cat) != null ? totals.get(cat) : 0;
-            int level = spent >= limit ? 100 : spent >= 0.8 * limit ? 80 : 0;
+            int level = spent >= limit ? 100 : warnPct > 0 && spent >= warnPct / 100.0 * limit ? 80 : 0;
             String key = cat + "@" + Math.round(limit);
             int prev = notified.containsKey(key) ? notified.get(key) : 0;
             if (level > prev) {
