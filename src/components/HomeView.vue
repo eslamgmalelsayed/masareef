@@ -10,6 +10,7 @@ import UpdateBanner from './UpdateBanner.vue'
 import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
+import { totals as debtTotals } from '../lib/debts.js'
 import { commitments, transfers, savings, saveGoal, unusual, dismissFlag, salarySummary, dismissSummary } from '../lib/insights.js'
 
 const emit = defineEmits(['open', 'go'])
@@ -124,6 +125,9 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
     <div class="chips">
       <button class="chip" @click="emit('go', 'commit')">
         <span class="ci">🔁</span><span><small>التزامات الشهر الجاي</small><b>{{ fmt(commitments.next30) }}</b></span>
+      </button>
+      <button class="chip" @click="emit('go', 'debts')">
+        <span class="ci">💸</span><span><small>{{ debtTotals.lent > 0 ? 'عليّا · ليّا' : 'الديون' }}</small><b>{{ debtTotals.owed || debtTotals.lent ? fmt(debtTotals.owed) + (debtTotals.lent > 0 ? ' · ' + fmt(debtTotals.lent) : '') : 'ضيف ←' }}</b></span>
       </button>
       <button class="chip" v-if="transfers.count" @click="emit('go', 'transfers')">
         <span class="ci">🌍</span><span><small>حوالات الراتب ده</small><b>{{ fmt(transfers.cycle) }}</b></span>

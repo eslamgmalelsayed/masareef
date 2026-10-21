@@ -19,6 +19,7 @@ import PullRefresh from './components/PullRefresh.vue'
 import CommitView from './components/CommitView.vue'
 import TransfersView from './components/TransfersView.vue'
 import SavingsView from './components/SavingsView.vue'
+import DebtsView from './components/DebtsView.vue'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -29,7 +30,7 @@ const adding = ref(null) // null | {} (جديد) | tx (تعديل)
 
 const prevTab = ref('home')
 const creditSel = ref('')
-const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings']
+const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts']
 function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t) && !SUB.includes(tab.value)) prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
 onMounted(() => { syncSms(); checkUpdate() })
@@ -65,6 +66,7 @@ const tabs = [
     <CommitView v-else-if="tab === 'commit'" @back="go(prevTab)" @open="(t) => (sheet = t)" />
     <TransfersView v-else-if="tab === 'transfers'" @back="go(prevTab)" @open="(t) => (sheet = t)" />
     <SavingsView v-else-if="tab === 'savings'" @back="go(prevTab)" />
+    <DebtsView v-else-if="tab === 'debts'" @back="go(prevTab)" @go="go" />
     <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="go(prevTab)" @open="(t) => (sheet = t)" @go="go" />
 
     <div v-else-if="state.status === 'loading' && !allTx.length" class="splash">
@@ -101,14 +103,14 @@ const tabs = [
     </template>
     
     <nav class="tabbar">
-      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') || (t.id === 'home' && ['commit', 'transfers', 'savings'].includes(tab)) }" @click="go(t.id)">
+      <button v-for="t in tabs" :key="t.id" :class="{ on: tab === t.id || (t.id === 'settings' && tab === 'limits') || (t.id === 'banks' && tab === 'credit') || (t.id === 'home' && ['commit', 'transfers', 'savings', 'debts'].includes(tab)) }" @click="go(t.id)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="t.i" /></svg>
         <span>{{ t.l }}</span>
       </button>
     </nav>
 
     <button v-if="tab === 'home'" class="fab" @click="adding = {}" aria-label="إضافة مصروف">＋</button>
-    <TxSheet v-if="sheet" :t="allTx.find((x) => x.id === sheet.id) || sheet" @close="sheet = null" @edit="(t) => { sheet = null; adding = t }" />
+    <TxSheet v-if="sheet" :t="allTx.find((x) => x.id === sheet.id) || sheet" @close="sheet = null" @edit="(t) => { sheet = null; adding = t }" @go="go" />
     <AddExpense v-if="adding" :edit="adding.id ? adding : null" :paste="!!adding.paste" @close="adding = null" />
   </main>
 </template>

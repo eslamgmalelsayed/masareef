@@ -3,9 +3,10 @@ import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
+import { debtFromTx, txHasDebt } from '../lib/debts.js'
 
 const props = defineProps({ t: Object })
-const emit = defineEmits(['close', 'edit'])
+const emit = defineEmits(['close', 'edit', 'go'])
 const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت' }
 const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer'].includes(props.t.k))
 const same = computed(() => {
@@ -15,6 +16,9 @@ const same = computed(() => {
   return { n: r.length, a: r.reduce((s, x) => s + x.a, 0) }
 })
 function pick(id) { setCategory(props.t, id); emit('close') }
+const canDebt = computed(() => ['transfer', 'intl', 'in'].includes(props.t.k))
+const hasDebt = computed(() => txHasDebt(props.t))
+function markDebt() { debtFromTx(props.t); emit('close'); emit('go', 'debts') }
 function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(props.t.id); emit('close') } }
 </script>
 
@@ -31,6 +35,9 @@ function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(p
       </div>
       <div class="amt">{{ isOut ? '' : '+' }}{{ fmt2(t.a) }} <small>ر.س</small></div>
       <div class="muted sm" v-if="same.n > 1" style="text-align: center">{{ same.n }} عملية مع نفس المكان · إجمالي {{ fmt(same.a) }} ر.س</div>
+
+      <button v-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
+      <div v-else-if="hasDebt" class="muted xs" style="text-align: center; margin-top: 10px">✓ متسجلة في الديون</div>
 
       <template v-if="isOut">
         <h3>غيّر البند</h3>
@@ -71,4 +78,5 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 .close { width: 100%; margin-top: 16px; padding: 13px; border-radius: 14px; border: 0; background: var(--ink); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer }
 @keyframes up { from { transform: translateY(40%) } }
 @keyframes fade { from { opacity: 0 } }
+.debt { display: block; width: 100%; margin-top: 12px; padding: 11px; border-radius: 14px; border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--accent); font: inherit; font-weight: 600; cursor: pointer }
 </style>

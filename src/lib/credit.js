@@ -1,6 +1,6 @@
 import { computed, watch } from 'vue'
 import { allTx, state, saveSettings } from './store.js'
-import { scheduleReminders, saveCredit } from './smsSource.js'
+import { saveCredit } from './smsSource.js'
 
 const DAY = 864e5
 const SPEND = new Set(['purchase', 'bill', 'gov', 'fee', 'cash', 'ccxfer'])
@@ -168,14 +168,7 @@ export function removeCard(key) {
   saveSettings()
 }
 
-// كل ما المواعيد أو المبالغ تتغيّر، نعيد جدولة التذكيرات
-let lastSig = ''
-watch(dueReminders, (items) => {
-  const sig = JSON.stringify(items.map((x) => [x.id, x.text]))
-  if (sig === lastSig) return
-  lastSig = sig
-  scheduleReminders(items)
-}, { immediate: true })
+// جدولة التذكيرات اتنقلت لـ debts.js (بتجمع الكريدت + الديون)
 
 // المستحق والحد ونسبة التنبيه لكل بطاقة → الجزء الأصلي (بيكمّل الحساب من الرسايل الجديدة)
 let lastCC = ''
