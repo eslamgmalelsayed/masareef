@@ -1,0 +1,40 @@
+{
+  "_note": "رسايل تجريبية بنفس شكل رسايل البنوك — الأسماء والأرقام وهمية. كل رسالة ومعاها النتيجة المتوقعة (null = لازم تتجاهل).",
+  "profile": { "accounts": ["1001", "2002", "3003", "4004", "5005"], "selfNames": ["تست", "TESTUSER"] },
+  "messages": [
+    { "address": "AlRajhiBank", "date": 1760970000000, "body": "شراء PoS\nعبر1111;مدى-سامسونج باي\nبـSR 34\nلـROKON RAIDAN\n26/10/20 16:56", "expect": { "k": "purchase", "a": 34, "m": "ROKON RAIDAN", "card": "1111" } },
+    { "address": "STC Bank", "date": 1760900000000, "body": "PoS Purchase\nCard:2222;mada-Apple Pay\nAmount:2SR\nAt:THATI \n19/10/26 21:35 ", "expect": { "k": "purchase", "a": 2, "m": "THATI" } },
+    { "address": "urpay", "date": 1760800000000, "body": "حوالة صادرة\nإلى:SAMIR\nمبلغ: 500 SAR\nفي:18-10-2026 13:13", "expect": { "k": "transfer", "a": 500, "m": "SAMIR" } },
+    { "address": "STC Bank", "date": 1760790000000, "body": "Internal outward transfer\nAmount:9.5SR\nTo:K FAHMY\nAcc:758\nAt:18/10/26 11:36\n", "expect": { "k": "transfer", "a": 9.5, "m": "K FAHMY" } },
+    { "address": "AlRajhiBank", "date": 1760630000000, "body": " حوالة داخلية واردة\nمبلغ:SAR 350\nإلى:1001\n؜16/10/26 18:16", "expect": { "k": "in", "a": 350 } },
+    { "address": "AlRajhiBank", "date": 1760370000000, "body": "حوالة دولية\nدولة:مصر\nمن:1001\nالى:منى علي حسن\nمبلغ:SR 130\nرسوم:SR 17.25\n26/10/13 12:35", "expect": { "k": "intl", "a": 130, "m": "منى علي حسن", "fee": 17.25 } },
+    { "address": "urpay", "date": 1760180000000, "body": "حوالة صادرة دولية\nالدولة:مصر\nإلى:Mona HASSAN,7777\nمن:TESTUSER,4004\nمزود الخدمة: TF\nالمبلغ: SAR 483\nالرسوم:SAR 17.25\n11-10-2026 12:09", "expect": { "k": "intl", "a": 483, "m": "Mona HASSAN,7777", "fee": 17.25 } },
+    { "address": "alinma", "date": 1760180500000, "body": "تم سداد البطاقة الائتمانية **3333\nمبلغ 466.66 SAR\nحساب **5005\nفي 2026-10-11 13:23 \nحد الصرف المتبقي 5,082.86 SAR", "expect": { "k": "ccpay", "a": 466.66, "card": "3333", "cc": 1 } },
+    { "address": "AlRajhiBank", "date": 1759940000000, "body": "بطاقة فيزا:سداد بـSR 136.8 \nعبر4444;فيزا\nرصيد:24842.7 SR \n؜8/10/26 19:19", "expect": { "k": "ccpay", "a": 136.8, "card": "4444", "cc": 1, "noBal": true } },
+    { "address": "alinma", "date": 1759939000000, "body": "سداد فاتورة \nرقم: 100000001\nالمبلغ: 136.80 ريال  \nمفوتر: خدمات مصرف الراجحي \nالخدمة: الفواتير \nمن البطاقة الائتمانية: 3333\nفي: 26-10-08 19:15\nالرصيد المتاح: 0 ريال", "expect": { "k": "ccxfer", "a": 136.8, "card": "3333", "cc": 1 } },
+    { "address": "alinma", "date": 1759850000000, "body": "شراء عبر الإنترنت\nبطاقة ائتمانية **3333\nمبلغ SAR 477\nمن noon.com\nحساب **5005\nSA\nفي 2026-10-07 19:20 \nرصيد 1,723 SAR", "expect": { "k": "purchase", "a": 477, "m": "noon.com", "card": "3333", "bal": 1723, "cc": 1 } },
+    { "address": "AlRajhiBank", "date": 1759700000000, "body": "عكس عملية\nبطاقة:4444;فيزا\nمبلغ:1 SAR\nلدى:Amazon.sa\nرصيد:25156.23 SAR\n؜6/10/26 2:31", "expect": { "k": "refund", "a": 1, "m": "Amazon.sa", "card": "4444", "bal": 25156.23 } },
+    { "address": "AlRajhiBank", "date": 1759080000000, "body": "سداد فاتورة\nبطاقة:4444;فيزا\nمبلغ:287.5 SAR\nرصيد:29760 SAR\n؜28/9/26 20:03", "expect": { "k": "bill", "a": 287.5, "card": "4444", "bal": 29760 } },
+    { "address": "AlRajhiBank", "date": 1758970000000, "body": "حوالة محلية صادرة بـSR 100\nمن1001\nلـ9999;مجدي فهمي\nرسوم:SR 0.58\n26/9/27 13:30", "expect": { "k": "transfer", "a": 100, "m": "مجدي فهمي" } },
+    { "address": "AlRajhiBank", "date": 1760380000000, "body": "حوالة محلية صادرة بـSR 50\nمن1001\nلـ3003;تست الاختبار\nرسوم:SR 0.58\n26/10/13 20:46", "expect": null, "why": "تحويل لنفسك" },
+    { "address": "SNB-AlAhli", "date": 1758930000000, "body": "ايداع رواتب\nمبلغ SAR 10758.58\nحساب2002*\nفي 27/09/26 01:50", "expect": { "k": "salary", "a": 10758.58 } },
+    { "address": "AlRajhiBank", "date": 1751700000000, "body": "مدفوعات وزارة الداخلية\nمن:1001\nمبلغ:SR 500\nالجهة:خدمات المقيمين\nالخدمة:تجديد اقامة\n26/7/5 12:57", "expect": { "k": "gov", "a": 500 } },
+    { "address": "AlRajhiBank", "date": 1749290000000, "body": "رسوم تجديد بطاقة صراف\nمبلغ:SAR 11.50\nمن:1001\n؜7/6/26 12:49", "expect": { "k": "fee", "a": 11.5 } },
+    { "address": "SNB-AlAhli", "date": 1749240000000, "body": "شراء نقاط بيع SamsungPay\nبـ21.50 SAR\nمن Establish\nمدى*5555\nفي 06/06/26 23:11", "expect": { "k": "purchase", "a": 21.5, "m": "Establish", "card": "5555" } },
+    { "address": "AlRajhiBank", "date": 1742240000000, "body": "سحب:صراف آلي\nبطاقة:6666;مدى\nمبلغ:SAR 50\nمكان السحب:BAKKAH1D0245\n؜17/3/26 20:39", "expect": { "k": "cash", "a": 50, "card": "6666" } },
+    { "address": "STCPAY", "date": 1748700000000, "body": "Online Purchase\nTransaction Amount 23.00 SAR\nFor Keeta\nOnline Payment \nAccount number ******8888\nDate 31/05/2025 Time 15:18", "expect": { "k": "purchase", "a": 23, "m": "Keeta" } },
+    { "address": "STCPAY", "date": 1748690000000, "body": "Internal transfer\nAmount:205.00SAR\nTo:AHMED KAMAL\nAt:31/05/25 12:21\n", "expect": { "k": "transfer", "a": 205, "m": "AHMED KAMAL" } },
+    { "address": "STCPAY", "date": 1748400000000, "body": "Internal transfer\nAmount:10.00SAR\nFrom:OMAR ADEL\nAt:28/05/25 11:07\n", "expect": { "k": "in", "a": 10 } },
+    { "address": "urpay", "date": 1760000000000, "body": "رمز التحقق:2503\nالخدمة: حوالة محفظة", "expect": null, "why": "OTP" },
+    { "address": "STC Bank", "date": 1760000100000, "body": "The security code to confirm your action is: 2008\n\nDo not share the code with anyone", "expect": null, "why": "OTP" },
+    { "address": "STCPAY", "date": 1748699000000, "body": "Please use one time password 2855 for online payment\nTransaction Amount 23.00 SAR\nFor Keeta\nDate 31/05/2025 and Time 15:18", "expect": null, "why": "OTP" },
+    { "address": "SNB-AlAhli", "date": 1760000200000, "body": "تم إضافة بطاقتك الأهلي المنتهية بـ 5555\nلمحفظة Samsung", "expect": null, "why": "إشعار مش عملية" },
+    { "address": "AlRajhiBank", "date": 1760000300000, "body": "عملية مرفوضة\nرصيد غير كاف\nبطاقة:1111;مدى\nمبلغ:SAR 99\nلدى:SHOP", "expect": null, "why": "مرفوضة" },
+    { "address": "RandomShop", "date": 1760000400000, "body": "شراء PoS\nبـSR 34\nلـFAKE", "expect": null, "why": "راسل مش بنك" }
+  ],
+  "bnpl": [
+    { "address": "Tabby", "date": 1760500000000, "body": "Your SAR 383.00 purchase at R&B Fashion is confirmed. Track your upcoming payments with the Tabby app: https://s.tabby.sa/x", "expect": { "prov": "tabby", "store": "R&B Fashion", "total": 383 } },
+    { "address": "Tamara", "date": 1753500000000, "body": "Split in 3 payment\nconfirmation:\nStore: Saudia\nOrder: 3,386.00 SAR\nDate: 26/08/2026\nVisit the app for more details.", "expect": { "prov": "tamara", "store": "Saudia", "total": 3386, "n": 3 } },
+    { "address": "Tabby", "date": 1760500100000, "body": "2432 is the verification code for your SAR 383 R&B Fashion order with Tabby. For your safety, don't share this code.", "expect": null }
+  ]
+}

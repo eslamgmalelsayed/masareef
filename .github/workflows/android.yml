@@ -19,6 +19,9 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
 
       - run: npm ci
+      # الاختبارات قبل أي نسخة — لو فشلت، مفيش نسخة جديدة
+      - name: Tests (JS)
+        run: npm test
       - run: npm run build && npx cap sync android
 
       - name: Restore signing key
@@ -34,7 +37,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: 1.${{ github.run_number }}
-        run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+        run: |
+          node scripts/make-java-fixtures.mjs
+          cd android && chmod +x gradlew && ./gradlew testDebugUnitTest assembleRelease --no-daemon
 
       - name: Publish release
         env:

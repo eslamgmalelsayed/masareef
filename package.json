@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "sync": "vite build && npx cap sync android",
-    "test:parser": "node scripts/test-parser.mjs"
+    "test:parser": "node scripts/test-parser.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@capacitor/android": "7.6.9",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@capacitor/cli": "7.6.9",
     "@vitejs/plugin-vue": "6.0.10",
-    "vite": "7.3.7"
+    "vite": "7.3.7",
+    "vitest": "^3.2.4"
   }
 }

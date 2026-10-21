@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { commitments, transfers, savings, saveGoal } from '../lib/insights.js'
 import { totals as debtTotals } from '../lib/debts.js'
-import { funds, fundsNeedNow, remit, netWorth, zakat, activeEvent } from '../lib/tools.js'
+import { funds, fundsNeedNow, remit, netWorth, zakat, activeEvent, emergency } from '../lib/tools.js'
 import { creditCards } from '../lib/credit.js'
 import { fmt, fmtDate } from '../lib/format.js'
 
@@ -12,6 +12,7 @@ const tools = computed(() => [
   { id: 'commit', ic: '🔁', t: 'الالتزامات الشهرية', s: `${fmt(commitments.value.next30)} في الـ ٣٠ يوم الجايين` },
   { id: 'debts', ic: '💸', t: 'الديون', s: debtTotals.value.owed || debtTotals.value.lent ? `عليّا ${fmt(debtTotals.value.owed)} · ليّا ${fmt(debtTotals.value.lent)}` : 'سجّل اللي عليك واللي ليك' },
   { id: 'savings', ic: '🎯', t: 'هدف الادخار', s: saveGoal.value ? (savings.value.onTrack ? 'ماشي صح 👌' : 'متأخر شوية') : 'حدد هدف' },
+  { id: 'emergency', ic: '🛟', t: 'صندوق الطوارئ', s: emergency.value.saved ? `معاك ${fmt(emergency.value.saved)} من ${fmt(emergency.value.target)}` : `المقترح ${fmt(emergency.value.suggested)} (${emergency.value.months} شهور)` },
   { id: 'funds', ic: '🗂️', t: 'صناديق المصاريف السنوية', s: funds.value.length ? `حط ${fmt(fundsNeedNow.value)} الراتب ده` : 'الإقامة، رحلة مصر، العيد…' },
   { id: 'transfers', ic: '🌍', t: 'الحوالات', s: remit.value.target ? `${fmt(remit.value.sent)} من ${fmt(remit.value.target)} الراتب ده` : `${fmt(transfers.value.cycle)} الراتب ده` },
   { id: 'worth', ic: '💰', t: 'صافي ثروتك', s: fmt(netWorth.value.net) + ' ر.س' },

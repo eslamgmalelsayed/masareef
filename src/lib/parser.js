@@ -209,7 +209,8 @@ function meta(b) {
     if (fee) { const v = num(fee[1]); if (v) o.fee = v }
   }
   // رسايل سداد الكريدت: الرصيد فيها مش واضح هو للحساب ولا للكارت، فبنتجاهله
-  const bal = /سداد/.test(b.split('\n')[0]) ? null : b.match(/(?:رصيد|Your balance|Balance)\s*[:：]?\s*(?:SAR|SR)?\s*([\d,]+(?:\.\d+)?)\s*(?:SAR|SR)?/i)
+  // (سداد فاتورة بالبطاقة عادي — الرصيد فيه هو متاح البطاقة)
+  const bal = /سداد/.test(b.split('\n')[0]) && !/^\s*سداد فاتورة/.test(b) ? null : b.match(/(?:رصيد|Your balance|Balance)\s*[:：]?\s*(?:SAR|SR)?\s*([\d,]+(?:\.\d+)?)\s*(?:SAR|SR)?/i)
   if (bal) { const v = num(bal[1]); if (v !== null) o.bal = v }
   return o
 }

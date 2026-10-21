@@ -5,7 +5,7 @@ import { safeToSpend } from '../lib/tools.js'
 import { state, saveSettings } from '../lib/store.js'
 import { fmt } from '../lib/format.js'
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'go'])
 const S = computed(() => savings.value)
 const maxH = computed(() => Math.max(1, ...S.value.history.map((h) => Math.abs(h.saved)), S.value.goal))
 const pct = computed(() => (S.value.goal ? Math.max(0, Math.min(100, (S.value.projected / S.value.goal) * 100)) : 0))
@@ -47,6 +47,8 @@ function setGoal(e) {
     </section>
     <p v-else class="muted sm hint">اكتب هدفك، والتطبيق هيقولك ماشي صح ولا لأ، وهيطرحه من "تقدر تصرف/يوم" في الرئيسية.</p>
 
+    <button class="card linkcard" @click="emit('go', 'emergency')">🛟 <span><b>صندوق الطوارئ</b><br /><small class="muted">أول حاجة تحوّشها قبل أي هدف تاني — مصاريف ٣ لـ ٦ شهور</small></span><span class="muted">←</span></button>
+
     <section class="card" v-if="S.history.length">
       <h2>فضل معاك كام من كل راتب</h2>
       <div v-for="h in S.history" :key="h.id" class="hrow">
@@ -85,4 +87,6 @@ h2 { font-size: 15.5px; margin: 0 0 10px }
 .hrow b { width: 64px; text-align: left; font-variant-numeric: tabular-nums }
 .hrow b.neg { color: var(--bad) }
 .foot { margin: 8px 0 0 }
+.linkcard { display: flex; align-items: center; gap: 12px; width: 100%; text-align: right; font: inherit; color: inherit; cursor: pointer; font-size: 20px }
+.linkcard span:nth-child(1) { flex: 1; font-size: 14px }
 </style>

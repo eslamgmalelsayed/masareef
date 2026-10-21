@@ -40,6 +40,37 @@ export function fundAdd(id, a) { setList('funds', (state.settings.funds || []).m
 export function fundRenew(id) { setList('funds', (state.settings.funds || []).map((f) => (f.id === id ? { ...f, due: addMonths(f.due, 12), adds: [] } : f))) }
 export function deleteFund(id) { setList('funds', (state.settings.funds || []).filter((f) => f.id !== id)) }
 
+// ===================== صندوق الطوارئ =====================
+// فلوس على جنب تكفي مصاريفك كام شهر لو حصل حاجة (شغل، علاج، عربية…)
+const spentBetween = (a, b) => spendTx.value.filter((t) => t.d >= a && t.d <= b).reduce((x, t) => x + t.a, 0)
+export const emergency = computed(() => {
+  const e = state.settings.emergency || {}
+  const months = Number(e.months) || 3
+  const done = cycles.value.filter((c) => !c.current).slice(-3)
+  const monthly = done.length ? done.reduce((x, c) => x + spentBetween(c.from, c.to) * (30.44 / Math.max(20, c.days)), 0) / done.length : cycleSpent.value
+  const suggested = Math.ceil((monthly * months) / 500) * 500
+  const target = Number(e.target) || suggested
+  const adds = e.adds || []
+  const saved = adds.reduce((x, a) => x + a.a, 0)
+  const left = Math.max(0, target - saved)
+  const speed = Number(e.speed) || 12 // يكتمل في كام شهر
+  const perCycle = Number(e.perCycle) || (left ? Math.ceil(left / speed / 50) * 50 : 0)
+  const thisCycle = adds.filter((a) => a.ts >= +currentCycle.value.from && a.a > 0).reduce((x, a) => x + a.a, 0)
+  const on = !!e.on || !!adds.length || !!e.target
+  return {
+    on, months, monthly, suggested, target, saved, left, speed, perCycle, thisCycle,
+    // مش بيتطرح من "تقدر تصرف/يوم" غير لما تفعّله انت
+    needNow: on && left > 0 ? Math.max(0, Math.min(left, perCycle) - thisCycle) : 0,
+    covers: monthly ? saved / monthly : 0, pct: target ? Math.min(1, saved / target) : 0,
+    history: [...adds].sort((a, b) => b.ts - a.ts),
+  }
+})
+export function saveEmergency(patch) { state.settings.emergency = { ...(state.settings.emergency || {}), on: true, ...patch }; saveSettings() }
+export function emergencyAdd(a, note = '') {
+  const e = state.settings.emergency || {}
+  saveEmergency({ adds: [...(e.adds || []), { ts: Date.now(), a: Number(a), note }] })
+}
+
 // ===================== خطة الحوالات =====================
 export const remit = computed(() => {
   const r = state.settings.remit || {}
@@ -79,6 +110,7 @@ export const safeToSpend = computed(() => {
     { k: 'up', label: 'أقساط واشتراكات قبل الراتب', v: -upcoming },
     { k: 'remit', label: 'باقي حوالة الشهر', v: -remitLeft },
     { k: 'funds', label: 'الصناديق', v: -fundsNeedNow.value },
+    { k: 'emergency', label: 'صندوق الطوارئ', v: -emergency.value.needNow },
   ].filter((p) => p.k === 'base' || p.k === 'spent' || p.v)
   const rest = parts.reduce((x, p) => x + p.v, 0)
   const days = daysLeft()

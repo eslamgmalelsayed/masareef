@@ -27,6 +27,7 @@ import FundsView from './components/FundsView.vue'
 import WorthView from './components/WorthView.vue'
 import ZakatView from './components/ZakatView.vue'
 import EventsView from './components/EventsView.vue'
+import EmergencyView from './components/EmergencyView.vue'
 import './lib/tools.js'
 
 const tab = ref('home')
@@ -57,8 +58,8 @@ async function unlock() {
 // إخفاء المبالغ: نغبّش الرسوم البيانية كمان
 watch(() => privacy.on, (v) => document.body.classList.toggle('privacy', v), { immediate: true })
 
-const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
-const HOME_SUB = ['commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
+const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events', 'emergency']
+const HOME_SUB = ['emergency', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
 const stack = []
 function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t)) { if (!SUB.includes(tab.value)) { prevTab.value = tab.value; stack.length = 0 } else if (tab.value !== t) stack.push(tab.value) } else stack.length = 0; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
@@ -100,12 +101,13 @@ const tabs = [
     <LimitsView v-else-if="tab === 'limits'" @back="back" />
     <CommitView v-else-if="tab === 'commit'" @back="back" @open="(t) => (sheet = t)" />
     <TransfersView v-else-if="tab === 'transfers'" @back="back" @open="(t) => (sheet = t)" />
-    <SavingsView v-else-if="tab === 'savings'" @back="back" />
+    <SavingsView v-else-if="tab === 'savings'" @back="back" @go="go" />
     <DebtsView v-else-if="tab === 'debts'" @back="back" @go="go" />
     <ToolsView v-else-if="tab === 'tools'" @back="back" @go="go" />
     <FundsView v-else-if="tab === 'funds'" @back="back" />
     <WorthView v-else-if="tab === 'worth'" @back="back" @go="go" />
     <ZakatView v-else-if="tab === 'zakat'" @back="back" @go="go" />
+    <EmergencyView v-else-if="tab === 'emergency'" @back="back" />
     <EventsView v-else-if="tab === 'events'" @back="back" @open="(t) => (sheet = t)" />
     <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="back" @open="(t) => (sheet = t)" @go="go" />
 
