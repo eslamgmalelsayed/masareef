@@ -1,6 +1,15 @@
 export const DAY = 864e5
-export const fmt = (n) => Math.round(n || 0).toLocaleString('en-US')
-export const fmt2 = (n) => (n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })
+import { reactive } from 'vue'
+
+// إخفاء المبالغ (لو بتفتح التطبيق قدام حد) — كل الأرقام بتتعرض من fmt/fmt2
+export const privacy = reactive({ on: (() => { try { return localStorage.getItem('hideAmounts') === '1' } catch { return false } })() })
+export function setPrivacy(v) {
+  privacy.on = !!v
+  try { localStorage.setItem('hideAmounts', v ? '1' : '0') } catch {}
+}
+const MASK = '••••'
+export const fmt = (n) => (privacy.on ? MASK : Math.round(n || 0).toLocaleString('en-US'))
+export const fmt2 = (n) => (privacy.on ? MASK : (n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }))
 export const fmtDate = (d, opts = { day: 'numeric', month: 'short', year: 'numeric' }) =>
   new Date(d).toLocaleDateString('ar-EG-u-nu-latn', opts)
 export const monthLabel = (y, m, withYear = false) =>

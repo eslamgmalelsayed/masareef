@@ -65,3 +65,6 @@ h2 { font-size: 15.5px; font-weight: 600; margin: 0 }
 .hd.sub h1 { font-size: 21px }
 .empty { text-align: center; padding: 26px 10px; color: var(--ink-3); font-size: 13.5px; line-height: 1.7 }
 .empty b { display: block; font-size: 28px; margin-bottom: 4px }
+
+/* إخفاء المبالغ */
+body.privacy canvas { filter: blur(7px); opacity: .7 }

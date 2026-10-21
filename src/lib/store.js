@@ -2,6 +2,7 @@ import { reactive, computed, watch, ref } from 'vue'
 import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile, BNPL_SENDERS, parseBnplMessages } from './parser.js'
 import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
 import { isNative, readSms, saveNativeConfig } from './smsSource.js'
+import { privacy } from './format.js'
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d } catch { return d } },
@@ -401,13 +402,13 @@ function pushNativeConfig() {
     rules: RULES.map(([c, rx]) => [c, rx.source]),
     overrides: state.overrides,
     senders: Object.keys(BANKS),
-    widget: { day: dayLimit.value, cycle: totalLimit.value, daySpent: daySpent.value, cycleSpent: cycleSpent.value },
+    widget: { day: dayLimit.value, cycle: totalLimit.value, daySpent: daySpent.value, cycleSpent: cycleSpent.value, hide: privacy.on },
     ...nativeExtra,
   })
 }
 let pushTimer = null
 watch(
-  () => [state.status, nativeExtra, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, nativeExtra, privacy.on, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

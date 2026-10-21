@@ -30,7 +30,8 @@ public class TodayWidget extends AppWidgetProvider {
         } catch (Exception ignored) { }
     }
 
-    private static String fmt(double v) { return String.format(Locale.US, "%,d", Math.round(v)); }
+    private static boolean HIDE = false;
+    private static String fmt(double v) { return HIDE ? "••••" : String.format(Locale.US, "%,d", Math.round(v)); }
 
     static void render(Context ctx, AppWidgetManager mgr, int[] ids) {
         try {
@@ -44,6 +45,7 @@ public class TodayWidget extends AppWidgetProvider {
             double dl = w == null ? 0 : w.optDouble("day", 0);
             double cl = w == null ? 0 : w.optDouble("cycle", 0);
 
+            HIDE = w != null && w.optBoolean("hide", false);
             RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_today);
             v.setTextViewText(R.id.w_amount, fmt(day) + " ر.س");
             int bg = R.drawable.widget_bg;

@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { state, syncSms, allTx } from './lib/store.js'
-import { isNative, isIOS } from './lib/smsSource.js'
+import { isNative, isIOS, biometricAuth } from './lib/smsSource.js'
+import { privacy } from './lib/format.js'
+import LockScreen from './components/LockScreen.vue'
 import { App as CapApp } from '@capacitor/app'
 import HomeView from './components/HomeView.vue'
 import AnalysisView from './components/AnalysisView.vue'
@@ -30,6 +32,22 @@ const adding = ref(null) // null | {} (جديد) | tx (تعديل)
 
 const prevTab = ref('home')
 const creditSel = ref('')
+// ===== قفل التطبيق =====
+const locked = ref(isNative && !!state.settings.lock)
+const lockErr = ref('')
+let authing = false, pausedAt = 0
+async function unlock() {
+  if (authing) return
+  authing = true
+  lockErr.value = ''
+  const r = await biometricAuth('افتح مصاريفي')
+  authing = false
+  if (r.ok) locked.value = false
+  else if (r.error && !/cancel|ألغ|إلغاء/i.test(r.error)) lockErr.value = r.error
+}
+// إخفاء المبالغ: نغبّش الرسوم البيانية كمان
+watch(() => privacy.on, (v) => document.body.classList.toggle('privacy', v), { immediate: true })
+
 const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts']
 function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t) && !SUB.includes(tab.value)) prevTab.value = tab.value; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
@@ -45,8 +63,13 @@ if (isNative) {
     else if (tab.value !== 'home') go('home')
     else CapApp.exitApp()
   })
-  // لما ترجع للتطبيق، نقرا الرسايل الجديدة
-  CapApp.addListener('resume', () => syncSms())
+  // لما ترجع للتطبيق، نقرا الرسايل الجديدة (ونقفله لو غبت أكتر من ٣٠ ثانية)
+  CapApp.addListener('pause', () => { if (!authing) pausedAt = Date.now() })
+  CapApp.addListener('resume', () => {
+    if (state.settings.lock && !authing && pausedAt && Date.now() - pausedAt > 30e3) locked.value = true
+    pausedAt = 0
+    syncSms()
+  })
 }
 
 const tabs = [
@@ -60,6 +83,7 @@ const tabs = [
 
 <template>
   <main>
+    <LockScreen v-if="locked" :error="lockErr" @unlock="unlock" />
     <PullRefresh :on-refresh="refresh" :disabled="!!sheet || !!adding" />
     <SettingsView v-if="tab === 'settings'" @go="go" />
     <LimitsView v-else-if="tab === 'limits'" @back="go(prevTab)" />

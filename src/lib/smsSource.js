@@ -58,3 +58,13 @@ export async function saveCredit(cards) {
   if (!isNative) return
   try { await SmsReader.saveCredit({ cards }) } catch (e) { console.warn('credit', e) }
 }
+
+/** قفل التطبيق: البصمة/الوش متاحين؟ */
+export async function biometricAvailable() {
+  if (!isNative) return { available: false }
+  try { return await SmsReader.biometricAvailable() } catch { return { available: false } }
+}
+export async function biometricAuth(title = 'افتح مصاريفي') {
+  if (!isNative) return { ok: true }
+  try { return await SmsReader.biometricAuth({ title }) } catch (e) { return { ok: false, error: String(e) } }
+}

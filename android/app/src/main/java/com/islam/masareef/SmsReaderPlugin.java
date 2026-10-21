@@ -63,6 +63,57 @@ public class SmsReaderPlugin extends Plugin {
         }
     }
 
+    // ===== قفل التطبيق بالبصمة / الوش / رمز الموبايل =====
+    private int authenticators() {
+        return Build.VERSION.SDK_INT >= 30
+            ? (androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK | androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+            : androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK;
+    }
+
+    @PluginMethod
+    public void biometricAvailable(PluginCall call) {
+        JSObject o = new JSObject();
+        try {
+            int r = androidx.biometric.BiometricManager.from(getContext()).canAuthenticate(authenticators());
+            boolean ok = r == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS;
+            if (!ok && Build.VERSION.SDK_INT < 30) {
+                android.app.KeyguardManager km = (android.app.KeyguardManager) getContext().getSystemService(android.content.Context.KEYGUARD_SERVICE);
+                ok = km != null && km.isDeviceSecure();
+            }
+            o.put("available", ok);
+        } catch (Exception e) { o.put("available", false); }
+        call.resolve(o);
+    }
+
+    @PluginMethod
+    public void biometricAuth(PluginCall call) {
+        final String title = call.getString("title", "افتح مصاريفي");
+        getActivity().runOnUiThread(() -> {
+            try {
+                java.util.concurrent.Executor ex = androidx.core.content.ContextCompat.getMainExecutor(getContext());
+                androidx.biometric.BiometricPrompt bp = new androidx.biometric.BiometricPrompt((androidx.fragment.app.FragmentActivity) getActivity(), ex,
+                    new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                        @Override
+                        public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult result) {
+                            JSObject o = new JSObject(); o.put("ok", true); call.resolve(o);
+                        }
+                        @Override
+                        public void onAuthenticationError(int code, CharSequence msg) {
+                            JSObject o = new JSObject(); o.put("ok", false); o.put("code", code); o.put("error", String.valueOf(msg)); call.resolve(o);
+                        }
+                    });
+                androidx.biometric.BiometricPrompt.PromptInfo.Builder b = new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(title)
+                    .setSubtitle("بالبصمة أو الوش أو رمز الموبايل");
+                if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(authenticators());
+                else b.setDeviceCredentialAllowed(true);
+                bp.authenticate(b.build());
+            } catch (Exception e) {
+                JSObject o = new JSObject(); o.put("ok", false); o.put("error", String.valueOf(e.getMessage())); call.resolve(o);
+            }
+        });
+    }
+
     @PluginMethod
     public void saveCredit(PluginCall call) {
         try {

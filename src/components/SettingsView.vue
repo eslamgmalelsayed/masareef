@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { state, saveSettings, syncSms, reparse, importFile, clearImported, resetOverrides, allTx, currentCycle, income, totalLimit, cycleSpent, dayLimit, weekLimit, salaryDay, nextSalaryDate } from '../lib/store.js'
-import { isNative, isIOS, requestNotifications } from '../lib/smsSource.js'
+import { isNative, isIOS, requestNotifications, biometricAvailable, biometricAuth } from '../lib/smsSource.js'
+import { privacy, setPrivacy } from '../lib/format.js'
 import { fmtDate, fmt } from '../lib/format.js'
 import NotifyTest from './NotifyTest.vue'
 import IosSetup from './IosSetup.vue'
@@ -15,6 +16,21 @@ const emit = defineEmits(['go'])
 const msg = ref('')
 const fileEl = ref(null)
 const bkEl = ref(null)
+// ===== القفل =====
+const bio = ref({ available: false })
+onMounted(async () => { bio.value = await biometricAvailable() })
+const lockMsg = ref('')
+async function toggleLock(e) {
+  const want = e.target.checked
+  e.target.checked = !!state.settings.lock
+  lockMsg.value = ''
+  // لازم تأكد بالبصمة قبل ما تشغّل أو تقفل القفل
+  const r = await biometricAuth(want ? 'فعّل قفل مصاريفي' : 'اقفل قفل مصاريفي')
+  if (!r.ok) { if (r.error && !/cancel|ألغ|إلغاء/i.test(r.error)) lockMsg.value = r.error; return }
+  state.settings.lock = want
+  saveSettings()
+  e.target.checked = want
+}
 const bkMsg = ref('')
 async function doExport() {
   try { await exportBackup(); bkMsg.value = isNative ? '' : 'اتحفظ الملف في التنزيلات ✅' } catch (e) { if (!/cancel/i.test(String(e))) bkMsg.value = 'معرفتش أحفظ النسخة: ' + (e.message || e) }
@@ -122,6 +138,19 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
         <button class="link" @click="clearOv">رجّع التصنيفات للتلقائي</button>
         <button class="link" @click="clearImp" v-if="state.importedTx.length">امسح البيانات المستوردة</button>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>الخصوصية والأمان</h2>
+      <label class="sw" v-if="isNative">
+        <span><b>{{ isIOS ? 'اقفل التطبيق بـ Face ID' : 'اقفل التطبيق بالبصمة أو الوش' }}</b><br /><small class="muted">{{ bio.available ? 'بيطلبها لما تفتحه أو ترجعله بعد ٣٠ ثانية' : 'فعّل البصمة أو رمز قفل للموبايل الأول من إعداداته' }}</small></span>
+        <input type="checkbox" :checked="!!state.settings.lock" :disabled="!bio.available" @change="toggleLock" />
+      </label>
+      <p v-if="lockMsg" class="note">{{ lockMsg }}</p>
+      <label class="sw">
+        <span><b>اخفي المبالغ</b><br /><small class="muted">الأرقام تبقى •••• — تقدر تقلبها بسرعة من زرار العين في الرئيسية</small></span>
+        <input type="checkbox" :checked="privacy.on" @change="(e) => setPrivacy(e.target.checked)" />
+      </label>
     </section>
 
     <section class="card">

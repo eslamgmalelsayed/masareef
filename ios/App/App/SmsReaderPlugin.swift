@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import UserNotifications
+import LocalAuthentication
 
 /// نفس واجهة SmsReaderPlugin بتاع أندرويد، علشان كود Vue يفضل واحد.
 /// على آيفون الرسايل بتيجي من الاختصار (AddBankMessageIntent) بدل قراية الـ SMS.
@@ -18,6 +19,8 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
         CAPPluginMethod(name: "simulate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "scheduleReminders", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveCredit", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "biometricAvailable", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "biometricAuth", returnType: CAPPluginReturnPromise),
     ]
 
     public override func load() {
@@ -97,6 +100,22 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
                 center.add(UNNotificationRequest(identifier: id, content: c, trigger: UNTimeIntervalNotificationTrigger(timeInterval: secs, repeats: false)))
             }
             call.resolve()
+        }
+    }
+
+    // ===== قفل التطبيق بـ Face ID / Touch ID / رمز الموبايل =====
+    @objc func biometricAvailable(_ call: CAPPluginCall) {
+        let c = LAContext()
+        var err: NSError?
+        let ok = c.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err)
+        let type = c.biometryType == .faceID ? "face" : c.biometryType == .touchID ? "touch" : "none"
+        call.resolve(["available": ok, "type": type])
+    }
+
+    @objc func biometricAuth(_ call: CAPPluginCall) {
+        let c = LAContext()
+        c.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: call.getString("title") ?? "افتح مصاريفي") { ok, err in
+            DispatchQueue.main.async { call.resolve(["ok": ok, "error": err?.localizedDescription ?? ""]) }
         }
     }
 

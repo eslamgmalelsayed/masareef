@@ -1,6 +1,7 @@
 import { computed, watch } from 'vue'
 import { allTx, spendTx, state, saveSettings, cycles, currentCycle, nextSalaryDate, income, totalLimit, cycleSpent, cycleDays, nativeExtra } from './store.js'
 import { merchantKey } from './categories.js'
+import { fmt } from './format.js'
 
 const DAY = 864e5
 const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)] }
@@ -175,7 +176,6 @@ export function dismissFlag(id) {
   state.settings.flagsSeen = [...(state.settings.flagsSeen || []), id].slice(-300)
   saveSettings()
 }
-const fmt = (n) => Math.round(n || 0).toLocaleString('en-US')
 
 /** متوسط كل تاجر — للجزء الأصلي علشان ينبهك على العملية الغريبة والتطبيق مقفول */
 export const merchantMedians = computed(() => {
