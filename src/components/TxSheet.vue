@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
-import { debtFromTx, txHasDebt } from '../lib/debts.js'
+import { debtFromTx, txHasDebt, autoLentTxIds, notLoan } from '../lib/debts.js'
 import { unusual, dismissFlag } from '../lib/insights.js'
 
 const props = defineProps({ t: Object })
@@ -22,6 +22,7 @@ const flag = computed(() => unusual.value.find((f) => f.tx.id === props.t.id) ||
 function okFlag() { dismissFlag(flag.value.id); emit('close') }
 const canDebt = computed(() => ['transfer', 'intl', 'in'].includes(props.t.k))
 const hasDebt = computed(() => txHasDebt(props.t))
+const isAutoLoan = computed(() => autoLentTxIds.value.has(props.t.id))
 function markDebt() { debtFromTx(props.t); emit('close'); emit('go', 'debts') }
 function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(props.t.id); emit('close') } }
 </script>
@@ -50,6 +51,7 @@ function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(p
       </div>
 
       <button v-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
+      <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoan(t.id)">مش سلفة</button></div>
       <div v-else-if="hasDebt" class="muted xs" style="text-align: center; margin-top: 10px">✓ متسجلة في الديون</div>
 
       <template v-if="isOut">
@@ -95,4 +97,6 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 .flag { margin-top: 12px; border: 1px solid #f59e0b; background: color-mix(in srgb, #f59e0b 9%, var(--surface)); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 4px }
 .fact { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap }
 .fact .ok { border: 0; border-radius: 12px; padding: 9px 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
+.autoloan { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500 }
+.autoloan button { border: 0; border-radius: 10px; padding: 7px 12px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 12.5px; cursor: pointer }
 </style>

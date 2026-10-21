@@ -3,7 +3,8 @@ import { ref, onMounted } from 'vue'
 import { isNative, notificationStatus, requestNotifications, notify, simulatePurchase } from '../lib/smsSource.js'
 import { totalLimit, cycleSpent } from '../lib/store.js'
 import { CAT } from '../lib/categories.js'
-import { fmt } from '../lib/format.js'
+// الإشعار بيطلع برّه التطبيق — الأرقام فيه عادية حتى لو المبالغ مخفية جوه
+const fmt = (n) => Math.round(n || 0).toLocaleString('en-US')
 
 const st = ref(null)
 const msg = ref('')
@@ -34,11 +35,11 @@ async function run(fn, done) {
 
 const lim = () => totalLimit.value || 10000
 const tests = [
-  { icon: '🔔', t: 'إشعار عادي', d: 'يتأكد إن الإشعارات بتوصل', fn: () => notify('إشعارات مصاريفي شغالة ✅', 'هيوصلك تنبيه لما توصل ٨٠٪ وعند تخطي أي حد', 4242), done: () => 'اتبعت إشعار' },
-  { icon: '🟠', t: 'قرّبت من الحد (٨٠٪)', d: 'شكل التنبيه لما تقرّب', fn: () => notify('صرفت ٨٠٪ من حد المصروفات', `صرفت ${fmt(lim() * 0.8)} من ${fmt(lim())} ر.س — باقي ${fmt(lim() * 0.2)} (تجربة)`, 4244), done: () => 'اتبعت تنبيه ٨٠٪' },
-  { icon: '🔴', t: 'عدّيت الحد', d: 'شكل التنبيه لما تعدّي', fn: () => notify('عدّيت حد المصروفات للراتب ده 🔴', `صرفت ${fmt(lim() * 1.05)} ر.س والحد ${fmt(lim())} ر.س — زيادة ${fmt(lim() * 0.05)} (تجربة)`, 4245), done: () => 'اتبعت تنبيه تخطي الحد' },
+  { icon: '🔔', t: 'إشعار عادي', fn: () => notify('إشعارات مصاريفي شغالة ✅', 'هيوصلك تنبيه لما توصل ٨٠٪ وعند تخطي أي حد', 4242), done: () => 'اتبعت إشعار' },
+  { icon: '🟠', t: 'قرّبت ٨٠٪', fn: () => notify('صرفت ٨٠٪ من حد المصروفات', `صرفت ${fmt(lim() * 0.8)} من ${fmt(lim())} ر.س — باقي ${fmt(lim() * 0.2)} (تجربة)`, 4244), done: () => 'اتبعت تنبيه ٨٠٪' },
+  { icon: '🔴', t: 'عدّيت الحد', fn: () => notify('عدّيت حد المصروفات للراتب ده 🔴', `صرفت ${fmt(lim() * 1.05)} ر.س والحد ${fmt(lim())} ر.س — زيادة ${fmt(lim() * 0.05)} (تجربة)`, 4245), done: () => 'اتبعت تنبيه تخطي الحد' },
   {
-    icon: '🧪', t: 'رسالة شراء وهمية', d: 'يجرّب قراية رسالة بنك وتصنيفها وحساب الحد — من غير ما يغيّر أرقامك',
+    icon: '🧪', t: 'رسالة شراء وهمية',
     fn: () => simulatePurchase('شراء عبر نقاط البيع\nبطاقة:0000;مدى\nلدى:HUNGERSTATION\nمبلغ:45 SAR'),
     done: (r) => `اتقرت: ${r.merchant} · ${r.amount} ر.س → ${CAT[r.category]?.name || r.category}`,
   },
@@ -59,24 +60,24 @@ const tests = [
     <div class="tests">
       <button v-for="x in tests" :key="x.t" class="tb" @click="run(x.fn, x.done)">
         <span class="ti">{{ x.icon }}</span>
-        <span class="tm"><b>{{ x.t }}</b><small class="muted">{{ x.d }}</small></span>
+        <span class="tm">{{ x.t }}</span>
       </button>
     </div>
     <p v-if="msg" class="res" :class="{ bad: !ok }">{{ msg }}</p>
-    <p class="muted xs" style="margin: 10px 0 0">الصرف الحالي للراتب ده {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} — التجارب مش بتغيّر الأرقام دي.</p>
+    <p class="muted xs" style="margin: 8px 0 0">التجارب مش بتغيّر أرقامك.</p>
   </section>
 </template>
 
 <style scoped>
-.status { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: 13px; display: flex; flex-direction: column; gap: 6px }
+.status { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; margin: 8px 0; font-size: 12.5px; display: flex; flex-direction: column; gap: 4px }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; vertical-align: middle }
 .dot.on { background: var(--good) } .dot.off { background: var(--bad) }
 .status .link { margin-right: 8px }
-.tests { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
-.tb { display: flex; gap: 8px; align-items: flex-start; text-align: right; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer }
+.tests { display: grid; grid-template-columns: 1fr 1fr; gap: 6px }
+.tb { display: flex; gap: 6px; align-items: center; text-align: right; padding: 9px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer }
 .tb:active { background: var(--accent-soft) }
-.ti { font-size: 18px }
-.tm { display: flex; flex-direction: column; gap: 2px; font-size: 13.5px }
+.ti { font-size: 15px }
+.tm { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .tm b { font-weight: 600 }
 .tm small { font-size: 11.5px; line-height: 1.4 }
 .res { font-size: 13px; color: var(--accent); margin: 10px 0 0; line-height: 1.6 }

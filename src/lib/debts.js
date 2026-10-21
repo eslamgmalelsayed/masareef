@@ -35,7 +35,7 @@ export function debtFromTx(t) {
   const first = String(t.m || '').replace(/[,،]?\s*\d+\s*$/, '').trim()
   saveDebt({ type: out ? 'lent' : 'owe', name: first || t.m, amount: t.a, ts: t.ts, match: first.split(/\s+/)[0] || '', fromTx: t.id })
 }
-export const txHasDebt = (t) => list().some((d) => d.fromTx === t.id)
+export const txHasDebt = (t) => list().some((d) => d.fromTx === t.id) || autoLentTxIds.value.has(t.id)
 
 // تحويلات بتسدد الدين تلقائيًا: لو كتبت اسم الشخص زي ما بيظهر في رسالة البنك
 function autoPays(d) {
@@ -74,7 +74,56 @@ export const owed = computed(() => {
   return out
 })
 export const owedOpen = computed(() => owed.value.filter((d) => !d.done && d.left > 0))
-export const lent = computed(() => manualDebts.value.filter((d) => d.type === 'lent'))
+// ===== أي تحويل لشخص = سلفة ليك (تلقائي) — وتقدر تشيل أي تحويل منها =====
+// بنجمع التحويلات حسب الشخص، واللي بيرجعهولك (تحويل جاي منه) بيتطرح
+const personKey = (name) => norm(String(name || '').replace(/[,،]?\s*\d+\s*$/, '')).slice(0, 24)
+export const autoLentOn = computed(() => state.settings.autoLent !== false)
+// بنبدأ من آخر ٣٠ يوم قبل ما الميزة تشتغل — مش كل التحويلات القديمة
+if (!state.settings.autoLentFrom) { state.settings.autoLentFrom = Date.now() - 30 * DAY; saveSettings() }
+const autoFrom = () => state.settings.autoLentFrom || Date.now() - 30 * DAY
+export const autoLent = computed(() => {
+  if (!autoLentOn.value) return []
+  const from = autoFrom()
+  const dis = new Set(state.settings.lentDismiss || [])
+  const ign = new Set(state.settings.lentIgnore || [])
+  const manualTx = new Set(list().map((d) => d.fromTx).filter(Boolean))
+  const by = {}
+  for (const t of allTx.value) {
+    if (t.k !== 'transfer' || t.ts < from || dis.has(t.id) || manualTx.has(t.id)) continue
+    const k = personKey(t.m)
+    if (!k || k === '—' || ign.has(k)) continue
+    const o = (by[k] ||= { key: k, names: {}, txs: [] })
+    o.names[t.m] = (o.names[t.m] || 0) + 1
+    o.txs.push(t)
+  }
+  const extra = state.settings.lentAutoPays || {}
+  const closed = state.settings.lentAutoClosed || {}
+  return Object.values(by).map((o) => {
+    o.txs.sort((a, b) => a.ts - b.ts)
+    const ts = o.txs[0].ts
+    const name = Object.entries(o.names).sort((a, b) => b[1] - a[1])[0][0]
+    const amount = o.txs.reduce((x, t) => x + t.a, 0)
+    // اللي رجعلك: تحويلات جاية من نفس الاسم بعد أول سلفة + اللي سجلته بإيدك
+    const back = allTx.value.filter((t) => t.k === 'in' && t.ts > ts && personKey(t.m) && personKey(t.m) === o.key).map((t) => ({ ts: t.ts, a: t.a, auto: true, tx: t }))
+    const man = (extra[o.key] || []).map((p, i) => ({ ...p, i }))
+    const pays = [...man, ...back].sort((a, b) => b.ts - a.ts)
+    const paid = pays.reduce((x, p) => x + p.a, 0)
+    const left = Math.max(0, amount - paid)
+    return { id: 'auto:' + o.key, key: o.key, auto: true, type: 'lent', name, amount, ts, txs: o.txs.slice().reverse(), pays, paid, left, done: !!closed[o.key] || left <= 0.5, remindDays: 30 }
+  }).sort((a, b) => b.left - a.left)
+})
+export const autoLentTxIds = computed(() => new Set(autoLent.value.flatMap((d) => d.txs.map((t) => t.id))))
+function setS(k, v) { state.settings[k] = v; saveSettings() }
+export function setAutoLent(on) { setS('autoLent', !!on) }
+/** "مش سلفة": تحويل واحد */
+export function notLoan(txId) { setS('lentDismiss', [...new Set([...(state.settings.lentDismiss || []), txId])].slice(-1000)) }
+/** متعتبرش أي تحويل للشخص ده سلفة (دلوقتي وبعدين) */
+export function ignorePerson(key) { setS('lentIgnore', [...new Set([...(state.settings.lentIgnore || []), key])]) }
+export function autoLentPay(key, a) { const m = { ...(state.settings.lentAutoPays || {}) }; m[key] = [...(m[key] || []), { ts: Date.now(), a: Number(a) }]; setS('lentAutoPays', m) }
+export function autoLentUnpay(key, i) { const m = { ...(state.settings.lentAutoPays || {}) }; m[key] = (m[key] || []).filter((_, k) => k !== i); setS('lentAutoPays', m) }
+export function autoLentClose(key, closed = true) { const m = { ...(state.settings.lentAutoClosed || {}) }; if (closed) m[key] = Date.now(); else delete m[key]; setS('lentAutoClosed', m) }
+
+export const lent = computed(() => [...manualDebts.value.filter((d) => d.type === 'lent'), ...autoLent.value])
 export const totals = computed(() => {
   const o = owedOpen.value
   const minSum = o.reduce((x, d) => x + Math.min(d.min || 0, d.left), 0)
@@ -117,8 +166,8 @@ export function simulate(debts, extra = 0, method = 'snowball', rollover = true)
 export const debtReminders = computed(() => {
   const out = []
   const now = Date.now()
-  for (const d of manualDebts.value) {
-    if (d.done) continue
+  for (const d of [...manualDebts.value, ...autoLent.value]) {
+    if (d.done || (d.auto && d.left < 100)) continue
     if (d.type === 'owe' && Number(d.dueDay)) {
       for (let k = 0; k < 2; k++) {
         const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + k)

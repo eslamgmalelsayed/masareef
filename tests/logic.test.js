@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { state, allTx, effLimits, cycles } from '../src/lib/store.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
-import { simulate, manualDebts, saveDebt } from '../src/lib/debts.js'
+import { simulate, manualDebts, saveDebt, lent, autoLent, notLoan, ignorePerson, totals } from '../src/lib/debts.js'
 import { safeToSpend, funds, saveFund, emergency, zakat, netWorth, saveAssets } from '../src/lib/tools.js'
 import { fmt, setPrivacy } from '../src/lib/format.js'
 
@@ -19,7 +19,7 @@ beforeEach(() => {
   state.bnplSms = []
   state.importedBnpl = []
   state.status = 'ready'
-  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [] }
+  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [], autoLent: true, autoLentFrom: NOW - 30 * DAY, lentDismiss: [], lentIgnore: [], lentAutoPays: {}, lentAutoClosed: {} }
   setPrivacy(false)
 })
 
@@ -85,6 +85,27 @@ describe('خطة سداد الديون', () => {
     saveDebt({ type: 'lent', name: 'أحمد', amount: 1000, ts: NOW - 20 * DAY, match: 'AHMED' })
     state.smsTx = [tx(5, 'in', 400, 'AHMED ALI')]
     expect(manualDebts.value[0].left).toBeCloseTo(600, 2)
+  })
+})
+
+describe('التحويل لشخص = سلفة', () => {
+  it('التحويلات لنفس الشخص بتتجمع، واللي رجّعه بيتطرح', () => {
+    state.smsTx = [tx(10, 'transfer', 300, 'SAMIR'), tx(5, 'transfer', 200, 'SAMIR'), tx(2, 'in', 100, 'SAMIR'), tx(3, 'transfer', 50, 'K FAHMY')]
+    const s = autoLent.value.find((d) => d.name === 'SAMIR')
+    expect(s.amount).toBe(500)
+    expect(s.left).toBe(400)
+    expect(totals.value.lent).toBe(450)
+  })
+  it('"مش سلفة" بيشيل التحويل، و"مش سلف" بيشيل الشخص كله', () => {
+    state.smsTx = [tx(10, 'transfer', 300, 'SAMIR'), tx(5, 'transfer', 200, 'SAMIR'), tx(3, 'transfer', 50, 'K FAHMY')]
+    notLoan(state.smsTx[0].id)
+    expect(autoLent.value.find((d) => d.name === 'SAMIR').amount).toBe(200)
+    ignorePerson(autoLent.value.find((d) => d.name === 'K FAHMY').key)
+    expect(lent.value.some((d) => d.name === 'K FAHMY')).toBe(false)
+  })
+  it('التحويلات القديمة قبل ما الميزة تشتغل مش بتتحسب', () => {
+    state.smsTx = [tx(60, 'transfer', 1000, 'OLD')]
+    expect(autoLent.value.length).toBe(0)
   })
 })
 

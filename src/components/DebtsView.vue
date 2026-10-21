@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText } from '../lib/debts.js'
+import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose } from '../lib/debts.js'
 import { state, saveSettings } from '../lib/store.js'
 import { savings } from '../lib/insights.js'
 import { fmt, fmtDate, DAY } from '../lib/format.js'
@@ -71,6 +71,14 @@ const ago = (ts) => {
   const m = Math.round(d / 30); return m === 1 ? 'من شهر' : m === 2 ? 'من شهرين' : `من ${m} شهور`
 }
 const doneOwe = computed(() => manualDebts.value.filter((d) => d.type === 'owe' && d.done))
+// شيت السلفة التلقائية (تحويلات لشخص)
+const au = ref(null)
+const auPay = ref('')
+const curAuto = computed(() => (au.value ? autoLent.value.find((d) => d.key === au.value) || null : null))
+function openLent(d) { if (d.auto) { au.value = d.key; auPay.value = '' } else openEdit(d) }
+function payAuto() { const v = Number(auPay.value); if (v > 0) { autoLentPay(au.value, v); auPay.value = '' } }
+function closeAuto() { autoLentClose(au.value, true); au.value = null }
+function ignoreAuto() { if (confirm('مش هنعتبر أي تحويل ليه سلفة، دلوقتي ولا بعدين. تمام؟')) { ignorePerson(au.value); au.value = null } }
 const lentOpen = computed(() => lent.value.filter((d) => !d.done))
 const lentDone = computed(() => lent.value.filter((d) => d.done))
 </script>
@@ -174,13 +182,17 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
         <span class="lbl">{{ lentOpen.length }} {{ lentOpen.length === 1 ? 'شخص' : 'أشخاص' }}</span>
       </section>
       <section class="card">
-        <div v-if="!lentOpen.length" class="empty"><b>🤝</b>محدش مستلف منك — أو افتح أي تحويل لشخص واضغط "دي سلفة"</div>
-        <div v-for="d in lentOpen" :key="d.id" class="item" @click="openEdit(d)">
+        <label class="autosw">
+          <span><b>اعتبر أي تحويل لشخص سلفة</b><br /><small class="muted">بيتجمع هنا لوحده — ولو تحويل مش سلفة اضغط عليه وشيله</small></span>
+          <input type="checkbox" :checked="autoLentOn" @change="(e) => setAutoLent(e.target.checked)" />
+        </label>
+        <div v-if="!lentOpen.length" class="empty"><b>🤝</b>محدش مستلف منك{{ autoLentOn ? ' — أول ما تحوّل لحد هيظهر هنا' : '' }}</div>
+        <div v-for="d in lentOpen" :key="d.id" class="item" @click="openLent(d)">
           <span class="ic av">{{ d.name.trim().charAt(0) }}</span>
           <div class="mid">
             <div class="nm">{{ d.name }}</div>
             <div class="bar" v-if="d.paid"><i :style="{ width: Math.min(100, (d.paid / d.amount) * 100) + '%' }"></i></div>
-            <div class="muted xs">{{ ago(d.ts) }}<template v-if="d.paid"> · رجّع {{ fmt(d.paid) }}</template></div>
+            <div class="muted xs">{{ ago(d.ts) }}<template v-if="d.auto"> · {{ d.txs.length }} {{ d.txs.length === 1 ? 'تحويل' : 'تحويلات' }}</template><template v-if="d.paid"> · رجّع {{ fmt(d.paid) }}</template></div>
           </div>
           <div class="amt"><b>{{ fmt(d.left) }}</b><small class="muted" v-if="d.paid">من {{ fmt(d.amount) }}</small></div>
           <button class="wa" title="فكّره على واتساب" @click.stop="nudge(d)">💬</button>
@@ -188,12 +200,53 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
         <button class="addb" @click="openNew('lent')">＋ حد مستلف مني</button>
         <button v-if="lentDone.length" class="link xs" @click="showDone = !showDone">✅ رجّعوا ({{ lentDone.length }})</button>
         <template v-if="showDone">
-          <div v-for="d in lentDone" :key="d.id" class="item done" @click="openEdit(d)">
+          <div v-for="d in lentDone" :key="d.id" class="item done" @click="openLent(d)">
             <span class="ic">✅</span><div class="mid"><div class="nm">{{ d.name }}</div></div><div class="amt"><b>{{ fmt(d.amount) }}</b></div>
           </div>
         </template>
       </section>
     </template>
+
+    <!-- ================= شيت السلفة التلقائية ================= -->
+    <div v-if="curAuto" class="scrim" @click.self="au = null">
+      <div class="sheet">
+        <div class="grab"></div>
+        <h2>{{ curAuto.name }}</h2>
+        <div class="state">
+          <div><small class="muted">الباقي ليك</small><b>{{ fmt(curAuto.left) }}</b></div>
+          <div><small class="muted">رجّع</small><b class="good">{{ fmt(curAuto.paid) }}</b></div>
+        </div>
+        <div class="payrow" v-if="!curAuto.done">
+          <input v-model="auPay" type="number" inputmode="decimal" placeholder="رجّع كام؟" />
+          <button @click="payAuto">سجّل</button>
+          <button class="all" @click="closeAuto">رجّعهم كلهم</button>
+        </div>
+        <button v-else class="link" @click="autoLentClose(curAuto.key, false); au = null">افتحها تاني</button>
+
+        <h3 class="sm">التحويلات</h3>
+        <div class="pays">
+          <div v-for="t in curAuto.txs" :key="t.id" class="prow">
+            <span class="muted">{{ fmtDate(t.ts, { day: 'numeric', month: 'short', year: 'numeric' }) }} · {{ t.b }}</span>
+            <b>{{ fmt(t.a) }}</b>
+            <button class="notloan" @click="notLoan(t.id)">مش سلفة</button>
+          </div>
+        </div>
+        <template v-if="curAuto.pays.length">
+          <h3 class="sm">رجّع</h3>
+          <div class="pays">
+            <div v-for="(p, i) in curAuto.pays" :key="i" class="prow">
+              <span class="muted">{{ fmtDate(p.ts, { day: 'numeric', month: 'short', year: 'numeric' }) }}{{ p.auto ? ' · تحويل منه' : '' }}</span>
+              <b class="good">{{ fmt(p.a) }}</b>
+              <button v-if="!p.auto" class="x" @click="autoLentUnpay(curAuto.key, p.i)">×</button>
+            </div>
+          </div>
+        </template>
+        <div class="acts">
+          <button class="link" @click="nudge(curAuto)">💬 فكّره على واتساب</button>
+          <button class="link del" @click="ignoreAuto">تحويلاتي ليه مش سلف</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ================= شيت الإضافة / التعديل ================= -->
     <div v-if="ed" class="scrim" @click.self="ed = null">
@@ -318,5 +371,8 @@ h2 { font-size: 15.5px; margin: 0 0 10px }
 .prow:last-child { border-bottom: 0 }
 .prow span { flex: 1 }
 .prow b { font-variant-numeric: tabular-nums }
-h3.sm { margin: 16px 0 0; font-size: 13.5px }
+h3.sm { margin: 16px 0 6px; font-size: 13.5px }
+.autosw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13.5px }
+.autosw input { width: 20px; height: 20px; accent-color: var(--accent); flex: none }
+.notloan { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); border-radius: 99px; padding: 3px 10px; font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap }
 </style>
