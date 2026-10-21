@@ -19,15 +19,13 @@ const same = computed(() => {
   const r = allTx.value.filter((x) => merchantKey(x.m) === k && x.k === props.t.k)
   return { n: r.length, a: r.reduce((s, x) => s + x.a, 0) }
 })
+// تغيير البند: الشاشة بتفضل مفتوحة والاختيار بيتغير قدامك
 function pick(id) {
   const t = props.t
-  if (id === t.c) return emit('close')
+  if (id === t.c) return
   const prev = t.c
   const n = t.k === 'manual' ? 1 : allTx.value.filter((x) => merchantKey(x.m) === merchantKey(t.m) && x.k === t.k).length
   setCategory(t, id)
-  // لو العملية دي عليها تنبيه وانت راجعتها — نقفله
-  if (flag.value) dismissFlag(flag.value.id)
-  emit('close')
   showToast(`✓ ${t.k === 'manual' ? 'المصروف' : n > 1 ? `كل عمليات ${t.m} (${n})` : t.m} اتنقلت لـ ${CAT[id].name}`, () => setCategory(t, prev))
 }
 // لو العملية دي عليها تنبيه (مكررة / أكبر من عادتك) — نعرضه هنا ونقفله من هنا

@@ -60,6 +60,11 @@ async function unlock() {
   if (r.ok) locked.value = false
   else if (r.error && !/cancel|ألغ|إلغاء/i.test(r.error)) lockErr.value = r.error
 }
+// لما أي نافذة/قايمة مفتوحة (scrim) الصفحة اللي ورا متتحركش
+if (typeof MutationObserver !== 'undefined') {
+  const lock = () => document.documentElement.classList.toggle('modal-open', !!document.querySelector('.scrim, .lock'))
+  onMounted(() => { new MutationObserver(lock).observe(document.getElementById('app') || document.body, { childList: true, subtree: true }); lock() })
+}
 // إخفاء المبالغ: نغبّش الرسوم البيانية كمان
 watch(() => privacy.on, (v) => document.body.classList.toggle('privacy', v), { immediate: true })
 

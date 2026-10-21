@@ -148,7 +148,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
     </section>
 
     <section v-if="unusual.length" class="card note warn">
-      <b>{{ unusual[0].type === 'dup' ? '⚠️ عملية مكررة؟' : '👀 عملية أكبر من عادتك' }}<small v-if="unusual.length > 1" class="muted"> · {{ unusual.length }}</small></b>
+      <b>{{ unusual[0].type === 'dup' ? '⚠️ عملية مكررة؟' : '👀 عملية أكبر من عادتك' }}</b>
       <div class="sm">{{ unusual[0].text }} · {{ fmtDate(unusual[0].tx.ts, { day: 'numeric', month: 'short' }) }}</div>
       <div class="nact">
         <button class="ok" @click="dismissFlag(unusual[0].id)">✓ تمام، أنا عارفها</button>

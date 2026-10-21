@@ -170,7 +170,8 @@ export const unusual = computed(() => {
     }
     h.push(t.a)
   }
-  return out.filter((f) => !seen.has(f.id)).reverse()
+  // الأكبر الأول (والمكررة قبل أي حاجة)
+  return out.filter((f) => !seen.has(f.id)).sort((a, b) => (b.type === 'dup') - (a.type === 'dup') || b.tx.a - a.tx.a)
 })
 export function dismissFlag(id) {
   state.settings.flagsSeen = [...(state.settings.flagsSeen || []), id].slice(-300)

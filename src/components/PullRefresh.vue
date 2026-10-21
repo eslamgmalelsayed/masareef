@@ -9,7 +9,7 @@ const busy = ref(false)
 let y0 = null, x0 = 0, active = false, armedBuzz = false
 
 function start(e) {
-  if (props.disabled || busy.value || e.touches.length !== 1 || window.scrollY > 0) { y0 = null; return }
+  if (props.disabled || busy.value || e.touches.length !== 1 || window.scrollY > 0 || document.querySelector('.scrim, .lock')) { y0 = null; return }
   y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; active = false; armedBuzz = false
 }
 function move(e) {

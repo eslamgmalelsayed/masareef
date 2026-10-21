@@ -69,3 +69,8 @@ h2 { font-size: 15.5px; font-weight: 600; margin: 0 }
 
 /* إخفاء المبالغ */
 body.privacy canvas { filter: blur(7px); opacity: .7 }
+
+/* نافذة مفتوحة: الخلفية متعملش سكرول */
+html.modal-open, html.modal-open body { overflow: hidden; overscroll-behavior: none }
+.scrim { overscroll-behavior: contain }
+.sheet, .box { overscroll-behavior: contain }
