@@ -1,0 +1,81 @@
+name: Build iOS (IPA)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build && npx cap sync ios
+
+      - name: Build unsigned app
+        id: build
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} MARKETING_VERSION=1.${{ github.run_number }} \
+            build 2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*Swift|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" xcodebuild.log
+
+      - name: Package IPA + SideStore source
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry masareef.ipa Payload
+          SIZE=$(stat -f%z masareef.ipa)
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          BASE=https://github.com/${{ github.repository }}/releases/download/ios-latest
+          cat > apps.json <<JSON
+          {
+            "name": "مصاريفي",
+            "identifier": "com.islam.masareef.source",
+            "sourceURL": "$BASE/apps.json",
+            "apps": [{
+              "name": "مصاريفي",
+              "bundleIdentifier": "com.islam.masareef",
+              "developerName": "Islam",
+              "subtitle": "مصاريفك من رسايل البنك",
+              "localizedDescription": "تطبيق شخصي بيحسب مصاريفك من رسايل البنوك، بالراتب، مع حدود وإشعارات.",
+              "iconURL": "https://raw.githubusercontent.com/${{ github.repository }}/main/docs/icon.png",
+              "tintColor": "0F766E",
+              "versions": [{
+                "version": "1.${{ github.run_number }}",
+                "buildVersion": "${{ github.run_number }}",
+                "date": "$DATE",
+                "localizedDescription": "$(git log -1 --pretty=%s | sed 's/"/\\"/g')",
+                "downloadURL": "$BASE/masareef.ipa",
+                "size": $SIZE,
+                "minOSVersion": "16.0"
+              }]
+            }]
+          }
+          JSON
+
+      - name: Publish to ios-latest (not marked as latest, so Android updates are untouched)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ios-latest >/dev/null 2>&1 || gh release create ios-latest --title "مصاريفي — آيفون" --notes "نسخة الآيفون (IPA). سطّبها بـ SideStore أو Sideloadly." --latest=false --prerelease
+          gh release upload ios-latest masareef.ipa apps.json --clobber
+          gh release edit ios-latest --notes "نسخة الآيفون 1.${{ github.run_number }} — $(git log -1 --pretty=%s)" --latest=false --prerelease
+
+      - name: Upload build log on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          grep -E "error:|warning: .*\.swift" xcodebuild.log | head -80 > ios-errors.txt || true
+          tail -60 xcodebuild.log >> ios-errors.txt || true
+          gh release view ios-logs >/dev/null 2>&1 || gh release create ios-logs --title "iOS build logs" --notes "logs" --latest=false --prerelease
+          gh release upload ios-logs ios-errors.txt --clobber

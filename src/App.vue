@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { state, syncSms, allTx } from './lib/store.js'
-import { isNative } from './lib/smsSource.js'
+import { isNative, isIOS } from './lib/smsSource.js'
 import { App as CapApp } from '@capacitor/app'
 import HomeView from './components/HomeView.vue'
 import AnalysisView from './components/AnalysisView.vue'
@@ -11,6 +11,7 @@ import TxSheet from './components/TxSheet.vue'
 import LimitsView from './components/LimitsView.vue'
 import AddExpense from './components/AddExpense.vue'
 import { checkUpdate } from './lib/updater.js'
+import IosSetup from './components/IosSetup.vue'
 
 const tab = ref('home')
 const txCat = ref('')
@@ -65,7 +66,8 @@ const tabs = [
     <div v-else-if="!allTx.length && state.status !== 'loading'" class="splash">
       <div class="big-ic">📭</div>
       <h2>مفيش عمليات لسه</h2>
-      <p class="muted">{{ isNative ? 'ملقتش رسايل من البنوك المدعومة.' : 'دي نسخة الويب — استورد ملف رسايلك من الإعدادات.' }}</p>
+      <p class="muted">{{ isIOS ? 'اربط رسايل البنك بأتمتة الاختصارات — مرة واحدة بس:' : isNative ? 'ملقتش رسايل من البنوك المدعومة.' : 'دي نسخة الويب — استورد ملف رسايلك من الإعدادات.' }}</p>
+      <IosSetup v-if="isIOS" style="text-align: right; margin-top: 10px" />
       <button class="btn" @click="go('settings')">روح للإعدادات</button>
     </div>
 

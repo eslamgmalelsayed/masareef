@@ -53,7 +53,7 @@ const tests = [
       <template v-else>
         <div><span class="dot" :class="st.granted ? 'on' : 'off'"></span> الإشعارات: <b>{{ st.granted ? 'مسموحة' : 'مقفولة' }}</b>
           <button v-if="!st.granted" class="link" @click="allow">اسمح</button></div>
-        <div><span class="dot" :class="st.smsReceive ? 'on' : 'off'"></span> استقبال الرسايل والتطبيق مقفول: <b>{{ st.smsReceive ? 'شغال' : 'مقفول' }}</b></div>
+        <div><span class="dot" :class="st.smsReceive ? 'on' : 'off'"></span> {{ st.ios ? 'اختصار رسايل البنك' : 'استقبال الرسايل والتطبيق مقفول' }}: <b>{{ st.smsReceive ? 'شغال' : (st.ios ? 'لسه مفيش رسايل' : 'مقفول') }}</b></div>
       </template>
     </div>
     <div class="tests">

@@ -3,6 +3,8 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 const SmsReader = registerPlugin('SmsReader')
 
 export const isNative = Capacitor.isNativePlatform()
+export const platform = Capacitor.getPlatform() // android | ios | web
+export const isIOS = platform === 'ios'
 
 /** يقرأ رسايل الوارد من البنوك المحددة فقط (الفلترة بتحصل جوه Java) */
 export async function readSms(senders) {
@@ -38,4 +40,9 @@ export async function notificationStatus() {
 /** يشغّل نفس منطق الرسالة الجديدة على رسالة وهمية (مش بيغيّر المجاميع) */
 export async function simulatePurchase(body) {
   return SmsReader.simulate({ body })
+}
+
+/** آيفون: إضافة رسالة بنك بالنسخ واللصق (نفس اللي بيعمله الاختصار) */
+export async function addMessage(body, address = '__ios__') {
+  return SmsReader.addMessage({ body, address })
 }

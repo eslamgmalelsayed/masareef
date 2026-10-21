@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { registerPlugin } from '@capacitor/core'
 import { App } from '@capacitor/app'
-import { isNative } from './smsSource.js'
+import { isNative, platform } from './smsSource.js'
 
 const SmsReader = registerPlugin('SmsReader')
 export const REPO = 'eslamgmalelsayed/masareef'
@@ -17,7 +17,7 @@ export const update = reactive({
 
 /** بيشوف آخر Release على GitHub ويقارنه برقم النسخة المتسطّبة */
 export async function checkUpdate() {
-  if (!isNative) return
+  if (!isNative || platform !== 'android') return // آيفون بيتحدّث من SideStore / TestFlight
   update.checking = true
   update.error = ''
   try {

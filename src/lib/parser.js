@@ -10,6 +10,7 @@ export const BANKS = {
   stcbank: 'STC Bank',
   urpay: 'urpay',
   alinma: 'الإنماء',
+  __ios__: 'رسالة بنك', // رسالة جت من اختصار آيفون من غير اسم الراسل
 }
 
 export function bankOf(address) {
@@ -111,11 +112,11 @@ export function classify(addr, b, ts, profile) {
   }
   if (f.startsWith('تم انشاء حوالتك')) return ['ignore', a, 'dup-intl']
   if (/حوالة|transfer|Debit via wallet/i.test(f)) {
-    if (/alrajhi/i.test(addr) && (f === 'حوالة داخلية' || f === 'حوالة محلية')) {
+    if ((/alrajhi/i.test(addr) || addr === '__ios__') && (f === 'حوالة داخلية' || f === 'حوالة محلية')) {
       if (!FROM_ME || !FROM_ME.test(b)) return ['in', a, '']
     }
-    if (/stc/i.test(addr) && f === 'Internal transfer' && /From:/.test(b)) return ['in', a, '']
-    if (/stcpay/i.test(addr) && /^Incoming/.test(f)) return ['in', a, '']
+    if (f === 'Internal transfer' && /From:/.test(b)) return ['in', a, '']
+    if (/^Incoming/i.test(f)) return ['in', a, '']
     const cp = counterparty(b)
     if ((SELF && SELF.test(cp)) || (/urpay/i.test(addr) && !cp)) return ['ignore', a, 'self']
     if (ACC && ACC.test(cp) && !/[A-Za-z؀-ۿ]{3}/.test(cp)) return ['ignore', a, 'self']

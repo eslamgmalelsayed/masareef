@@ -1,9 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { state, saveSettings, syncSms, reparse, importFile, clearImported, resetOverrides, allTx, currentCycle, income, totalLimit, cycleSpent, salaryDay, nextSalaryDate } from '../lib/store.js'
-import { isNative, requestNotifications } from '../lib/smsSource.js'
+import { isNative, isIOS, requestNotifications } from '../lib/smsSource.js'
 import { fmtDate, fmt } from '../lib/format.js'
 import NotifyTest from './NotifyTest.vue'
+import IosSetup from './IosSetup.vue'
 import UpdateBanner from './UpdateBanner.vue'
 import { update, checkUpdate } from '../lib/updater.js'
 
@@ -68,6 +69,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
       </label>
     </section>
 
+    <IosSetup v-if="isIOS" />
     <NotifyTest />
 
     <button class="card navrow" @click="emit('go', 'limits')">
@@ -95,7 +97,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
         <template v-if="isNative">آخر تحديث من الرسايل: {{ state.lastSync ? fmtDate(state.lastSync, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—' }}</template>
         <template v-else>نسخة الويب — استورد ملف رسايل</template>
       </p>
-      <button v-if="isNative" class="btn" @click="refresh">↻ حدّث من رسايل الموبايل</button>
+      <button v-if="isNative" class="btn" @click="refresh">↻ {{ isIOS ? 'حدّث' : 'حدّث من رسايل الموبايل' }}</button>
       <button class="btn ghost" @click="fileEl.click()">⤒ استورد ملف رسايل (XML أو JSON)</button>
       <input ref="fileEl" type="file" accept=".xml,.json,text/xml,application/json" hidden @change="onFile" />
       <p v-if="msg" class="note">{{ msg }}</p>
@@ -107,7 +109,8 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
 
     <section class="card">
       <h2>التحديثات</h2>
-      <p class="muted sm" v-if="isNative">
+      <p class="muted sm" v-if="isIOS">على آيفون التحديث بيوصلك من SideStore أو TestFlight.</p>
+      <p class="muted sm" v-else-if="isNative">
         النسخة الحالية: <b>{{ update.current ? update.current.build : '…' }}</b>
         <template v-if="update.latest"> · آخر نسخة: <b>{{ update.latest.build }}</b></template>
       </p>
@@ -115,7 +118,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
       <UpdateBanner v-if="update.available" />
       <p v-else-if="update.latest && !update.checking" class="note">✓ عندك آخر نسخة</p>
       <p v-if="update.error && !update.available" class="muted xs">مقدرتش أوصل للتحديثات: {{ update.error }}</p>
-      <button v-if="isNative" class="btn ghost" :disabled="update.checking" @click="checkUpdate">{{ update.checking ? 'بدوّر…' : '↻ تحقق من التحديثات' }}</button>
+      <button v-if="isNative && !isIOS" class="btn ghost" :disabled="update.checking" @click="checkUpdate">{{ update.checking ? 'بدوّر…' : '↻ تحقق من التحديثات' }}</button>
     </section>
 
     <p class="muted xs about">كل البيانات بتتقرا وتتحلل على موبايلك بس، ومبتتبعتش لأي سيرفر. النت بيُستخدم بس علشان يشوف لو فيه تحديث جديد.</p>
