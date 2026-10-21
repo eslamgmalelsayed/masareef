@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { CATEGORIES } from '../lib/categories.js'
-import { saveManual } from '../lib/store.js'
+import { saveManual, addWebMessage, syncSms } from '../lib/store.js'
+import { isNative, isIOS, addMessage } from '../lib/smsSource.js'
+import { CAT } from '../lib/categories.js'
 
-const props = defineProps({ edit: Object })
+const props = defineProps({ edit: Object, paste: Boolean })
 const emit = defineEmits(['close', 'saved'])
 
 const localIso = (d) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16) }
@@ -19,7 +21,37 @@ const amtEl = ref(null)
 const cats = CATEGORIES.filter((c) => !['transfer', 'intl', 'cash', 'fee'].includes(c.id))
 const valid = computed(() => Number(amount.value) > 0)
 
-onMounted(() => nextTick(() => amtEl.value?.focus()))
+const canPaste = !isNative || isIOS
+const pasteMode = ref(!!props.paste)
+const pasteText = ref('')
+const pasteMsg = ref('')
+
+onMounted(() => nextTick(() => { if (!pasteMode.value) amtEl.value?.focus() }))
+
+/** لزق رسالة بنك: بيقرا الحافظة، ولو المتصفح مسمحش بيفتح خانة تلزق فيها بإيدك */
+async function pasteFromClipboard() {
+  pasteMsg.value = ''
+  try {
+    const t = await navigator.clipboard.readText()
+    if (t && t.trim()) { pasteText.value = t; return submitPaste() }
+  } catch {}
+  pasteMode.value = true
+}
+async function submitPaste() {
+  const body = pasteText.value.trim()
+  if (!body) return
+  if (isIOS) {
+    const r = await addMessage(body)
+    await syncSms()
+    pasteMsg.value = r.added ? '✓ اتسجّلت' : 'الرسالة دي متسجّلة قبل كده'
+  } else {
+    const r = addWebMessage(body)
+    if (r.dup) pasteMsg.value = 'الرسالة دي متسجّلة قبل كده'
+    else if (r.tx) pasteMsg.value = `✓ اتسجّلت: ${r.tx.a} ر.س · ${r.tx.m} · ${CAT[r.tx.c]?.name || ''}`
+    else pasteMsg.value = 'اتحفظت، بس مش لاقي فيها عملية شراء أو تحويل'
+  }
+  pasteText.value = ''
+}
 
 function save() {
   if (!valid.value) return
@@ -34,6 +66,17 @@ function save() {
     <div class="sheet">
       <div class="grab"></div>
       <h2>{{ e ? 'تعديل مصروف' : 'إضافة مصروف' }}</h2>
+
+      <div v-if="canPaste && !e" class="pastebox">
+        <button class="pbtn" @click="pasteFromClipboard">📋 الصق رسالة البنك</button>
+        <div class="muted xs">انسخ رسالة البنك من تطبيق الرسايل ودوس هنا — هتتقري وتتصنّف لوحدها</div>
+        <template v-if="pasteMode">
+          <textarea v-model="pasteText" rows="4" placeholder="الصق رسالة البنك هنا"></textarea>
+          <button class="save" :disabled="!pasteText.trim()" @click="submitPaste">سجّل الرسالة</button>
+        </template>
+        <p v-if="pasteMsg" class="pmsg">{{ pasteMsg }}</p>
+        <div class="or"><span>أو اكتب المصروف بإيدك</span></div>
+      </div>
 
       <label class="amt">
         <input ref="amtEl" v-model="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" @keyup.enter="save" />
@@ -66,6 +109,12 @@ function save() {
 .sheet { background: var(--bg); width: 100%; max-width: 560px; margin: 0 auto; max-height: 92vh; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); animation: up .25s ease-out }
 .grab { width: 40px; height: 4px; border-radius: 9px; background: var(--line); margin: 0 auto 12px }
 h2 { text-align: center; font-size: 16px }
+.pastebox { margin-top: 10px }
+.pbtn { width: 100%; padding: 13px; border-radius: 14px; border: 1.5px dashed var(--accent); background: var(--accent-soft); color: var(--accent); font: inherit; font-weight: 600; font-size: 15px; cursor: pointer; margin-bottom: 6px }
+.pastebox textarea { width: 100%; margin-top: 8px; font: inherit; font-size: 14px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink) }
+.pmsg { font-size: 13px; color: var(--accent); margin: 8px 0 0 }
+.or { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12px; margin: 14px 0 0 }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line) }
 .amt { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 14px 0 8px }
 .amt input { width: 70%; font: inherit; font-size: 44px; font-weight: 700; text-align: center; border: 0; border-bottom: 2px solid var(--line); background: none; color: var(--ink); outline: none; padding: 4px 0; font-variant-numeric: tabular-nums }
 .amt input:focus { border-color: var(--accent) }

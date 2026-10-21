@@ -34,6 +34,7 @@ export const state = reactive({
   smsTx: [],
   importedTx: LS.get('importedTx', []),
   manualTx: LS.get('manualTx', []), // مصاريف بتضيفها بإيدك
+  webMsgs: LS.get('webMsgs', []), // نسخة الويب: رسايل بنك ملزوقة بإيدك
   status: 'idle', // idle | loading | ready | denied | error
   error: '',
   lastSync: LS.get('lastSync', 0),
@@ -67,7 +68,13 @@ function learnProfile(messages, merge = false) {
 let rawSms = []
 
 export async function syncSms() {
-  if (!isNative) { state.status = 'ready'; return }
+  if (!isNative) {
+    // نسخة الويب (آيفون PWA): الرسايل اللي اتلزقت بإيدك هي "صندوق الرسايل"
+    rawSms = state.webMsgs
+    if (rawSms.length) { learnProfile(rawSms, true); state.smsTx = parseMessages(rawSms, profile()) }
+    state.status = 'ready'
+    return
+  }
   state.status = 'loading'
   state.error = ''
   try {
@@ -82,6 +89,22 @@ export async function syncSms() {
     state.status = /denied|permission/i.test(msg) ? 'denied' : 'error'
     state.error = msg
   }
+}
+
+/** نسخة الويب: إضافة رسالة بنك ملزوقة. بيرجّع العملية اللي اتفهمت منها (أو null) */
+export function addWebMessage(body) {
+  const text = String(body || '').trim()
+  if (!text) return { added: false, tx: null }
+  if (state.webMsgs.some((m) => m.body === text)) return { added: false, dup: true, tx: null }
+  const msg = { address: '__ios__', body: text, date: Date.now() }
+  const tx = parseMessages([msg], profile())[0] || null
+  if (tx) tx.c = categorize(tx, state.overrides)
+  state.webMsgs = [...state.webMsgs, msg]
+  LS.set('webMsgs', state.webMsgs)
+  rawSms = state.webMsgs
+  learnProfile(rawSms, true)
+  state.smsTx = parseMessages(rawSms, profile())
+  return { added: true, tx }
 }
 
 /** re-parse after the user changes their name / account numbers */
@@ -291,7 +314,7 @@ function pushNativeConfig() {
 }
 let pushTimer = null
 watch(
-  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx],
+  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

@@ -66,9 +66,14 @@ const tabs = [
     <div v-else-if="!allTx.length && state.status !== 'loading'" class="splash">
       <div class="big-ic">📭</div>
       <h2>مفيش عمليات لسه</h2>
-      <p class="muted">{{ isIOS ? 'اربط رسايل البنك بأتمتة الاختصارات — مرة واحدة بس:' : isNative ? 'ملقتش رسايل من البنوك المدعومة.' : 'دي نسخة الويب — استورد ملف رسايلك من الإعدادات.' }}</p>
+      <p class="muted">{{ isIOS ? 'اربط رسايل البنك بأتمتة الاختصارات — مرة واحدة بس:' : isNative ? 'ملقتش رسايل من البنوك المدعومة.' : 'ابدأ بلزق رسالة بنك أو أضف مصروف — كل حاجة بتتحفظ على موبايلك بس.' }}</p>
       <IosSetup v-if="isIOS" style="text-align: right; margin-top: 10px" />
-      <button class="btn" @click="go('settings')">روح للإعدادات</button>
+      <template v-if="!isNative">
+        <button class="btn" @click="adding = { paste: true }">📋 الصق أول رسالة بنك</button>
+        <button class="btn ghost2" @click="adding = {}">✍️ أضف مصروف بإيدك</button>
+        <button class="link" style="margin-top: 10px" @click="go('settings')">أو استورد ملف رسايل من الإعدادات</button>
+      </template>
+      <button v-else class="btn" @click="go('settings')">روح للإعدادات</button>
     </div>
 
     <template v-else>
@@ -84,8 +89,8 @@ const tabs = [
       </button>
     </nav>
 
-    <button v-if="['home', 'tx', 'analysis'].includes(tab) && allTx.length" class="fab" @click="adding = {}" aria-label="إضافة مصروف">＋</button>
+    <button v-if="['home', 'tx', 'analysis'].includes(tab)" class="fab" @click="adding = {}" aria-label="إضافة مصروف">＋</button>
     <TxSheet v-if="sheet" :t="allTx.find((x) => x.id === sheet.id) || sheet" @close="sheet = null" @edit="(t) => { sheet = null; adding = t }" />
-    <AddExpense v-if="adding" :edit="adding.id ? adding : null" @close="adding = null" />
+    <AddExpense v-if="adding" :edit="adding.id ? adding : null" :paste="!!adding.paste" @close="adding = null" />
   </main>
 </template>

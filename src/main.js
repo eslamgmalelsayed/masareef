@@ -10,3 +10,9 @@ import './style.css'
 import App from './App.vue'
 
 createApp(App).mount('#app')
+
+// نسخة الويب (PWA): تشتغل من غير نت
+import { Capacitor } from '@capacitor/core'
+if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('./sw.js').catch(() => {})
+}

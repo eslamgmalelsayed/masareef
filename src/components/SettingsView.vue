@@ -5,6 +5,7 @@ import { isNative, isIOS, requestNotifications } from '../lib/smsSource.js'
 import { fmtDate, fmt } from '../lib/format.js'
 import NotifyTest from './NotifyTest.vue'
 import IosSetup from './IosSetup.vue'
+import InstallHint from './InstallHint.vue'
 import UpdateBanner from './UpdateBanner.vue'
 import { update, checkUpdate } from '../lib/updater.js'
 
@@ -69,6 +70,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
       </label>
     </section>
 
+    <InstallHint />
     <IosSetup v-if="isIOS" />
     <NotifyTest />
 
@@ -110,6 +112,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
     <section class="card">
       <h2>التحديثات</h2>
       <p class="muted sm" v-if="isIOS">على آيفون التحديث بيوصلك من SideStore أو TestFlight.</p>
+      <p class="muted sm" v-else-if="!isNative">نسخة الويب بتتحدّث لوحدها كل ما تفتحها وانت متصل بالنت.</p>
       <p class="muted sm" v-else-if="isNative">
         النسخة الحالية: <b>{{ update.current ? update.current.build : '…' }}</b>
         <template v-if="update.latest"> · آخر نسخة: <b>{{ update.latest.build }}</b></template>

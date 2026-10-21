@@ -7,6 +7,7 @@ import BarChart from './BarChart.vue'
 import CatBars from './CatBars.vue'
 import TxRow from './TxRow.vue'
 import UpdateBanner from './UpdateBanner.vue'
+import InstallHint from './InstallHint.vue'
 
 const emit = defineEmits(['open', 'go'])
 const now = new Date()
@@ -80,6 +81,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
     </header>
 
     <UpdateBanner compact />
+    <InstallHint dismissible />
 
     <section class="hero" :class="totalLevel">
       <div class="row">
