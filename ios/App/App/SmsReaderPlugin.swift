@@ -17,6 +17,7 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
         CAPPluginMethod(name: "testNotification", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "simulate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "scheduleReminders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveCredit", returnType: CAPPluginReturnPromise),
     ]
 
     public override func load() {
@@ -97,6 +98,13 @@ public class SmsReaderPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNotificationCen
             }
             call.resolve()
         }
+    }
+
+    @objc func saveCredit(_ call: CAPPluginCall) {
+        var c: [String: Any] = [:]
+        for (k, v) in call.getObject("cards") ?? [:] { c[k] = v }
+        LimitStore.saveCredit(c)
+        call.resolve()
     }
 
     @objc func simulate(_ call: CAPPluginCall) {

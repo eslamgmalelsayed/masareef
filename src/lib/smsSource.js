@@ -52,3 +52,9 @@ export async function scheduleReminders(items) {
   if (!isNative) return
   try { await SmsReader.scheduleReminders({ items }) } catch (e) { console.warn('reminders', e) }
 }
+
+/** حالة البطاقات الائتمانية للجزء الأصلي — علشان ينبهك لما الاستخدام يعدّي النسبة حتى والتطبيق مقفول */
+export async function saveCredit(cards) {
+  if (!isNative) return
+  try { await SmsReader.saveCredit({ cards }) } catch (e) { console.warn('credit', e) }
+}

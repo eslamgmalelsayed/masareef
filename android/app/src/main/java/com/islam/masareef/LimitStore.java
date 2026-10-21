@@ -87,6 +87,7 @@ public final class LimitStore {
         for (int i = 0; i < senders.length(); i++) if (a.equals(senders.optString(i))) { ok = true; break; }
         if (!ok) return;
 
+        creditOnMessage(ctx, body, ts);
         try {
             // نزل راتب جديد؟ نبدأ دورة جديدة: المجاميع ترجع صفر والإشعارات تشتغل من الأول
             if (LimitEngine.isSalary(body)) {
@@ -152,6 +153,64 @@ public final class LimitStore {
             }
             notify(ctx, al.cat.hashCode(), title, text);
         }
+    }
+
+    // ===== تنبيه استخدام البطاقة الائتمانية (نسبة بتحددها لكل بطاقة) =====
+    private static final String KEY_CREDIT = "credit";
+    private static final String KEY_CREDIT_NOTIFIED = "credit_notified";
+    private static final java.util.regex.Pattern CC_PAY = java.util.regex.Pattern.compile(
+        "سداد البطاقة|credit card payment|(بطاقة ائتمانية|بطاقة فيزا)\\s*:\\s*سداد", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** JS بيبعت: { "0710": {name, owed, limit, pct} } */
+    public static void saveCredit(Context ctx, JSONObject credit) {
+        prefs(ctx).edit().putString(KEY_CREDIT, credit.toString()).apply();
+        evaluateCredit(ctx);
+    }
+
+    /** رسالة جديدة فيها رقم بطاقة ائتمانية معروفة: شراء يزوّد المستحق، وسداد ينقصه */
+    static void creditOnMessage(Context ctx, String body, long ts) {
+        try {
+            JSONObject credit = new JSONObject(prefs(ctx).getString(KEY_CREDIT, "{}"));
+            Iterator<String> it = credit.keys();
+            boolean changed = false;
+            while (it.hasNext()) {
+                String card = it.next();
+                if (card.length() < 4 || !body.contains(card)) continue;
+                JSONObject c = credit.getJSONObject(card);
+                if (CC_PAY.matcher(body).find()) {
+                    Double a = LimitEngine.amount(body, ts);
+                    if (a != null) { c.put("owed", c.optDouble("owed", 0) - a); changed = true; }
+                } else {
+                    LimitEngine.Purchase p = LimitEngine.parsePurchase(body, ts);
+                    if (p != null) { c.put("owed", c.optDouble("owed", 0) + p.amount); changed = true; }
+                }
+            }
+            if (changed) { prefs(ctx).edit().putString(KEY_CREDIT, credit.toString()).apply(); evaluateCredit(ctx); }
+        } catch (Exception ignored) { }
+    }
+
+    /** إشعار مرة واحدة لما الاستخدام يعدّي النسبة، ويتصفّر لما ينزل تحتها (بعد السداد) */
+    static void evaluateCredit(Context ctx) {
+        try {
+            JSONObject credit = new JSONObject(prefs(ctx).getString(KEY_CREDIT, "{}"));
+            JSONObject done = new JSONObject(prefs(ctx).getString(KEY_CREDIT_NOTIFIED, "{}"));
+            Iterator<String> it = credit.keys();
+            while (it.hasNext()) {
+                String card = it.next();
+                JSONObject c = credit.getJSONObject(card);
+                double limit = c.optDouble("limit", 0), owed = c.optDouble("owed", 0), pct = c.optDouble("pct", 80);
+                if (limit <= 0 || pct <= 0) continue;
+                double u = owed / limit * 100;
+                if (u >= pct) {
+                    if (done.optBoolean(card)) continue;
+                    done.put(card, true);
+                    String name = c.optString("name", "••" + card);
+                    notify(ctx, ("cc" + card).hashCode(), "💳 " + name + " وصلت " + Math.round(u) + "٪ من الحد",
+                        "المستحق " + fmt(owed) + " من " + fmt(limit) + " ر.س — المتاح " + fmt(Math.max(0, limit - owed)));
+                } else done.remove(card);
+            }
+            prefs(ctx).edit().putString(KEY_CREDIT_NOTIFIED, done.toString()).apply();
+        } catch (Exception ignored) { }
     }
 
     /** الـ JS والـ Receiver ممكن يسجلوا نفس الراتب بتوقيت مختلف شوية */

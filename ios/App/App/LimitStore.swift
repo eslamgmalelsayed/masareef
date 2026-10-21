@@ -60,6 +60,7 @@ enum LimitStore {
 
     /// بيتنادى من الاختصار لما توصل رسالة بنك
     static func addMessage(address: String, body: String, ts: Double) {
+        creditOnMessage(body: body, ts: ts)
         var cfg = loadConfig()
         if LimitEngine.isSalary(body) {
             cfg["cycle"] = String(Int(ts))
@@ -75,6 +76,49 @@ enum LimitStore {
         cfg["totals"] = totals
         saveConfig(cfg)
         evaluateAndNotify()
+    }
+
+    // ===== تنبيه استخدام البطاقة الائتمانية =====
+    static let kCredit = "masareef_credit", kCreditNotified = "masareef_credit_notified"
+    static let ccPay = try! NSRegularExpression(pattern: "سداد البطاقة|credit card payment|(بطاقة ائتمانية|بطاقة فيزا)\\s*:\\s*سداد", options: [.caseInsensitive])
+
+    static func loadCredit() -> [String: [String: Any]] {
+        guard let d = UserDefaults.standard.data(forKey: kCredit),
+              let o = try? JSONSerialization.jsonObject(with: d) as? [String: [String: Any]] else { return [:] }
+        return o
+    }
+    static func saveCredit(_ c: [String: Any]) {
+        if let d = try? JSONSerialization.data(withJSONObject: c) { UserDefaults.standard.set(d, forKey: kCredit) }
+        evaluateCredit()
+    }
+    static func creditOnMessage(body: String, ts: Double) {
+        var credit = loadCredit(); var changed = false
+        let isPay = ccPay.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)) != nil
+        for (card, var c) in credit where card.count >= 4 && body.contains(card) {
+            let owed = (c["owed"] as? NSNumber)?.doubleValue ?? 0
+            if isPay, let a = LimitEngine.amount(body, ts: ts) { c["owed"] = owed - a; changed = true }
+            else if !isPay, let p = LimitEngine.parsePurchase(body, ts: ts) { c["owed"] = owed + p.amount; changed = true }
+            credit[card] = c
+        }
+        if changed { saveCredit(credit) }
+    }
+    static func evaluateCredit() {
+        let credit = loadCredit()
+        var done = (UserDefaults.standard.dictionary(forKey: kCreditNotified) as? [String: Bool]) ?? [:]
+        for (card, c) in credit {
+            let limit = (c["limit"] as? NSNumber)?.doubleValue ?? 0, owed = (c["owed"] as? NSNumber)?.doubleValue ?? 0
+            let pct = (c["pct"] as? NSNumber)?.doubleValue ?? 80
+            if limit <= 0 || pct <= 0 { continue }
+            let u = owed / limit * 100
+            if u >= pct {
+                if done[card] == true { continue }
+                done[card] = true
+                let name = (c["name"] as? String) ?? "••\(card)"
+                notify(id: "cc\(card)", title: "💳 \(name) وصلت \(Int(u.rounded()))٪ من الحد",
+                       text: "المستحق \(fmt(owed)) من \(fmt(limit)) ر.س — المتاح \(fmt(max(0, limit - owed)))")
+            } else { done[card] = nil }
+        }
+        UserDefaults.standard.set(done, forKey: kCreditNotified)
     }
 
     static func sameCycle(_ a: String, _ b: String) -> Bool {

@@ -1,6 +1,6 @@
 import { computed, watch } from 'vue'
 import { allTx, state, saveSettings } from './store.js'
-import { scheduleReminders } from './smsSource.js'
+import { scheduleReminders, saveCredit } from './smsSource.js'
 
 const DAY = 864e5
 const SPEND = new Set(['purchase', 'bill', 'gov', 'fee', 'cash', 'ccxfer'])
@@ -55,6 +55,7 @@ export const creditCards = computed(() => {
     const yearBal = withBal.filter((t) => now - t.ts < 365 * DAY).map((t) => t.bal)
     const inferred = yearBal.length ? Math.max(1000, Math.round(Math.max(...yearBal) / 1000) * 1000) : 0
     const limit = Number(s.limit) || inferred
+    const alertPct = s.alertPct === 0 ? 0 : Number(s.alertPct) || 80 // 0 = التنبيه مقفول
 
     // المستحق دلوقتي: من آخر نقطة نعرفها — رصيد في رسالة البنك، أو رصيد كتبته إنت بإيدك (الأحدث يكسب)
     // وبعدها: نطرح اللي اتسدد ونزوّد اللي اتصرف من غير رصيد في الرسالة
@@ -110,7 +111,7 @@ export const creditCards = computed(() => {
     const fxCount = year.filter((t) => t.fx).length
 
     return {
-      key, bank: kb, card: kc, name: s.name || `${kb} ••${kc}`, added: !!s.added,
+      key, bank: kb, card: kc, alertPct, name: s.name || `${kb} ••${kc}`, added: !!s.added,
       list, limit, inferred, limitIsInferred: !s.limit && !!inferred,
       avail: last ? { v: last.bal, ts: last.ts } : null, outstanding, util, base, manual: man,
       dueDay, stmtDay, usualPayDay, nextDue, daysToDue, cur, prev, months, fxYear, fxCount,
@@ -162,4 +163,15 @@ watch(dueReminders, (items) => {
   if (sig === lastSig) return
   lastSig = sig
   scheduleReminders(items)
+}, { immediate: true })
+
+// المستحق والحد ونسبة التنبيه لكل بطاقة → الجزء الأصلي (بيكمّل الحساب من الرسايل الجديدة)
+let lastCC = ''
+watch(creditCards, (cards) => {
+  const out = {}
+  for (const c of cards) if (c.limit && c.outstanding != null && /^\d{4}$/.test(c.card)) out[c.card] = { name: c.name, owed: Math.round(c.outstanding * 100) / 100, limit: c.limit, pct: c.alertPct }
+  const sig = JSON.stringify(out)
+  if (sig === lastCC) return
+  lastCC = sig
+  saveCredit(out)
 }, { immediate: true })

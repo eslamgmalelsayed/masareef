@@ -17,12 +17,12 @@ const editing = ref(false)
 const form = ref({})
 function openEdit() {
   const x = c.value
-  form.value = { name: x.name, limit: x.limitIsInferred ? '' : x.limit || '', stmtDay: x.stmtDay || '', dueDay: x.dueDay || '', balType: 'owed', bal: '' }
+  form.value = { name: x.name, limit: x.limitIsInferred ? '' : x.limit || '', stmtDay: x.stmtDay || '', dueDay: x.dueDay || '', alertPct: x.alertPct, balType: 'owed', bal: '' }
   editing.value = true
 }
 function saveEdit() {
   const f = form.value
-  const patch = { name: f.name === `${c.value.bank} ••${c.value.card}` ? '' : f.name, limit: Number(f.limit) || '', stmtDay: Number(f.stmtDay) || '', dueDay: Number(f.dueDay) || '' }
+  const patch = { name: f.name === `${c.value.bank} ••${c.value.card}` ? '' : f.name, limit: Number(f.limit) || '', stmtDay: Number(f.stmtDay) || '', dueDay: Number(f.dueDay) || '', alertPct: f.alertPct === 80 ? '' : f.alertPct }
   if (f.bal !== '' && f.bal != null) patch.manual = { type: f.balType, v: Number(f.bal), ts: Date.now() }
   saveCardSettings(c.value.key, patch)
   editing.value = false
@@ -156,6 +156,11 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
           <label class="fld"><span>آخر يوم للسداد</span><input v-model="form.dueDay" type="number" inputmode="numeric" min="1" max="31" :placeholder="c.usualPayDay ? 'عادةً ' + c.usualPayDay : 'مثلًا 27'" /></label>
         </div>
         <div class="fld">
+          <span>نبهني لما استخدام البطاقة يوصل</span>
+          <div class="seg pcts"><button v-for="p in [50, 60, 70, 80, 90, 0]" :key="p" :class="{ on: form.alertPct === p }" @click="form.alertPct = p">{{ p ? p + '٪' : 'مقفول' }}</button></div>
+          <small class="muted" v-if="form.alertPct && (Number(form.limit) || c.limit)">يعني لما المستحق يعدّي {{ fmt((Number(form.limit) || c.limit) * form.alertPct / 100) }} ر.س — حتى والتطبيق مقفول</small>
+        </div>
+        <div class="fld">
           <span>الرصيد دلوقتي (من تطبيق البنك) — اختياري</span>
           <div class="seg"><button :class="{ on: form.balType === 'owed' }" @click="form.balType = 'owed'">المستحق عليّا</button><button :class="{ on: form.balType === 'avail' }" @click="form.balType = 'avail'">المتاح</button></div>
           <input v-model="form.bal" type="number" inputmode="decimal" placeholder="اكتب الرقم زي ما هو في تطبيق البنك" />
@@ -233,4 +238,6 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
 .seg button.on { background: var(--surface); color: var(--ink); font-weight: 600 }
 .save { width: 100%; margin-top: 16px; padding: 13px; border-radius: 14px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600 }
 .del { width: 100%; margin-top: 8px; padding: 11px; border-radius: 14px; border: 1px solid var(--line); background: none; color: var(--bad); font: inherit }
+.seg.pcts { grid-template-columns: repeat(6, 1fr) }
+.seg.pcts button { padding-inline: 2px; font-size: 13px; font-variant-numeric: tabular-nums }
 </style>

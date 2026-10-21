@@ -64,6 +64,17 @@ public class SmsReaderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void saveCredit(PluginCall call) {
+        try {
+            JSObject cards = call.getObject("cards", new JSObject());
+            LimitStore.saveCredit(getContext(), cards);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("saveCredit failed: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void requestNotifications(PluginCall call) {
         if (Build.VERSION.SDK_INT < 33 || getPermissionState("notifications") == PermissionState.GRANTED) {
             JSObject r = new JSObject(); r.put("granted", true); call.resolve(r); return;
