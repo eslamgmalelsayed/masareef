@@ -4,6 +4,7 @@ import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
 import { debtFromTx, txHasDebt } from '../lib/debts.js'
+import { unusual, dismissFlag } from '../lib/insights.js'
 
 const props = defineProps({ t: Object })
 const emit = defineEmits(['close', 'edit', 'go'])
@@ -16,6 +17,9 @@ const same = computed(() => {
   return { n: r.length, a: r.reduce((s, x) => s + x.a, 0) }
 })
 function pick(id) { setCategory(props.t, id); emit('close') }
+// لو العملية دي عليها تنبيه (مكررة / أكبر من عادتك) — نعرضه هنا ونقفله من هنا
+const flag = computed(() => unusual.value.find((f) => f.tx.id === props.t.id) || null)
+function okFlag() { dismissFlag(flag.value.id); emit('close') }
 const canDebt = computed(() => ['transfer', 'intl', 'in'].includes(props.t.k))
 const hasDebt = computed(() => txHasDebt(props.t))
 function markDebt() { debtFromTx(props.t); emit('close'); emit('go', 'debts') }
@@ -35,6 +39,15 @@ function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(p
       </div>
       <div class="amt">{{ isOut ? '' : '+' }}{{ fmt2(t.a) }} <small>ر.س</small></div>
       <div class="muted sm" v-if="same.n > 1" style="text-align: center">{{ same.n }} عملية مع نفس المكان · إجمالي {{ fmt(same.a) }} ر.س</div>
+
+      <div v-if="flag" class="flag">
+        <b>{{ flag.type === 'dup' ? '⚠️ ممكن تكون مكررة' : '👀 أكبر من عادتك' }}</b>
+        <span class="sm">{{ flag.text }}</span>
+        <div class="fact">
+          <button class="ok" @click="okFlag">✓ تمام، أنا عارفها</button>
+          <span v-if="flag.type === 'dup'" class="muted xs">لو اتسحبت غلط كلّم البنك</span>
+        </div>
+      </div>
 
       <button v-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
       <div v-else-if="hasDebt" class="muted xs" style="text-align: center; margin-top: 10px">✓ متسجلة في الديون</div>
@@ -79,4 +92,7 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 @keyframes up { from { transform: translateY(40%) } }
 @keyframes fade { from { opacity: 0 } }
 .debt { display: block; width: 100%; margin-top: 12px; padding: 11px; border-radius: 14px; border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--accent); font: inherit; font-weight: 600; cursor: pointer }
+.flag { margin-top: 12px; border: 1px solid #f59e0b; background: color-mix(in srgb, #f59e0b 9%, var(--surface)); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 4px }
+.fact { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap }
+.fact .ok { border: 0; border-radius: 12px; padding: 9px 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
 </style>

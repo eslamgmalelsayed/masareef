@@ -163,10 +163,12 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
     </section>
 
     <section v-if="unusual.length" class="card note warn">
-      <button class="x" @click="dismissFlag(unusual[0].id)">×</button>
-      <b>{{ unusual[0].type === 'dup' ? '⚠️ عملية مكررة؟' : '👀 عملية أكبر من عادتك' }}</b>
-      <button class="ntx" @click="emit('open', unusual[0].tx)">{{ unusual[0].text }} · {{ fmtDate(unusual[0].tx.ts, { day: 'numeric', month: 'short' }) }}</button>
-      <div v-if="unusual.length > 1" class="muted xs">و{{ unusual.length - 1 }} كمان — اضغط × علشان تشوف اللي بعدها</div>
+      <b>{{ unusual[0].type === 'dup' ? '⚠️ عملية مكررة؟' : '👀 عملية أكبر من عادتك' }}<small v-if="unusual.length > 1" class="muted"> · {{ unusual.length }}</small></b>
+      <div class="sm">{{ unusual[0].text }} · {{ fmtDate(unusual[0].tx.ts, { day: 'numeric', month: 'short' }) }}</div>
+      <div class="nact">
+        <button class="ok" @click="dismissFlag(unusual[0].id)">✓ تمام، أنا عارفها</button>
+        <button class="link" @click="emit('open', unusual[0].tx)">شوف العملية</button>
+      </div>
     </section>
 
     <section v-if="prevSame" class="card cmp">
@@ -261,6 +263,8 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .note.warn { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 8%, var(--surface)) }
 .note.sum { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)) }
 .note .good { color: var(--good) } .note .bad { color: var(--bad) }
+.nact { display: flex; align-items: center; gap: 14px; margin-top: 6px }
+.nact .ok { border: 0; border-radius: 12px; padding: 8px 14px; background: var(--accent); color: #fff; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer }
 .ntx { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; color: inherit; text-align: right; cursor: pointer }
 .eye { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; flex: none; align-self: center }
 .eye.on { background: var(--accent); border-color: var(--accent); color: #fff }
