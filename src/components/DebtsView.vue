@@ -1,4 +1,5 @@
 <script setup>
+import BottomSheet from './BottomSheet.vue'
 import { ask, choose } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
 import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose, setAutoLentRange, autoLentRange } from '../lib/debts.js'
@@ -233,10 +234,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
     </template>
 
     <!-- ================= شيت السلفة التلقائية ================= -->
-    <div v-if="curAuto" class="scrim" @click.self="au = null">
-      <div class="sheet">
-        <div class="grab"></div>
-        <h2>{{ curAuto.name }}</h2>
+    <BottomSheet v-if="curAuto" :title="curAuto.name" @close="au = null">
         <div class="state">
           <div><small class="muted">الباقي ليك</small><b>{{ fmt(curAuto.left) }}</b></div>
           <div><small class="muted">رجّع</small><b class="good">{{ fmt(curAuto.paid) }}</b></div>
@@ -270,14 +268,10 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
           <button class="link" @click="nudge(curAuto)">💬 فكّره على واتساب</button>
           <button class="link del" @click="ignoreAuto">تحويلاتي ليه مش سلف</button>
         </div>
-      </div>
-    </div>
+      </BottomSheet>
 
     <!-- ================= شيت الإضافة / التعديل ================= -->
-    <div v-if="ed" class="scrim" @click.self="ed = null">
-      <div class="sheet">
-        <div class="grab"></div>
-        <h2>{{ ed.isNew ? (ed.type === 'owe' ? 'دين عليّا' : 'حد مستلف مني') : ed.name }}</h2>
+    <BottomSheet v-if="ed" :title="ed.isNew ? (ed.type === 'owe' ? 'دين عليّا' : 'حد مستلف مني') : ed.name" @close="ed = null">
 
         <template v-if="cur">
           <div class="state">
@@ -320,8 +314,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
           <button class="link" @click="toggleClosed">{{ cur && cur.closed ? 'افتحه تاني' : 'اقفله (خلص)' }}</button>
           <button class="link del" @click="del">امسح</button>
         </div>
-      </div>
-    </div>
+      </BottomSheet>
   </div>
 </template>
 

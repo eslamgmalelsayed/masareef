@@ -1,4 +1,5 @@
 <script setup>
+import BottomSheet from './BottomSheet.vue'
 import { ask } from '../lib/dialog.js'
 import { computed, ref, watch } from 'vue'
 import { creditCards, utilLevel, saveCardSettings, addManualCard, removeCard } from '../lib/credit.js'
@@ -146,10 +147,7 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
     </template>
 
     <!-- تعديل البطاقة -->
-    <div v-if="editing" class="scrim" @click.self="editing = false">
-      <div class="sheet">
-        <div class="grab"></div>
-        <h2>تعديل {{ c.name }}</h2>
+    <BottomSheet v-if="editing" :title="'تعديل ' + c.name" @close="editing = false">
         <label class="fld"><span>اسم البطاقة</span><input v-model="form.name" /></label>
         <label class="fld"><span>الحد الائتماني (أقصى رصيد للبطاقة)</span><input v-model="form.limit" type="number" inputmode="numeric" :placeholder="c.inferred ? 'تقديري: ' + fmt(c.inferred) : 'مثلًا 30000'" /></label>
         <div class="two">
@@ -170,14 +168,10 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
         </div>
         <button class="save" @click="saveEdit">حفظ</button>
         <button v-if="c.added" class="del" @click="delCard(); editing = false">شيل البطاقة</button>
-      </div>
-    </div>
+      </BottomSheet>
 
     <!-- إضافة بطاقة بإيدك -->
-    <div v-if="adding" class="scrim" @click.self="adding = false">
-      <div class="sheet">
-        <div class="grab"></div>
-        <h2>إضافة بطاقة ائتمانية</h2>
+    <BottomSheet v-if="adding" title="إضافة بطاقة ائتمانية" @close="adding = false">
         <p class="muted sm">لبطاقة البنك بتاعها مش بيبعت رسايل، أو بنك مش مدعوم.</p>
         <label class="fld"><span>اسم البطاقة</span><input v-model="nf.name" placeholder="مثلًا: فيزا الأهلي" /></label>
         <div class="two">
@@ -190,8 +184,7 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
         </div>
         <label class="fld"><span>آخر يوم للسداد</span><input v-model="nf.dueDay" type="number" inputmode="numeric" min="1" max="31" /></label>
         <button class="save" @click="addCard">أضف البطاقة</button>
-      </div>
-    </div>
+      </BottomSheet>
   </div>
 </template>
 

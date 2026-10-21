@@ -1,4 +1,5 @@
 <script setup>
+import BottomSheet from './BottomSheet.vue'
 import { ask, choose } from '../lib/dialog.js'
 import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
@@ -50,16 +51,15 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
 </script>
 
 <template>
-  <div class="scrim" @click.self="emit('close')">
-    <div class="sheet">
-      <div class="grab"></div>
-      <div class="head">
+  <BottomSheet @close="emit('close')">
+<template #head><div class="head">
         <span class="ic" :style="{ background: CAT[t.c].color + '1f', color: CAT[t.c].color }">{{ CAT[t.c].icon }}</span>
         <div class="mid">
           <div class="nm">{{ t.m }}</div>
           <div class="muted sm">{{ KIND[t.k] }} · {{ t.b }} · {{ fmtDate(t.d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
         </div>
-      </div>
+      </div></template>
+      
       <div class="amt">{{ isOut ? '' : '+' }}{{ fmt2(t.a) }} <small>ر.س</small></div>
       <div class="muted sm" v-if="same.n > 1" style="text-align: center">{{ same.n }} عملية مع نفس المكان · إجمالي {{ fmt(same.a) }} ر.س</div>
 
@@ -86,8 +86,7 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         <button class="dl" @click="del">🗑 مسح</button>
       </div>
       <button class="close" @click="emit('close')">تمام</button>
-    </div>
-  </div>
+    </BottomSheet>
 </template>
 
 <style scoped>

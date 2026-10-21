@@ -1,4 +1,5 @@
 <script setup>
+import BottomSheet from './BottomSheet.vue'
 import { promptText } from '../lib/dialog.js'
 import { ref } from 'vue'
 import { events, activeEvent, startEvent, stopEvent, deleteEvent, saveEvent } from '../lib/tools.js'
@@ -58,10 +59,7 @@ async function rename(e) { const n = await promptText('غيّر الاسم', e.n
       </div>
     </section>
 
-    <div v-if="ed" class="scrim" @click.self="ed = null">
-      <div class="sheet">
-        <div class="grab"></div>
-        <h2>مناسبة جديدة</h2>
+    <BottomSheet v-if="ed" title="مناسبة جديدة" @close="ed = null">
         <div class="icons"><button v-for="i in ICONS" :key="i[0]" :class="{ on: ed.icon === i[0] }" @click="ed.icon = i[0]">{{ i[0] }}</button></div>
         <label class="fld"><span>الاسم</span><input v-model="ed.name" placeholder="مثلًا إجازة مصر" /></label>
         <div class="seg"><button :class="{ on: ed.when === 'now' }" @click="ed.when = 'now'">ابدأ من دلوقتي</button><button :class="{ on: ed.when === 'range' }" @click="ed.when = 'range'">فترة فاتت</button></div>
@@ -70,8 +68,7 @@ async function rename(e) { const n = await promptText('غيّر الاسم', e.n
           <label class="fld"><span>لحد</span><input v-model="ed.to" type="date" /></label>
         </div>
         <button class="save" @click="save">{{ ed.when === 'now' ? 'ابدأ' : 'احفظ' }}</button>
-      </div>
-    </div>
+      </BottomSheet>
   </div>
 </template>
 

@@ -3,38 +3,24 @@ import { toolsList } from '../lib/toolsList.js'
 
 // زرار +: إضافة مصروف + كل أدوات الفلوس في مكان واحد
 const emit = defineEmits(['close', 'add', 'go'])
+import BottomSheet from './BottomSheet.vue'
 const tools = toolsList
-// اسحب القايمة لتحت من فوق علشان تقفلها
-import { ref } from 'vue'
-const dy = ref(0)
-let y0 = null
-function ts(e) { y0 = e.touches[0].clientY }
-function tm(e) { if (y0 == null) return; dy.value = Math.max(0, e.touches[0].clientY - y0) }
-function te() { if (dy.value > 70) emit('close'); dy.value = 0; y0 = null }
 </script>
 
 <template>
-  <Transition name="qs" appear>
-    <div class="scrim" @click.self="emit('close')">
-      <div class="sheet" :style="dy ? { transform: `translateY(${dy}px)`, transition: 'none' } : null">
-        <div class="drag" @touchstart.passive="ts" @touchmove.passive="tm" @touchend="te">
-        <div class="grab"></div>
-        <div class="head"><b>إضافة</b><button class="x" aria-label="اقفل" @click="emit('close')">×</button></div>
-        </div>
-        <div class="adds">
-          <button class="add main" @click="emit('add', {})"><span>✍️</span>ضيف مصروف</button>
-        </div>
-        <div class="lbl">أدوات الفلوس</div>
-        <div class="grid">
-          <button v-for="x in tools" :key="x.id" class="tool" @click="emit('go', x.id)">
-            <span class="ic">{{ x.ic }}</span>
-            <b>{{ x.t }}</b>
-            <small>{{ x.s }}</small>
-          </button>
-        </div>
-      </div>
+  <BottomSheet title="إضافة" maxh="66vh" @close="emit('close')">
+    <div class="adds">
+      <button class="add main" @click="emit('add', {})"><span>✍️</span>ضيف مصروف</button>
     </div>
-  </Transition>
+    <div class="lbl">أدوات الفلوس</div>
+    <div class="grid">
+      <button v-for="x in tools" :key="x.id" class="tool" @click="emit('go', x.id)">
+        <span class="ic">{{ x.ic }}</span>
+        <b>{{ x.t }}</b>
+        <small>{{ x.s }}</small>
+      </button>
+    </div>
+  </BottomSheet>
 </template>
 
 <style scoped>

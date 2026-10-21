@@ -1,4 +1,5 @@
 <script setup>
+import BottomSheet from './BottomSheet.vue'
 import { ask } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
 import { funds, fundsNeedNow, saveFund, fundAdd, fundRenew, deleteFund } from '../lib/tools.js'
@@ -77,10 +78,7 @@ const passed = computed(() => funds.value.filter((f) => f.due_passed))
       <button v-for="i in IDEAS" :key="i[1]" @click="openNew(i)">{{ i[0] }} {{ i[1] }}</button>
     </div>
 
-    <div v-if="ed" class="scrim" @click.self="ed = null">
-      <div class="sheet">
-        <div class="grab"></div>
-        <h2>{{ ed.id ? 'تعديل الصندوق' : 'صندوق جديد' }}</h2>
+    <BottomSheet v-if="ed" :title="ed.id ? 'تعديل الصندوق' : 'صندوق جديد'" @close="ed = null">
         <div class="icons"><button v-for="i in ICONS" :key="i" :class="{ on: ed.icon === i }" @click="ed.icon = i">{{ i }}</button></div>
         <label class="fld"><span>اسمه</span><input v-model="ed.name" placeholder="مثلًا تجديد الإقامة" /></label>
         <div class="two">
@@ -90,8 +88,7 @@ const passed = computed(() => funds.value.filter((f) => f.due_passed))
         <label v-if="!ed.id" class="fld"><span>معاك منه كام دلوقتي (اختياري)</span><input v-model="ed.saved" type="number" inputmode="numeric" placeholder="0" /></label>
         <button class="save" @click="save">حفظ</button>
         <button v-if="ed.id" class="link del" style="margin-top: 12px" @click="del">امسح الصندوق</button>
-      </div>
-    </div>
+      </BottomSheet>
   </div>
 </template>
 

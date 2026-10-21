@@ -1,4 +1,5 @@
 <script setup>
+import BottomSheet from './BottomSheet.vue'
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { CATEGORIES, categorize } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
@@ -88,10 +89,7 @@ function save() {
 </script>
 
 <template>
-  <div class="scrim" @click.self="emit('close')">
-    <div class="sheet">
-      <div class="grab"></div>
-      <div class="head"><b>{{ e ? 'تعديل مصروف' : 'إضافة مصروف' }}</b><button class="x" aria-label="اقفل" @click="emit('close')">×</button></div>
+  <BottomSheet :title="e ? 'تعديل مصروف' : 'إضافة مصروف'" @close="emit('close')">
 
       <div v-if="canPaste && !e" class="pastebox">
         <button class="pbtn" @click="pasteFromClipboard">📋 الصق رسالة البنك</button>
@@ -124,8 +122,7 @@ function save() {
       <p v-if="fromCash" class="muted xs hint">هيتخصم من "سحب نقدي" علشان المبلغ ميتحسبش مرتين</p>
 
       <button class="save" :disabled="!valid" @click="save">{{ e ? 'حفظ التعديل' : 'أضف المصروف' }}</button>
-    </div>
-  </div>
+    </BottomSheet>
 </template>
 
 <style scoped>
