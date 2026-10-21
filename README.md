@@ -24,3 +24,7 @@
 - `android/.../SmsReaderPlugin.java` — قراية الرسايل من أندرويد
 - بعد أي تعديل: `npm run sync` وبعدين `build-apk.bat`
 - تجربة في المتصفح: `npm run dev` واستورد ملف XML من الإعدادات
+
+## آيفون
+- **نسخة الويب (PWA):** https://eslamgmalelsayed.github.io/masareef/ — افتحها في سفاري ← مشاركة ← إضافة إلى الشاشة الرئيسية
+- **التطبيق الكامل (SideStore):** ضيف المصدر `https://github.com/eslamgmalelsayed/masareef/releases/download/ios-latest/apps.json`
