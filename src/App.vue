@@ -5,6 +5,7 @@ import { isNative, isIOS, biometricAuth } from './lib/smsSource.js'
 import { privacy } from './lib/format.js'
 import LockScreen from './components/LockScreen.vue'
 import AppDialog from './components/AppDialog.vue'
+import QuickSheet from './components/QuickSheet.vue'
 import { App as CapApp } from '@capacitor/app'
 import HomeView from './components/HomeView.vue'
 import AnalysisView from './components/AnalysisView.vue'
@@ -38,6 +39,7 @@ const txRange = ref(null)
 const txBank = ref('')
 const sheet = ref(null)
 const adding = ref(null) // null | {} (جديد) | tx (تعديل)
+const quick = ref(false) // قايمة زرار +
 
 const prevTab = ref('home')
 const creditSel = ref('')
@@ -71,7 +73,8 @@ const refresh = () => Promise.all([syncSms(), checkUpdate()])
 // زرار الرجوع في أندرويد
 if (isNative) {
   CapApp.addListener('backButton', () => {
-    if (adding.value) adding.value = null
+    if (quick.value) quick.value = false
+    else if (adding.value) adding.value = null
     else if (sheet.value) sheet.value = null
     else if (SUB.includes(tab.value)) back()
     else if (tab.value !== 'home') go('home')
@@ -155,7 +158,8 @@ const tabs = [
       </button>
     </nav>
 
-    <button v-if="tab === 'home'" class="fab" @click="adding = {}" aria-label="إضافة مصروف">＋</button>
+    <button v-if="tab === 'home' && !quick" class="fab" @click="quick = true" aria-label="إضافة وأدوات">＋</button>
+    <QuickSheet v-if="quick" @close="quick = false" @add="(a) => { quick = false; adding = a }" @go="(t) => { quick = false; go(t) }" />
     <TxSheet v-if="sheet" :t="allTx.find((x) => x.id === sheet.id) || sheet" @close="sheet = null" @edit="(t) => { sheet = null; adding = t }" @go="go" />
     <AddExpense v-if="adding" :edit="adding.id ? adding : null" :paste="!!adding.paste" @close="adding = null" />
   </main>

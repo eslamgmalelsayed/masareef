@@ -1,0 +1,53 @@
+<script setup>
+import { toolsList } from '../lib/toolsList.js'
+import { isNative } from '../lib/smsSource.js'
+
+// زرار +: إضافة مصروف + كل أدوات الفلوس في مكان واحد
+const emit = defineEmits(['close', 'add', 'go'])
+const tools = toolsList
+</script>
+
+<template>
+  <Transition name="qs" appear>
+    <div class="scrim" @click.self="emit('close')">
+      <div class="sheet">
+        <div class="top"><div class="grab"></div><button class="x" aria-label="اقفل" @click="emit('close')">×</button></div>
+        <div class="adds">
+          <button class="add main" @click="emit('add', {})"><span>✍️</span>ضيف مصروف</button>
+          <button class="add" @click="emit('add', { paste: true })"><span>📋</span>الصق رسالة بنك</button>
+        </div>
+        <div class="lbl">أدوات الفلوس</div>
+        <div class="grid">
+          <button v-for="x in tools" :key="x.id" class="tool" @click="emit('go', x.id)">
+            <span class="ic">{{ x.ic }}</span>
+            <b>{{ x.t }}</b>
+            <small>{{ x.s }}</small>
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+</template>
+
+<style scoped>
+.scrim { position: fixed; inset: 0; z-index: 60; background: rgba(15, 23, 20, .45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: flex-end }
+.sheet { width: 100%; max-width: 560px; margin: 0 auto; max-height: 86vh; overflow-y: auto; background: var(--bg); border-radius: 26px 26px 0 0; padding: 10px 14px calc(16px + env(safe-area-inset-bottom)) }
+.top { position: relative; height: 18px; margin-bottom: 8px }
+.grab { width: 40px; height: 4px; border-radius: 9px; background: var(--line); margin: 0 auto }
+.x { position: absolute; left: 0; top: -6px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--surface-2); color: var(--ink-2); font-size: 20px; line-height: 1; cursor: pointer }
+.adds { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px }
+.add { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 10px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer }
+.add span { font-size: 18px }
+.add.main { background: var(--accent); border-color: var(--accent); color: #fff }
+.lbl { font-size: 12.5px; color: var(--ink-3); font-weight: 600; margin: 16px 4px 8px }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.tool { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 6px 10px; min-height: 96px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; text-align: center; cursor: pointer }
+.tool:active { transform: scale(.97) }
+.ic { font-size: 22px; margin-bottom: 2px }
+.tool b { font-size: 12.5px; line-height: 1.35 }
+.tool small { font-size: 10.5px; color: var(--ink-3); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.qs-enter-active, .qs-leave-active { transition: opacity .2s }
+.qs-enter-active .sheet, .qs-leave-active .sheet { transition: transform .26s cubic-bezier(.2, .9, .3, 1) }
+.qs-enter-from, .qs-leave-to { opacity: 0 }
+.qs-enter-from .sheet, .qs-leave-to .sheet { transform: translateY(60px) }
+</style>

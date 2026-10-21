@@ -131,24 +131,6 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       </div>
     </section>
 
-    <!-- اختصارات: الالتزامات · الحوالات · الادخار -->
-    <div class="chips">
-      <button class="chip" @click="emit('go', 'commit')">
-        <span class="ci">🔁</span><span><small>التزامات الشهر الجاي</small><b>{{ fmt(commitments.next30) }}</b></span>
-      </button>
-      <button class="chip" @click="emit('go', 'debts')">
-        <span class="ci">💸</span><span><small>{{ debtTotals.lent > 0 ? 'عليّا · ليّا' : 'الديون' }}</small><b>{{ debtTotals.owed || debtTotals.lent ? fmt(debtTotals.owed) + (debtTotals.lent > 0 ? ' · ' + fmt(debtTotals.lent) : '') : 'ضيف ←' }}</b></span>
-      </button>
-      <button class="chip" @click="emit('go', 'savings')">
-        <span class="ci">🎯</span><span><small>{{ saveGoal ? (savings.onTrack ? 'الادخار: ماشي صح' : 'الادخار: متأخر') : 'هدف الادخار' }}</small><b>{{ saveGoal ? fmt(Math.max(0, savings.projected)) + ' / ' + fmt(saveGoal) : 'حدده ←' }}</b></span>
-      </button>
-      <button class="chip" @click="emit('go', 'zakat')">
-        <span class="ci">🕌</span><span><small>{{ zakat.due ? 'الزكاة ' + fmtDate(zakat.due, { day: 'numeric', month: 'short' }) : 'الزكاة' }}</small><b>{{ zakat.amount ? fmt(zakat.amount) : zakat.nisab ? (zakat.reached ? '—' : 'أقل من النصاب') : 'احسبها ←' }}</b></span>
-      </button>
-      <button class="chip tools" @click="emit('go', 'tools')">
-        <span class="ci">🧰</span><span><small>كل الأدوات</small><b>صناديق · ثروة · سفر…</b></span>
-      </button>
-    </div>
 
     <section v-if="activeEvent" class="card note evb" @click="emit('go', 'events')">
       <b>{{ activeEvent.icon }} {{ activeEvent.name }} شغال</b>
@@ -254,13 +236,6 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .setlim { display: flex; gap: 10px; align-items: center; width: 100%; font: inherit; color: var(--ink); text-align: right; cursor: pointer; font-size: 14px }
 .setlim span:nth-child(1) { flex: 1 }
 .good { color: var(--good) } .bad { color: var(--bad) }
-.chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 12px; padding: 0 16px; scrollbar-width: none }
-.chips::-webkit-scrollbar { display: none }
-.chip { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; text-align: right; cursor: pointer }
-.chip .ci { font-size: 20px }
-.chip span:last-child { display: flex; flex-direction: column; line-height: 1.3 }
-.chip small { font-size: 11.5px; color: var(--ink-3) }
-.chip b { font-size: 15px; font-variant-numeric: tabular-nums }
 .note { position: relative; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px }
 .note .x { position: absolute; top: 8px; left: 10px; border: 0; background: none; color: var(--ink-3); font-size: 20px; cursor: pointer }
 .note.warn { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 8%, var(--surface)) }
