@@ -78,7 +78,7 @@ function clearImp() { if (confirm('تمسح العمليات اللي اتقرت
 
     <button class="card navrow" @click="emit('go', 'limits')">
       <span class="nic">🔔</span>
-      <span class="nmid"><b>حدود البنود والإشعارات</b><br /><small class="muted">{{ Object.keys(state.settings.limits || {}).length ? Object.keys(state.settings.limits).length + ' بند عليهم حد' : 'نبّهني لما أوصل لحد معين في أي بند' }}</small></span>
+      <span class="nmid"><b>الحدود والتنبيهات</b><br /><small class="muted">{{ Object.keys(state.settings.limits || {}).length ? Object.keys(state.settings.limits).length + ' بند عليهم حد' : 'حد يومي وأسبوعي وشهري ولكل بند' }}</small></span>
       <span class="muted">←</span>
     </button>
 

@@ -92,7 +92,10 @@ public final class LimitStore {
             // نزل راتب جديد؟ نبدأ دورة جديدة: المجاميع ترجع صفر والإشعارات تشتغل من الأول
             if (LimitEngine.isSalary(body)) {
                 cfg.put("cycle", String.valueOf(ts));
-                cfg.put("totals", new JSONObject());
+                // اليوم والأسبوع ملهمش علاقة بالراتب — نسيبهم زي ما هم
+                JSONObject old = cfg.optJSONObject("totals"), fresh = new JSONObject();
+                if (old != null) { fresh.put("__day", old.optDouble("__day", 0)); fresh.put("__week", old.optDouble("__week", 0)); }
+                cfg.put("totals", fresh);
                 saveConfig(ctx, cfg);
                 return;
             }
@@ -103,6 +106,15 @@ public final class LimitStore {
             if (totals == null) totals = new JSONObject();
             totals.put(cat, totals.optDouble(cat, 0) + p.amount);
             totals.put("__total", totals.optDouble("__total", 0) + p.amount); // إجمالي المصروفات
+            // اليوم والأسبوع: لو الرسالة في يوم/أسبوع جديد نبدأ من صفر
+            JSONObject pk = cfg.optJSONObject("periodKeys");
+            if (pk == null) pk = new JSONObject();
+            String[][] per = { { "__day", dayKey(ts, false) }, { "__week", dayKey(ts, true) } };
+            for (String[] x : per) {
+                if (!x[1].equals(pk.optString(x[0]))) { totals.put(x[0], 0); pk.put(x[0], x[1]); }
+                totals.put(x[0], totals.optDouble(x[0], 0) + p.amount);
+            }
+            cfg.put("periodKeys", pk);
             cfg.put("totals", totals);
             saveConfig(ctx, cfg);
         } catch (Exception ignored) { return; }
@@ -122,6 +134,14 @@ public final class LimitStore {
                 if (lv != null) { Iterator<String> it = lv.keys(); while (it.hasNext()) { String k = it.next(); notified.put(k, lv.optInt(k)); } }
             }
         } catch (Exception ignored) { }
+
+        // يوم/أسبوع جديد → إشعارات الحد اليومي/الأسبوعي تشتغل من الأول
+        JSONObject pk = cfg.optJSONObject("periodKeys");
+        SharedPreferences sp = prefs(ctx);
+        for (String per : new String[] { "__day", "__week" }) {
+            String k = pk == null ? "" : pk.optString(per, "");
+            if (!k.equals(sp.getString("pk" + per, ""))) { notified.remove(per); sp.edit().putString("pk" + per, k).apply(); }
+        }
 
         List<LimitEngine.Alert> alerts = LimitEngine.evaluate(doubles(cfg.optJSONObject("totals")), doubles(cfg.optJSONObject("limits")), notified);
 
@@ -150,6 +170,13 @@ public final class LimitStore {
                 text = al.level >= 100
                     ? "صرفت " + fmt(al.spent) + " ر.س والحد " + fmt(al.limit) + " ر.س — زيادة " + fmt(al.spent - al.limit)
                     : "صرفت " + fmt(al.spent) + " من " + fmt(al.limit) + " ر.س — باقي " + fmt(al.limit - al.spent);
+            }
+            if ("__day".equals(al.cat) || "__week".equals(al.cat)) {
+                String when = "__day".equals(al.cat) ? "النهارده" : "الأسبوع ده";
+                title = al.level >= 100 ? "عدّيت حد " + name + " ⚠️" : "صرفت " + Math.round(al.spent / al.limit * 100) + "٪ من حد " + name;
+                text = al.level >= 100
+                    ? "صرفت " + fmt(al.spent) + " ر.س " + when + " والحد " + fmt(al.limit) + " ر.س"
+                    : "صرفت " + fmt(al.spent) + " من " + fmt(al.limit) + " ر.س " + when + " — باقي " + fmt(al.limit - al.spent);
             }
             notify(ctx, al.cat.hashCode(), title, text);
         }
@@ -211,6 +238,14 @@ public final class LimitStore {
             }
             prefs(ctx).edit().putString(KEY_CREDIT_NOTIFIED, done.toString()).apply();
         } catch (Exception ignored) { }
+    }
+
+    /** مفتاح اليوم (أو أول يوم في الأسبوع — الأحد) بنفس صيغة الـ JS: 2026-10-21 */
+    static String dayKey(long ts, boolean week) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(ts);
+        if (week) c.add(Calendar.DAY_OF_MONTH, -(c.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY));
+        return String.format(Locale.US, "%04d-%02d-%02d", c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH));
     }
 
     /** الـ JS والـ Receiver ممكن يسجلوا نفس الراتب بتوقيت مختلف شوية */

@@ -1,4 +1,4 @@
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, watch, ref } from 'vue'
 import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile } from './parser.js'
 import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
 import { isNative, readSms, saveNativeConfig } from './smsSource.js'
@@ -19,6 +19,8 @@ const DEFAULT_SETTINGS = {
   income: '', // الدخل الشهري (٠ = ناخده من رسالة الراتب)
   totalLimit: '', // حد إجمالي المصروفات لكل راتب (٠ = نفس الدخل)
   totalAlert: true,
+  dayLimit: '', // حد الصرف اليومي (فاضي = بدون)
+  weekLimit: '', // حد الصرف الأسبوعي — الأسبوع بيبدأ الأحد
   salaryDay: '', // فاضي = تلقائي من رسايل الراتب
   v: 2,
 }
@@ -284,6 +286,23 @@ export const cycleSpent = computed(() => {
   const start = currentCycle.value.from
   return spendTx.value.filter((t) => t.d >= start).reduce((s, t) => s + t.a, 0)
 })
+// النهارده والأسبوع ده — بيتحدّثوا كل دقيقة علشان اليوم الجديد يبدأ من صفر
+const tick = ref(Date.now())
+setInterval(() => { tick.value = Date.now() }, 60e3)
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { tick.value = Date.now() })
+const pad2 = (n) => String(n).padStart(2, '0')
+const dayKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+export const periodStarts = computed(() => {
+  const d = new Date(tick.value); d.setHours(0, 0, 0, 0)
+  const w = new Date(d); w.setDate(w.getDate() - w.getDay())
+  return { day: d, week: w }
+})
+export const daySpent = computed(() => spendTx.value.filter((t) => t.d >= periodStarts.value.day).reduce((s, t) => s + t.a, 0))
+export const weekSpent = computed(() => spendTx.value.filter((t) => t.d >= periodStarts.value.week).reduce((s, t) => s + t.a, 0))
+export const dayLimit = computed(() => Number(state.settings.dayLimit) || 0)
+export const weekLimit = computed(() => Number(state.settings.weekLimit) || 0)
+export const levelOf = (spent, limit) => (!limit ? '' : spent > limit ? 'over' : spent >= 0.8 * limit ? 'warn' : 'ok')
+
 /** حالة الحد: ok | warn (٨٠٪+) | over */
 export const totalLevel = computed(() => {
   const l = totalLimit.value
@@ -304,9 +323,15 @@ export function setLimit(catId, value) {
 function pushNativeConfig() {
   saveNativeConfig({
     cycle: currentCycle.value.id,
-    totals: { ...cycleByCat.value, __total: cycleSpent.value },
-    limits: { ...(state.settings.limits || {}), ...(state.settings.totalAlert !== false && totalLimit.value ? { __total: totalLimit.value } : {}) },
-    names: { ...Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name])), __total: 'إجمالي المصروفات' },
+    totals: { ...cycleByCat.value, __total: cycleSpent.value, __day: daySpent.value, __week: weekSpent.value },
+    limits: {
+      ...(state.settings.limits || {}),
+      ...(state.settings.totalAlert !== false && totalLimit.value ? { __total: totalLimit.value } : {}),
+      ...(dayLimit.value ? { __day: dayLimit.value } : {}),
+      ...(weekLimit.value ? { __week: weekLimit.value } : {}),
+    },
+    periodKeys: { __day: dayKey(periodStarts.value.day), __week: dayKey(periodStarts.value.week) },
+    names: { ...Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name])), __total: 'إجمالي المصروفات', __day: 'الصرف اليومي', __week: 'الصرف الأسبوعي' },
     rules: RULES.map(([c, rx]) => [c, rx.source]),
     overrides: state.overrides,
     senders: Object.keys(BANKS),
@@ -314,7 +339,7 @@ function pushNativeConfig() {
 }
 let pushTimer = null
 watch(
-  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

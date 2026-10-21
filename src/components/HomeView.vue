@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName } from '../lib/store.js'
+import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, dayLimit, weekLimit, levelOf } from '../lib/store.js'
 import { CAT } from '../lib/categories.js'
 import { fmt, fmtDate, sum, byCategory, startOfDay, startOfWeek, DAY } from '../lib/format.js'
 import BarChart from './BarChart.vue'
@@ -103,8 +103,8 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
         </div>
         <div v-if="limit !== salary && salary" class="hint sub"><span>{{ Math.round(pctSal) }}٪ من الدخل ({{ fmt(salary) }})</span></div>
         <div class="split3">
-          <div><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div></div>
-          <div><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div></div>
+          <div :class="'pl ' + levelOf(today, dayLimit)"><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div><div v-if="dayLimit" class="of">من {{ fmt(dayLimit) }}</div></div>
+          <div :class="'pl ' + levelOf(week, weekLimit)"><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div><div v-if="weekLimit" class="of">من {{ fmt(weekLimit) }}</div></div>
           <div><div class="lbl">تقدر تصرف/يوم</div><div class="mid">{{ fmt(perDayAllowed) }}</div></div>
         </div>
         <div class="foot" v-if="nextSalaryDate">
@@ -112,8 +112,8 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
         </div>
       </template>
       <div v-else class="split3">
-        <div><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div></div>
-        <div><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div></div>
+        <div :class="'pl ' + levelOf(today, dayLimit)"><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div><div v-if="dayLimit" class="of">من {{ fmt(dayLimit) }}</div></div>
+        <div :class="'pl ' + levelOf(week, weekLimit)"><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div><div v-if="weekLimit" class="of">من {{ fmt(weekLimit) }}</div></div>
       </div>
     </section>
 
@@ -133,7 +133,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
         <div class="lb"><i :style="{ width: Math.min(100, r.pct * 100) + '%' }"></i></div>
       </div>
     </section>
-    <button v-else class="card setlim" @click="emit('go', 'limits')">🔔 <span>حط حد لأي بند وخلّي التطبيق ينبّهك</span><span class="muted">←</span></button>
+    <button v-else class="card setlim" @click="emit('go', 'limits')">🔔 <span>حط حد يومي أو أسبوعي أو لأي بند وخلّي التطبيق ينبّهك</span><span class="muted">←</span></button>
 
     <section class="card" v-if="last6.labels.length > 1">
       <div class="row-b"><h2>آخر {{ last6.labels.length }} رواتب</h2><button class="link" @click="emit('go', 'analysis')">التحليل ←</button></div>
@@ -175,6 +175,9 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .track i.over { background: #fca5a5 }
 .hint { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13px; opacity: .92; margin-top: 8px }
 .split3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.18) }
+.pl .of { font-size: 11.5px; opacity: .8 }
+.pl.warn .mid { color: #fde68a } .pl.over .mid { color: #fecaca }
+.pl.over .of::after { content: ' ⚠️' }
 .mid { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums }
 .foot { font-size: 11.5px; opacity: .75; margin-top: 12px; line-height: 1.6 }
 .cmp { display: flex; gap: 12px; align-items: center; font-size: 14px }

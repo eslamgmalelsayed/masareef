@@ -64,7 +64,8 @@ enum LimitStore {
         var cfg = loadConfig()
         if LimitEngine.isSalary(body) {
             cfg["cycle"] = String(Int(ts))
-            cfg["totals"] = [String: Double]()
+            let old = doubles(cfg["totals"])  // اليوم والأسبوع ملهمش علاقة بالراتب
+            cfg["totals"] = ["__day": old["__day"] ?? 0, "__week": old["__week"] ?? 0]
             saveConfig(cfg)
             return
         }
@@ -73,6 +74,12 @@ enum LimitStore {
         var totals = doubles(cfg["totals"])
         totals[cat, default: 0] += p.amount
         totals["__total", default: 0] += p.amount
+        var pk = strings(cfg["periodKeys"])
+        for (per, key) in [("__day", dayKey(ts, week: false)), ("__week", dayKey(ts, week: true))] {
+            if pk[per] != key { totals[per] = 0; pk[per] = key }
+            totals[per, default: 0] += p.amount
+        }
+        cfg["periodKeys"] = pk
         cfg["totals"] = totals
         saveConfig(cfg)
         evaluateAndNotify()
@@ -135,6 +142,12 @@ enum LimitStore {
            sameCycle(cycle, (n["cycle"] as? String) ?? "") {
             for (k, v) in (n["levels"] as? [String: Any]) ?? [:] { notified[k] = (v as? NSNumber)?.intValue ?? 0 }
         }
+        // يوم/أسبوع جديد → إشعارات الحد اليومي/الأسبوعي تشتغل من الأول
+        let pk = strings(cfg["periodKeys"])
+        for per in ["__day", "__week"] {
+            let k = pk[per] ?? ""
+            if UserDefaults.standard.string(forKey: "pk" + per) != k { notified[per] = nil; UserDefaults.standard.set(k, forKey: "pk" + per) }
+        }
         let alerts = LimitEngine.evaluate(totals: doubles(cfg["totals"]), limits: doubles(cfg["limits"]), notified: &notified)
         if let d = try? JSONSerialization.data(withJSONObject: ["cycle": cycle, "levels": notified]) {
             UserDefaults.standard.set(d, forKey: kNotified)
@@ -149,6 +162,12 @@ enum LimitStore {
                 text = al.level >= 100
                     ? "صرفت \(fmt(al.spent)) ر.س والحد \(fmt(al.limit)) ر.س — زيادة \(fmt(al.spent - al.limit))"
                     : "صرفت \(fmt(al.spent)) من \(fmt(al.limit)) ر.س — باقي \(fmt(al.limit - al.spent))"
+            } else if al.cat == "__day" || al.cat == "__week" {
+                let when = al.cat == "__day" ? "النهارده" : "الأسبوع ده"
+                title = al.level >= 100 ? "عدّيت حد \(name) ⚠️" : "صرفت \(pct)٪ من حد \(name)"
+                text = al.level >= 100
+                    ? "صرفت \(fmt(al.spent)) ر.س \(when) والحد \(fmt(al.limit)) ر.س"
+                    : "صرفت \(fmt(al.spent)) من \(fmt(al.limit)) ر.س \(when) — باقي \(fmt(al.limit - al.spent))"
             } else if al.level >= 100 {
                 title = "عدّيت حد \(name) ⚠️"
                 text = "صرفت \(fmt(al.spent)) ر.س من الراتب ده، والحد \(fmt(al.limit)) ر.س"
@@ -158,6 +177,15 @@ enum LimitStore {
             }
             notify(id: "limit-\(al.cat)", title: title, text: text)
         }
+    }
+
+    /// مفتاح اليوم (أو الأحد اللي بدأ بيه الأسبوع) بنفس صيغة الـ JS
+    static func dayKey(_ ts: Double, week: Bool) -> String {
+        let cal = Calendar(identifier: .gregorian)
+        var d = Date(timeIntervalSince1970: ts / 1000)
+        if week { d = cal.date(byAdding: .day, value: -(cal.component(.weekday, from: d) - 1), to: d) ?? d }
+        let c = cal.dateComponents([.year, .month, .day], from: d)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
     static func fmt(_ v: Double) -> String {
