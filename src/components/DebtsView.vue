@@ -1,4 +1,5 @@
 <script setup>
+import { ask, choose } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
 import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose } from '../lib/debts.js'
 import { state, saveSettings } from '../lib/store.js'
@@ -60,7 +61,7 @@ function pay() {
   payV.value = ''
   if (a >= before - 0.5) { party.value = cur.value.name; ed.value = null; setTimeout(() => (party.value = ''), 3500) }
 }
-function del() { if (confirm('تمسح الدين ده؟')) { deleteDebt(ed.value.id); ed.value = null } }
+async function del() { if (await ask('تمسح الدين ده؟', { yes: 'امسح', danger: true })) { deleteDebt(ed.value.id); ed.value = null } }
 function toggleClosed() { saveDebt({ id: ed.value.id, closed: !cur.value.closed }); ed.value = null }
 function nudge(d) { window.open('https://wa.me/?text=' + encodeURIComponent(nudgeText(d)), '_blank') }
 const ago = (ts) => {
@@ -78,7 +79,27 @@ const curAuto = computed(() => (au.value ? autoLent.value.find((d) => d.key === 
 function openLent(d) { if (d.auto) { au.value = d.key; auPay.value = '' } else openEdit(d) }
 function payAuto() { const v = Number(auPay.value); if (v > 0) { autoLentPay(au.value, v); auPay.value = '' } }
 function closeAuto() { autoLentClose(au.value, true); au.value = null }
-function ignoreAuto() { if (confirm('مش هنعتبر أي تحويل ليه سلفة، دلوقتي ولا بعدين. تمام؟')) { ignorePerson(au.value); au.value = null } }
+async function ignoreAuto() {
+  const d = curAuto.value
+  const v = await choose({ icon: '🤝', title: `تحويلاتك لـ ${d.name}`, text: 'مش هنعتبرها سلف — ولا اللي جاية كمان.', options: [
+    { label: 'أيوه، كل تحويلاته', value: 'all', kind: 'primary' },
+    ...(d.txs.length > 1 ? [{ label: `آخر حوالة بس (${fmt(d.txs[0].a)})`, value: 'one' }] : []),
+    { label: 'إلغاء', value: null },
+  ] })
+  if (v === 'all') { ignorePerson(d.key); au.value = null }
+  else if (v === 'one') notLoan(d.txs[0].id)
+}
+// "مش سلفة" على حوالة: الحوالة دي بس، ولا كل تحويلاته؟
+async function notLoanAsk(t) {
+  const d = curAuto.value
+  const v = d && d.txs.length > 1 ? await choose({ icon: '🤝', title: 'مش سلفة', text: `${fmt(t.a)} ر.س لـ ${d.name}`, options: [
+    { label: 'الحوالة دي بس', value: 'one', kind: 'primary' },
+    { label: `كل تحويلاتي لـ ${d.name}`, value: 'all' },
+    { label: 'إلغاء', value: null },
+  ] }) : 'one'
+  if (v === 'one') notLoan(t.id)
+  else if (v === 'all') { ignorePerson(d.key); au.value = null }
+}
 const lentOpen = computed(() => lent.value.filter((d) => !d.done))
 const lentDone = computed(() => lent.value.filter((d) => d.done))
 </script>
@@ -228,7 +249,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
           <div v-for="t in curAuto.txs" :key="t.id" class="prow">
             <span class="muted">{{ fmtDate(t.ts, { day: 'numeric', month: 'short', year: 'numeric' }) }} · {{ t.b }}</span>
             <b>{{ fmt(t.a) }}</b>
-            <button class="notloan" @click="notLoan(t.id)">مش سلفة</button>
+            <button class="notloan" @click="notLoanAsk(t)">مش سلفة</button>
           </div>
         </div>
         <template v-if="curAuto.pays.length">

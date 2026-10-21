@@ -1,4 +1,5 @@
 <script setup>
+import { promptText } from '../lib/dialog.js'
 import { ref } from 'vue'
 import { events, activeEvent, startEvent, stopEvent, deleteEvent, saveEvent } from '../lib/tools.js'
 import { CAT } from '../lib/categories.js'
@@ -22,7 +23,7 @@ function save() {
   }
   ed.value = null
 }
-function rename(e) { const n = prompt('الاسم', e.name); if (n && n.trim()) saveEvent({ id: e.id, name: n.trim() }) }
+async function rename(e) { const n = await promptText('غيّر الاسم', e.name); if (n && n.trim()) saveEvent({ id: e.id, name: n.trim() }) }
 </script>
 
 <template>

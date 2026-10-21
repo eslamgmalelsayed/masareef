@@ -1,4 +1,5 @@
 <script setup>
+import { ask } from '../lib/dialog.js'
 import { ref, onMounted } from 'vue'
 import { state, saveSettings, syncSms, reparse, importFile, clearImported, resetOverrides, allTx, currentCycle, income, totalLimit, cycleSpent, dayLimit, weekLimit, salaryDay, nextSalaryDate } from '../lib/store.js'
 import { isNative, isIOS, requestNotifications, biometricAvailable, biometricAuth } from '../lib/smsSource.js'
@@ -39,7 +40,7 @@ async function doImport(e) {
   const f = e.target.files[0]
   e.target.value = ''
   if (!f) return
-  if (!confirm('هترجّع إعداداتك ومصروفاتك اليدوية من الملف ده، واللي موجود دلوقتي هيتبدّل. تكمل؟')) return
+  if (!(await ask('هترجّع إعداداتك ومصروفاتك اليدوية من الملف ده، واللي موجود دلوقتي هيتبدّل.', { yes: 'رجّعها' }))) return
   try { await importBackup(f) } catch (err) { bkMsg.value = err.message || String(err) }
 }
 function save() { saveSettings(); reparse() }
@@ -56,8 +57,8 @@ async function onFile(e) {
   e.target.value = ''
 }
 async function refresh() { await syncSms(); msg.value = state.status === 'ready' ? 'اتحدّث من الرسايل' : state.error }
-function clearOv() { if (confirm('ترجّع كل التصنيفات اليدوية للتلقائي؟')) resetOverrides() }
-function clearImp() { if (confirm('تمسح العمليات اللي اتقرت من الملفات؟ (رسايل الموبايل مش هتتأثر)')) clearImported() }
+async function clearOv() { if (await ask('كل المحلات اللي نقلتها لبنود تانية هترجع للتصنيف التلقائي.', { yes: 'رجّعها للتلقائي', danger: true })) resetOverrides() }
+async function clearImp() { if (await ask('تمسح العمليات اللي اتقرت من الملفات؟ رسايل الموبايل مش هتتأثر.', { yes: 'امسح', danger: true })) clearImported() }
 </script>
 
 <template>

@@ -4,6 +4,7 @@ import { state, syncSms, allTx, findNewBanks } from './lib/store.js'
 import { isNative, isIOS, biometricAuth } from './lib/smsSource.js'
 import { privacy } from './lib/format.js'
 import LockScreen from './components/LockScreen.vue'
+import AppDialog from './components/AppDialog.vue'
 import { App as CapApp } from '@capacitor/app'
 import HomeView from './components/HomeView.vue'
 import AnalysisView from './components/AnalysisView.vue'
@@ -97,6 +98,7 @@ const tabs = [
 <template>
   <main>
     <LockScreen v-if="locked" :error="lockErr" @unlock="unlock" />
+    <AppDialog />
     <PullRefresh :on-refresh="refresh" :disabled="!!sheet || !!adding" />
     <SettingsView v-if="tab === 'settings'" @go="go" />
     <LimitsView v-else-if="tab === 'limits'" @back="back" @go="go" />

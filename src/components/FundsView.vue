@@ -1,4 +1,5 @@
 <script setup>
+import { ask } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
 import { funds, fundsNeedNow, saveFund, fundAdd, fundRenew, deleteFund } from '../lib/tools.js'
 import { fmt, fmtDate } from '../lib/format.js'
@@ -25,7 +26,7 @@ function save() {
   ed.value = null
 }
 function add(f) { const v = Number(addV.value[f.id] || f.needNow.toFixed(0)); if (v > 0) { fundAdd(f.id, v); addV.value[f.id] = '' } }
-function del() { if (confirm('تمسح الصندوق ده؟')) { deleteFund(ed.value.id); ed.value = null } }
+async function del() { if (await ask('تمسح الصندوق ده؟', { yes: 'امسح', danger: true })) { deleteFund(ed.value.id); ed.value = null } }
 const active = computed(() => funds.value.filter((f) => !f.due_passed))
 const passed = computed(() => funds.value.filter((f) => f.due_passed))
 </script>

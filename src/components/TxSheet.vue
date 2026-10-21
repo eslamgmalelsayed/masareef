@@ -1,10 +1,11 @@
 <script setup>
+import { ask, choose } from '../lib/dialog.js'
 import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
-import { debtFromTx, txHasDebt, autoLentTxIds, notLoan } from '../lib/debts.js'
+import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson } from '../lib/debts.js'
 import { unusual, dismissFlag } from '../lib/insights.js'
 
 const props = defineProps({ t: Object })
@@ -24,8 +25,19 @@ function okFlag() { dismissFlag(flag.value.id); emit('close') }
 const canDebt = computed(() => ['transfer', 'intl', 'in'].includes(props.t.k))
 const hasDebt = computed(() => txHasDebt(props.t))
 const isAutoLoan = computed(() => autoLentTxIds.value.has(props.t.id))
+// الحوالة دي بس، ولا كل تحويلاتي للشخص ده؟
+async function notLoanAsk() {
+  const d = autoLent.value.find((x) => x.txs.some((t) => t.id === props.t.id))
+  const v = d && d.txs.length > 1 ? await choose({ icon: '🤝', title: 'مش سلفة', text: `${fmt(props.t.a)} ر.س لـ ${d.name}`, options: [
+    { label: 'الحوالة دي بس', value: 'one', kind: 'primary' },
+    { label: `كل تحويلاتي لـ ${d.name}`, value: 'all' },
+    { label: 'إلغاء', value: null },
+  ] }) : 'one'
+  if (v === 'one') notLoan(props.t.id)
+  else if (v === 'all') ignorePerson(d.key)
+}
 function markDebt() { debtFromTx(props.t); emit('close'); emit('go', 'debts') }
-function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(props.t.id); emit('close') } }
+async function del() { if (await ask('تمسح المصروف ده؟', { yes: 'امسح', danger: true })) { deleteManual(props.t.id); emit('close') } }
 </script>
 
 <template>
@@ -52,7 +64,7 @@ function del() { if (confirm('تمسح المصروف ده؟')) { deleteManual(p
       </div>
 
       <button v-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
-      <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoan(t.id)">مش سلفة</button></div>
+      <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoanAsk">مش سلفة</button></div>
       <div v-else-if="hasDebt" class="muted xs" style="text-align: center; margin-top: 10px">✓ متسجلة في الديون</div>
 
       <template v-if="isOut">

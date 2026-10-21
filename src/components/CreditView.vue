@@ -1,4 +1,5 @@
 <script setup>
+import { ask } from '../lib/dialog.js'
 import { computed, ref, watch } from 'vue'
 import { creditCards, utilLevel, saveCardSettings, addManualCard, removeCard } from '../lib/credit.js'
 import { CAT, merchantKey } from '../lib/categories.js'
@@ -36,7 +37,7 @@ function addCard() {
   adding.value = false
   nf.value = { name: '', bank: '', card: '', limit: '', owed: '', dueDay: '' }
 }
-function delCard() { if (confirm('تشيل البطاقة دي؟')) { removeCard(c.value.key); sel.value = '' } }
+async function delCard() { if (await ask('تشيل البطاقة دي؟', { yes: 'شيلها', danger: true })) { removeCard(c.value.key); sel.value = '' } }
 
 const chart = computed(() => {
   if (!c.value) return null
