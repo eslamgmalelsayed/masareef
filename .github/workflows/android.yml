@@ -2,7 +2,7 @@ name: Build & Release APK
 on:
   push:
     branches: [main]
-    paths-ignore: ['ios/**', '.github/workflows/ios.yml', 'docs/**']
+    paths-ignore: ['ios/**', '.github/workflows/ios.yml', 'docs/**', 'README.md']
   workflow_dispatch:
 
 permissions:
@@ -41,6 +41,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk masareef.apk
-          git log -1 --pretty=%B > notes.txt
+          git log -1 --pretty=%s > notes.txt
           gh release create "b${{ github.run_number }}" masareef.apk \
             --title "مصاريفي — نسخة ${{ github.run_number }}" --notes-file notes.txt --latest
