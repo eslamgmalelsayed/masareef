@@ -143,7 +143,20 @@ public final class LimitStore {
             if (!k.equals(sp.getString("pk" + per, ""))) { notified.remove(per); sp.edit().putString("pk" + per, k).apply(); }
         }
 
-        List<LimitEngine.Alert> alerts = LimitEngine.evaluate(doubles(cfg.optJSONObject("totals")), doubles(cfg.optJSONObject("limits")), notified);
+        // مجموعات البنود (مثلًا تسوق + ملابس): المجموع = مجموع البنود اللي جواها
+        Map<String, Double> totals = new HashMap<>(doubles(cfg.optJSONObject("totals")));
+        JSONObject groups = cfg.optJSONObject("groups");
+        if (groups != null) {
+            Iterator<String> gi = groups.keys();
+            while (gi.hasNext()) {
+                String g = gi.next();
+                JSONArray cats = groups.optJSONArray(g);
+                double sum = 0;
+                if (cats != null) for (int i = 0; i < cats.length(); i++) { Double v = totals.get(cats.optString(i)); if (v != null) sum += v; }
+                totals.put(g, sum);
+            }
+        }
+        List<LimitEngine.Alert> alerts = LimitEngine.evaluate(totals, doubles(cfg.optJSONObject("limits")), notified);
 
         try {
             JSONObject lv = new JSONObject();

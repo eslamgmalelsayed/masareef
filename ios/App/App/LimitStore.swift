@@ -148,7 +148,12 @@ enum LimitStore {
             let k = pk[per] ?? ""
             if UserDefaults.standard.string(forKey: "pk" + per) != k { notified[per] = nil; UserDefaults.standard.set(k, forKey: "pk" + per) }
         }
-        let alerts = LimitEngine.evaluate(totals: doubles(cfg["totals"]), limits: doubles(cfg["limits"]), notified: &notified)
+        // مجموعات البنود (مثلًا تسوق + ملابس): المجموع = مجموع البنود اللي جواها
+        var totals = doubles(cfg["totals"])
+        for (g, cats) in (cfg["groups"] as? [String: Any]) ?? [:] {
+            totals[g] = ((cats as? [Any]) ?? []).reduce(0.0) { $0 + (totals[($1 as? String) ?? ""] ?? 0) }
+        }
+        let alerts = LimitEngine.evaluate(totals: totals, limits: doubles(cfg["limits"]), notified: &notified)
         if let d = try? JSONSerialization.data(withJSONObject: ["cycle": cycle, "levels": notified]) {
             UserDefaults.standard.set(d, forKey: kNotified)
         }

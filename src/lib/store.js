@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
   weekLimit: '', // حد الصرف الأسبوعي — الأسبوع بيبدأ الأحد
   periodBase: '', // day | week | month — الحد اللي كتبته بإيدك، والباقي محسوب منه
   periodValue: '',
+  groups: [], // [{id, name, cats: [catId], limit}] — حد واحد لأكتر من بند
   salaryDay: '', // فاضي = تلقائي من رسايل الراتب
   v: 2,
 }
@@ -342,6 +343,20 @@ export const totalLevel = computed(() => {
   return cycleSpent.value > l ? 'over' : cycleSpent.value >= 0.8 * l ? 'warn' : 'ok'
 })
 
+/** حدود مجمّعة: أكتر من بند تحت حد واحد (مثلًا تسوق أونلاين + ملابس) */
+export function saveGroup(g) {
+  const list = [...(state.settings.groups || [])]
+  const i = list.findIndex((x) => x.id === g.id)
+  if (i >= 0) list[i] = g
+  else list.push({ ...g, id: 'g_' + Date.now().toString(36) })
+  state.settings.groups = list
+  saveSettings()
+}
+export function deleteGroup(id) {
+  state.settings.groups = (state.settings.groups || []).filter((g) => g.id !== id)
+  saveSettings()
+}
+
 export function setLimit(catId, value) {
   const v = Math.max(0, Math.round(Number(value) || 0))
   const limits = { ...state.settings.limits }
@@ -358,12 +373,14 @@ function pushNativeConfig() {
     totals: { ...cycleByCat.value, __total: cycleSpent.value, __day: daySpent.value, __week: weekSpent.value },
     limits: {
       ...(state.settings.limits || {}),
+      ...Object.fromEntries((state.settings.groups || []).filter((g) => g.limit && g.cats.length).map((g) => [g.id, g.limit])),
       ...(state.settings.totalAlert !== false && totalLimit.value ? { __total: totalLimit.value } : {}),
       ...(state.settings.totalAlert !== false && dayLimit.value ? { __day: dayLimit.value } : {}),
       ...(state.settings.totalAlert !== false && weekLimit.value ? { __week: weekLimit.value } : {}),
     },
+    groups: Object.fromEntries((state.settings.groups || []).map((g) => [g.id, g.cats])),
     periodKeys: { __day: dayKey(periodStarts.value.day), __week: dayKey(periodStarts.value.week) },
-    names: { ...Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name])), __total: 'إجمالي المصروفات', __day: 'الصرف اليومي', __week: 'الصرف الأسبوعي' },
+    names: { ...Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name])), __total: 'إجمالي المصروفات', __day: 'الصرف اليومي', __week: 'الصرف الأسبوعي', ...Object.fromEntries((state.settings.groups || []).map((g) => [g.id, g.name])) },
     rules: RULES.map(([c, rx]) => [c, rx.source]),
     overrides: state.overrides,
     senders: Object.keys(BANKS),
@@ -371,7 +388,7 @@ function pushNativeConfig() {
 }
 let pushTimer = null
 watch(
-  () => [state.status, state.settings.limits, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

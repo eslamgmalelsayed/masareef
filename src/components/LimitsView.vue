@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays } from '../lib/store.js'
+import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays, saveGroup, deleteGroup } from '../lib/store.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { isNative, requestNotifications, notify } from '../lib/smsSource.js'
 import { fmt, DAY } from '../lib/format.js'
@@ -49,6 +49,34 @@ async function setPeriod(p, e) {
   if (v && isNative && notifOk.value !== true) notifOk.value = await requestNotifications()
 }
 function toggleAlert(e) { state.settings.totalAlert = e.target.checked; saveSettings() }
+
+// ===== حدود مجمّعة: أكتر من بند تحت حد واحد =====
+const CATS = CATEGORIES.filter((c) => !c.hidden)
+const CATMAP = Object.fromEntries(CATS.map((c) => [c.id, c]))
+const groupRows = computed(() => (state.settings.groups || []).map((g) => ({
+  ...g,
+  spent: g.cats.reduce((x, c) => x + (cycleByCat.value[c] || 0), 0),
+  avg: g.cats.reduce((x, c) => x + (avg3.value[c] || 0), 0),
+})))
+const gEdit = ref(null) // {id?, name, cats, limit}
+function newGroup() { gEdit.value = { name: '', cats: [], limit: '' } }
+function editGroup(g) { gEdit.value = { id: g.id, name: g.name, cats: [...g.cats], limit: g.limit || '' } }
+function toggleCat(id) {
+  const c = gEdit.value.cats
+  gEdit.value.cats = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]
+}
+const gAuto = computed(() => (gEdit.value ? gEdit.value.cats.map((c) => CATMAP[c]?.name.split(' ')[0]).join(' و') : ''))
+const gSuggest = computed(() => (gEdit.value ? Math.ceil(gEdit.value.cats.reduce((x, c) => x + (avg3.value[c] || 0), 0) / 50) * 50 : 0))
+async function saveG() {
+  const g = gEdit.value
+  if (g.cats.length < 2) return
+  saveGroup({ ...(g.id ? { id: g.id } : {}), name: g.name.trim() || gAuto.value, cats: g.cats, limit: Math.round(Number(g.limit) || 0) })
+  gEdit.value = null
+  if (isNative && notifOk.value !== true) notifOk.value = await requestNotifications()
+}
+function setGroupLimit(g, e) {
+  saveGroup({ id: g.id, name: g.name, cats: g.cats, limit: Math.max(0, Math.round(Number(e.target.value) || 0)) })
+}
 
 async function change(r, e) {
   const v = e.target.value
@@ -103,6 +131,47 @@ function suggest(r) {
       </label>
     </section>
 
+    <h2 class="sec">حدود مجمّعة</h2>
+    <p class="muted xs sec-note">ادمج كذا بند تحت حد واحد — مثلًا تسوق أونلاين + ملابس — وهيوصلك تنبيه على مجموعهم.</p>
+    <section class="card">
+      <div v-for="g in groupRows" :key="g.id" class="lim" :class="level(g)">
+        <div class="top">
+          <span class="ic gic"><i v-for="c in g.cats.slice(0, 3)" :key="c">{{ CATMAP[c]?.icon }}</i></span>
+          <div class="mid">
+            <div class="nm">{{ g.name }} <button class="link xs" @click="editGroup(g)">تعديل</button></div>
+            <div class="muted xs">الراتب ده {{ fmt(g.spent) }}<template v-if="g.avg"> · متوسطك {{ fmt(g.avg) }}/راتب</template></div>
+          </div>
+          <label class="inp"><input type="number" inputmode="numeric" min="0" step="50" :value="g.limit || ''" placeholder="بدون حد" @change="(e) => setGroupLimit(g, e)" /></label>
+        </div>
+        <template v-if="g.limit">
+          <div class="bar"><i :style="{ width: Math.min(100, (g.spent / g.limit) * 100) + '%' }"></i></div>
+          <div class="xs stat">
+            <span v-if="g.spent < g.limit">باقي {{ fmt(g.limit - g.spent) }} ر.س</span>
+            <span v-else>عدّيت الحد بـ {{ fmt(g.spent - g.limit) }} ر.س</span>
+            <span>{{ Math.round((g.spent / g.limit) * 100) }}٪</span>
+          </div>
+        </template>
+      </div>
+
+      <div v-if="gEdit" class="gform">
+        <b class="sm">{{ gEdit.id ? 'تعديل المجموعة' : 'مجموعة جديدة' }}</b>
+        <div class="chips">
+          <button v-for="c in CATS" :key="c.id" :class="{ on: gEdit.cats.includes(c.id) }" @click="toggleCat(c.id)">{{ c.icon }} {{ c.name }}</button>
+        </div>
+        <div class="two">
+          <input v-model="gEdit.name" :placeholder="gAuto || 'اسم المجموعة'" />
+          <input v-model="gEdit.limit" type="number" inputmode="numeric" :placeholder="gSuggest ? 'مقترح ' + fmt(gSuggest) : 'الحد'" />
+        </div>
+        <small class="muted xs" v-if="gEdit.cats.length < 2">اختار بندين أو أكتر</small>
+        <div class="acts">
+          <button class="save" :disabled="gEdit.cats.length < 2" @click="saveG">حفظ</button>
+          <button v-if="gEdit.id" class="link del" @click="deleteGroup(gEdit.id); gEdit = null">شيل المجموعة</button>
+          <button class="link" @click="gEdit = null">إلغاء</button>
+        </div>
+      </div>
+      <button v-else class="addg" @click="newGroup">＋ ادمج بنود في حد واحد</button>
+    </section>
+
     <h2 class="sec">حدود البنود (لكل راتب)</h2>
     <section class="card">
       <div v-for="r in rows" :key="r.id" class="lim" :class="level(r)">
@@ -141,6 +210,19 @@ function suggest(r) {
 .sec { font-size: 15px; margin: 6px 4px 8px }
 .pi { background: var(--surface-2) }
 .sec-note { margin: -4px 4px 8px }
+.gic { background: var(--surface-2); font-size: 12px; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 0 }
+.gic i { font-style: normal; line-height: 1.1 }
+.addg { width: 100%; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: none; color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px }
+.gform { display: flex; flex-direction: column; gap: 10px; padding-top: 10px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chips button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); border-radius: 99px; padding: 6px 10px; font: inherit; font-size: 12.5px; cursor: pointer }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: #fff }
+.gform .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px }
+.gform input { font: inherit; font-size: 14px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); outline: none; min-width: 0 }
+.acts { display: flex; align-items: center; gap: 14px }
+.acts .save { flex: 1; padding: 11px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
+.acts .save:disabled { opacity: .4 }
+.del { color: var(--bad) }
 .inp { display: flex; flex-direction: column; align-items: center; gap: 2px }
 .inp small { font-size: 10.5px; color: var(--ink-3); white-space: nowrap }
 .inp.own small { color: var(--accent) }

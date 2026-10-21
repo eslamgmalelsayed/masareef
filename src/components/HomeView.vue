@@ -63,8 +63,10 @@ const last6 = computed(() => {
 })
 
 const limits = computed(() =>
-  Object.entries(state.settings.limits || {})
-    .map(([id, limit]) => ({ id, limit, spent: cycleByCat.value[id] || 0 }))
+  [
+    ...Object.entries(state.settings.limits || {}).map(([id, limit]) => ({ id, limit, spent: cycleByCat.value[id] || 0, label: CAT[id].icon + ' ' + CAT[id].name })),
+    ...(state.settings.groups || []).filter((g) => g.limit).map((g) => ({ id: g.id, limit: g.limit, spent: g.cats.reduce((x, c) => x + (cycleByCat.value[c] || 0), 0), label: g.cats.slice(0, 3).map((c) => CAT[c]?.icon).join('') + ' ' + g.name })),
+  ]
     .map((r) => ({ ...r, pct: r.spent / r.limit, lvl: r.spent >= r.limit ? 'over' : r.spent >= 0.8 * r.limit ? 'warn' : 'ok' }))
     .sort((a, b) => b.pct - a.pct),
 )
@@ -129,7 +131,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
     <section class="card" v-if="limits.length">
       <div class="row-b"><h2>حدودك للراتب ده</h2><button class="link" @click="emit('go', 'limits')">تعديل ←</button></div>
       <div v-for="r in limits" :key="r.id" class="lrow" :class="r.lvl">
-        <div class="lt"><span>{{ CAT[r.id].icon }} {{ CAT[r.id].name }}</span><span class="ln">{{ fmt(r.spent) }} من {{ fmt(r.limit) }}</span></div>
+        <div class="lt"><span>{{ r.label }}</span><span class="ln">{{ fmt(r.spent) }} من {{ fmt(r.limit) }}</span></div>
         <div class="lb"><i :style="{ width: Math.min(100, r.pct * 100) + '%' }"></i></div>
       </div>
     </section>
