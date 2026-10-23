@@ -98,6 +98,7 @@ function suggest(r) {
   const v = Math.ceil(r.avg / 50) * 50
   if (v) change(r, { target: { value: v } })
 }
+import { setWeekly } from '../lib/extras.js'
 </script>
 
 <template>
@@ -146,6 +147,10 @@ function suggest(r) {
         <small class="muted">بتتطبّق على كل الحدود: اليومي والأسبوعي والشهري والبنود والمجموعات — ودايمًا بيجيلك تنبيه لما تعدّي الحد</small>
       </div>
     </section>
+    <label class="card sw3">
+      <span><b>📅 ملخص الجمعة</b><br /><small class="muted">إشعار واحد كل جمعة ٨ بالليل: صرفت كام الأسبوع ده، أكتر بند، وماشي إزاي مع حدك</small></span>
+      <input type="checkbox" :checked="!state.settings.weeklyOff" @change="(e) => setWeekly(e.target.checked)" />
+    </label>
 
     <h2 class="sec">حدود مجمّعة</h2>
     <p class="muted xs sec-note">ادمج كذا بند تحت حد واحد — مثلًا تسوق أونلاين + ملابس — وهيوصلك تنبيه على مجموعهم.</p>

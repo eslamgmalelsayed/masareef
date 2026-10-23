@@ -1,10 +1,11 @@
-import { computed } from 'vue'
-import { allTx, state, saveSettings, income } from './store.js'
+import { computed, watch } from 'vue'
+import { allTx, state, saveSettings, income, nativeExtra, profile } from './store.js'
+import { loanAnswers, isNative } from './smsSource.js'
+import { norm, personKey } from './person.js'
 import { creditCards } from './credit.js'
 import { activePlans } from './insights.js'
 
 const DAY = 864e5
-const norm = (s) => String(s || '').toLowerCase().replace(/[\s,،.*\-_]/g, '')
 const fmt = (n) => Math.round(n || 0).toLocaleString('en-US')
 
 /**
@@ -76,7 +77,6 @@ export const owed = computed(() => {
 export const owedOpen = computed(() => owed.value.filter((d) => !d.done && d.left > 0))
 // ===== أي تحويل لشخص = سلفة ليك (تلقائي) — وتقدر تشيل أي تحويل منها =====
 // بنجمع التحويلات حسب الشخص، واللي بيرجعهولك (تحويل جاي منه) بيتطرح
-const personKey = (name) => norm(String(name || '').replace(/[,،]?\s*\d+\s*$/, '')).slice(0, 24)
 export const autoLentOn = computed(() => state.settings.autoLent !== false)
 // بنبدأ من آخر ٣٠ يوم قبل ما الميزة تشتغل — مش كل التحويلات القديمة
 if (state.settings.autoLentFrom == null) { state.settings.autoLentFrom = Date.now() - 30 * DAY; saveSettings() }
@@ -259,4 +259,43 @@ export const debtReminders = computed(() => {
 /** رسالة لطيفة تفكّر بيها حد بالفلوس اللي عليه */
 export function nudgeText(d) {
   return `أهلًا ${d.name.split(' ')[0]} 👋 بفكّرك بس بمبلغ ${fmt(d.left)} ريال اللي سلّفتهولك. لو تقدر ترجّعه الفترة دي يبقى كويس جدًا، ولو محتاج وقت قولّي عادي 🙏`
+}
+
+
+// ===== إشعار "سلفة؟" بزرارين (الجزء الأصلي بيسأل لحظة ما رسالة التحويل توصل) =====
+// بنبعتله القواعد: أقل مبلغ، الأشخاص اللي منسألش عليهم، اللي سلّفناهم قبل كده، واللي بنحوّلهم على طول
+const nk = (s) => norm(s)
+watch(() => [autoLentOn.value, state.settings.lentIgnore, yesPeople.value, allTx.value.length], () => {
+  const tr = allTx.value.filter((t) => t.k === 'transfer' && Date.now() - t.ts < 70 * DAY)
+  const byKey = {}
+  for (const t of tr) (byKey[personKey(t.m)] ||= []).push(t)
+  const recent = Date.now() - 30 * DAY
+  const freq = Object.entries(byKey).filter(([, l]) => l.filter((t) => t.ts >= recent).length >= 4).map(([k]) => k)
+  const recur = []
+  for (const [k, l] of Object.entries(byKey)) for (const t of l) if (isRecurring(t, byKey)) recur.push([k, t.a])
+  nativeExtra.lent = {
+    on: autoLentOn.value, min: MIN_LOAN,
+    ignore: state.settings.lentIgnore || [], yes: [...yesPeople.value], freq, recur: recur.slice(0, 100),
+    self: (profile().selfNames || []).map(nk).filter((x) => x.length >= 3),
+  }
+}, { immediate: true, deep: true })
+
+/** الردود اللي جت من الإشعار: بنطابقها بالتحويل (نفس المبلغ + نفس الشخص + في نفس الوقت تقريبًا) */
+export function applyLoanInbox() {
+  const box = state.settings.loanInbox || []
+  if (!box.length) return
+  const left = []
+  for (const r of box) {
+    const t = allTx.value.find((x) => x.k === 'transfer' && Math.abs(x.a - r.a) < 0.01 && Math.abs(x.ts - r.ts) < 20 * 60e3 && (!r.key || personKey(x.m) === r.key))
+    if (t) { if (r.yes) markLoan(t.id); else answerNo(t) }
+    else if (Date.now() - r.ts < 14 * DAY) left.push(r) // الرسالة لسه ماتقرتش — نستنى
+  }
+  state.settings.loanInbox = left
+  saveSettings()
+}
+export async function pullLoanAnswers() {
+  if (!isNative) return
+  const got = await loanAnswers()
+  if (got.length) { state.settings.loanInbox = [...(state.settings.loanInbox || []), ...got]; saveSettings() }
+  applyLoanInbox()
 }

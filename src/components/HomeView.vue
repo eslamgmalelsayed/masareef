@@ -12,6 +12,8 @@ import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
 import { totals as debtTotals, lentPending } from '../lib/debts.js'
 import LoanAsk from './LoanAsk.vue'
+import BottomSheet from './BottomSheet.vue'
+import { priceUps, dismissPrice, streak, STREAKS, setStreak } from '../lib/extras.js'
 import { safeToSpend, activeEvent, zakat } from '../lib/tools.js'
 import { commitments, transfers, savings, saveGoal, unusual, dismissFlag, salarySummary, dismissSummary } from '../lib/insights.js'
 
@@ -78,6 +80,8 @@ const limits = computed(() =>
 const topCats = computed(() => byCategory(cycleRows.value))
 const recent = computed(() => allTx.value.filter((t) => t.k !== 'cashAdj').slice(0, 6))
 const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'مساء الخير') + (displayName.value ? ' يا ' + displayName.value : ''))
+const showStreak = ref(false)
+const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? `${n} أيام` : `${n} يوم`)
 </script>
 
 <template>
@@ -148,6 +152,22 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       </div>
     </section>
 
+    <button v-if="streak && streak.days >= 2" class="streak" @click="showStreak = true">
+      <span class="fire">🔥</span>
+      <span><b>{{ dayWord(streak.days) }}</b> من غير {{ streak.name }}<template v-if="streak.record && streak.days > 2"> — أحسن رقم ليك!</template></span>
+      <small v-if="!streak.record" class="muted">أحسن رقم {{ streak.best }}</small>
+    </button>
+
+    <section v-if="priceUps.length" class="card note price">
+      <button class="x" @click="dismissPrice(priceUps[0].id)">×</button>
+      <b>📈 {{ priceUps[0].name }} زاد سعره</b>
+      <div class="sm">بقى <b>{{ fmt(priceUps[0].now) }}</b> بدل {{ fmt(priceUps[0].was) }} ر.س (+{{ fmt(priceUps[0].up) }} · {{ Math.round(priceUps[0].pct * 100) }}٪) {{ priceUps[0].period }}</div>
+      <div class="nact">
+        <button class="ok" @click="dismissPrice(priceUps[0].id)">✓ تمام</button>
+        <button class="link" @click="emit('go', 'commit')">شوف الاشتراكات</button>
+      </div>
+    </section>
+
     <section v-if="lentPending.length" class="card note loan">
       <LoanAsk :p="lentPending[0]" @open="(t) => emit('open', t)" />
       <button v-if="lentPending.length > 1" class="link more" @click="emit('go', 'debts', 'lent')">{{ lentPending.length === 2 ? 'وتحويل تاني مستني ردك' : `و${lentPending.length - 1} تحويلات تانية مستنية ردك` }} ‹</button>
@@ -197,7 +217,12 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       <div class="row-b"><h2>آخر العمليات</h2><button class="link" @click="emit('go', 'tx')">الكل ←</button></div>
       <TxRow v-for="t in recent" :key="t.id" :t="t" @open="emit('open', t)" />
     </section>
-  </div>
+    <BottomSheet v-if="showStreak && streak" title="أيام من غير صرف" @close="showStreak = false">
+      <p class="muted sm" style="margin: 0 0 12px; line-height: 1.7">عدّاد بسيط بيشجعك: كل يوم بيعدّي من غير ما تصرف على الحاجة دي بيزيد. أحسن رقم ليك: <b>{{ streak.best }}</b></p>
+      <div class="stseg"><button v-for="(v, k) in STREAKS" :key="k" :class="{ on: streak.target === k }" @click="setStreak({ target: k })">{{ v.ic }} {{ v.name }}</button></div>
+      <button class="link" style="margin-top: 16px; color: var(--ink-3)" @click="setStreak({ off: true }); showStreak = false">اقفل العدّاد</button>
+    </BottomSheet>
+</div>
 </template>
 
 <style scoped>
@@ -259,5 +284,13 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .safebox .tot { border-top: 1px solid rgba(255,255,255,.2); margin-top: 4px; padding-top: 8px; font-weight: 600 }
 .note.loan { gap: 8px }
 .note .more { align-self: flex-start; font-size: 12.5px; padding: 0 }
+.note.price { border-color: #7c3aed; background: color-mix(in srgb, #7c3aed 6%, var(--surface)) }
+.streak { display: flex; align-items: center; gap: 8px; width: 100%; margin: -2px 0 12px; padding: 10px 14px; border: 1px solid color-mix(in srgb, #f97316 35%, var(--line)); border-radius: 16px; background: color-mix(in srgb, #f97316 7%, var(--surface)); font: inherit; font-size: 13.5px; color: var(--ink); text-align: right; cursor: pointer }
+.streak .fire { font-size: 18px }
+.streak span:nth-child(2) { flex: 1 }
+.streak small { font-size: 12px }
+.stseg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+.stseg button { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 4px; font: inherit; font-size: 13px; color: var(--ink-2); cursor: pointer }
+.stseg button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 600 }
 .note.evb { border-color: #0369a1; background: color-mix(in srgb, #0369a1 7%, var(--surface)); cursor: pointer }
 </style>

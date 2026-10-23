@@ -63,6 +63,64 @@ public final class LimitEngine {
         return new Purchase(a, m.replaceAll("\\s+", " ").trim());
     }
 
+    // ===== تحويل صادر لشخص (علشان نسأل "سلفة؟") =====
+    public static final class Transfer {
+        public final double amount;
+        public final String name;
+        public Transfer(double amount, String name) { this.amount = amount; this.name = name; }
+    }
+    private static final Pattern OUT_TRANSFER = Pattern.compile("صادرة|outward|outgoing|Debit via wallet", CI);
+    private static final Pattern NOT_OUT = Pattern.compile("واردة|وارد|incoming|Inward|credited|دولية|International|عكسية", CI);
+    private static final Pattern TO_NAME = Pattern.compile("(?:الى|إلى|To|Receiver name)\\s*:?\\s*([^|\\n]+)");
+    private static final Pattern LE_NAME = Pattern.compile("لـ\\s*([^|\\n]+)");
+    private static final Pattern LETTERS = Pattern.compile("[A-Za-z\\u0600-\\u06FF]{3}");
+
+    /** يرجّع null لو مش تحويل صادر لشخص باسم واضح — بنفس منطق counterparty في parser.js */
+    public static Transfer parseTransfer(String raw, long ts) {
+        if (raw == null) return null;
+        String b = Normalizer.normalize(raw, Normalizer.Form.NFKC);
+        String first = b.split("\n", 2)[0].trim();
+        if (NOT_PURCHASE.matcher(b).find() || NOT_OUT.matcher(first).find()) return null;
+        if (!OUT_TRANSFER.matcher(first).find()) return null;
+        Double a = amount(b, ts);
+        if (a == null || a <= 0) return null;
+        String name = "";
+        for (Pattern p : new Pattern[] { TO_NAME, LE_NAME }) {
+            Matcher m = p.matcher(b);
+            if (m.find()) { name = m.group(1).replaceFirst("^\\d+;", "").trim(); break; }
+        }
+        name = name.replaceAll("\\s+", " ").trim();
+        if (!LETTERS.matcher(name).find()) return null;
+        return new Transfer(a, name);
+    }
+
+    /** لازم تطابق personKey في debts.js */
+    public static String personKey(String name) {
+        String s = (name == null ? "" : name).replaceFirst("[,،]?\\s*\\d+\\s*$", "").toLowerCase(Locale.ROOT).replaceAll("[\\s,،.*\\-_]", "");
+        return s.length() > 24 ? s.substring(0, 24) : s;
+    }
+
+    /** قواعد السؤال (بتتبني من lent اللي بيبعته JS) */
+    public static final class LoanRules {
+        public boolean on = true;
+        public double min = 50;
+        public java.util.Set<String> ignore = new java.util.HashSet<>(), yes = new java.util.HashSet<>(), freq = new java.util.HashSet<>();
+        public List<String> self = new ArrayList<>();
+        public List<Object[]> recur = new ArrayList<>(); // [key, amount]
+    }
+
+    /** نسأل "سلفة؟" ولا لأ — بنفس قواعد التطبيق. بيرجّع: 0 = متسألش، 1 = اسأل، 2 = اسأل واقترح أيوه */
+    public static int loanDecision(Transfer t, LoanRules r) {
+        if (t == null || r == null || !r.on) return 0;
+        String k = personKey(t.name);
+        if (k.isEmpty() || r.ignore.contains(k)) return 0;
+        for (String s : r.self) if (!s.isEmpty() && k.contains(s)) return 0;
+        if (r.yes.contains(k)) return 2;
+        if (t.amount < r.min || r.freq.contains(k)) return 0;
+        for (Object[] x : r.recur) if (k.equals(x[0]) && Math.abs((Double) x[1] - t.amount) <= Math.max(1, t.amount * 0.02)) return 0;
+        return 1;
+    }
+
     private static Double num(String s) {
         try {
             String v = s.replace(",", "");

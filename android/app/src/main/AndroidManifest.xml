@@ -45,8 +45,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.islam.masareef.REMINDER" />
+                <action android:name="com.islam.masareef.WEEKLY" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".LoanActionReceiver" android:exported="false" />
         <receiver android:name=".TodayWidget" android:exported="false" android:label="مصاريفي — النهارده">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

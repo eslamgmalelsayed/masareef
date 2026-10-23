@@ -95,4 +95,42 @@ public class LimitEngineTest {
         assertEquals("2026-10-21", LimitStore.dayKey(c.getTimeInMillis(), false));
         assertEquals("2026-10-18", LimitStore.dayKey(c.getTimeInMillis(), true));
     }
+
+    /** إشعار "سلفة؟": أي تحويل الجزء الأصلي بيلقطه لازم يكون نفس اللي الـ JS شايفه (نفس المبلغ ونفس الشخص) */
+    @Test
+    public void transfersMatchJs() throws Exception {
+        int checked = 0;
+        LimitEngine.LoanRules self = new LimitEngine.LoanRules(); // نفس selfNames بتاعة tests/fixtures/sms.json
+        self.self.add("تست"); self.self.add("testuser"); self.min = 0;
+        for (String[] r : rows()) {
+            String body = unescape(r[2]);
+            LimitEngine.Transfer t = LimitEngine.parseTransfer(body, Long.parseLong(r[1]));
+            if (t == null) continue;
+            if ("-".equals(r[5])) { // مش تحويل لشخص في الـ JS (مثلًا تحويل لنفسك) → الإشعار مايسألش عليه
+                assertEquals("هيسأل على تحويل مش لشخص: " + body, 0, LimitEngine.loanDecision(t, self));
+                continue;
+            }
+            assertEquals("المبلغ: " + body, Double.parseDouble(r[5]), t.amount, 0.005);
+            assertEquals("الشخص: " + body, r[6], LimitEngine.personKey(t.name));
+            checked++;
+        }
+        assertTrue("مفيش تحويلات اتختبرت", checked >= 2);
+    }
+
+    @Test
+    public void loanDecisionFollowsRules() throws Exception {
+        LimitEngine.LoanRules lent = new LimitEngine.LoanRules();
+        lent.ignore.add("landlord"); lent.yes.add("samir"); lent.freq.add("coffee"); lent.self.add("islam");
+        lent.recur.add(new Object[] { "rentguy", 1500.0 });
+        assertEquals(1, LimitEngine.loanDecision(new LimitEngine.Transfer(300, "FRIEND"), lent));
+        assertEquals(2, LimitEngine.loanDecision(new LimitEngine.Transfer(20, "SAMIR"), lent));
+        assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(20, "FRIEND"), lent));
+        assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(900, "LANDLORD"), lent));
+        assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(120, "COFFEE"), lent));
+        assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(1500, "RENT GUY"), lent));
+        assertEquals(1, LimitEngine.loanDecision(new LimitEngine.Transfer(700, "RENT GUY"), lent));
+        assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(500, "ISLAM GAMAL"), lent));
+        lent.on = false;
+        assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(300, "FRIEND"), lent));
+    }
 }

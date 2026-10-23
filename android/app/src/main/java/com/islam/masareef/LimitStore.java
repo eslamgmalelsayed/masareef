@@ -103,6 +103,8 @@ public final class LimitStore {
                 saveConfig(ctx, cfg);
                 return;
             }
+            LimitEngine.Transfer tr = LimitEngine.parseTransfer(body, ts);
+            if (tr != null) { loanAsk(ctx, cfg, tr, ts); return; }
             LimitEngine.Purchase p = LimitEngine.parsePurchase(body, ts);
             if (p == null) return;
             String cat = LimitEngine.categorize(p.merchant, strings(cfg.optJSONObject("overrides")), rules(cfg.optJSONArray("rules")));
@@ -115,10 +117,14 @@ public final class LimitStore {
             JSONObject pk = cfg.optJSONObject("periodKeys");
             if (pk == null) pk = new JSONObject();
             String[][] per = { { "__day", dayKey(ts, false) }, { "__week", dayKey(ts, true) } };
+            JSONObject wk = cfg.optJSONObject("wkcats");
+            if (wk == null) wk = new JSONObject();
             for (String[] x : per) {
-                if (!x[1].equals(pk.optString(x[0]))) { totals.put(x[0], 0); pk.put(x[0], x[1]); }
+                if (!x[1].equals(pk.optString(x[0]))) { totals.put(x[0], 0); pk.put(x[0], x[1]); if ("__week".equals(x[0])) wk = new JSONObject(); }
                 totals.put(x[0], totals.optDouble(x[0], 0) + p.amount);
             }
+            wk.put(cat, wk.optDouble(cat, 0) + p.amount); // بنود الأسبوع — لملخص الجمعة
+            cfg.put("wkcats", wk);
             cfg.put("periodKeys", pk);
             cfg.put("totals", totals);
             saveConfig(ctx, cfg);
@@ -313,6 +319,66 @@ public final class LimitStore {
         } catch (Exception ignored) { }
     }
 
+    // ===== "سلفة؟" بزرارين لحظة التحويل =====
+    static void loanAsk(Context ctx, JSONObject cfg, LimitEngine.Transfer t, long ts) {
+        int d = LimitEngine.loanDecision(t, loanRules(cfg.optJSONObject("lent")));
+        if (d == 0) return;
+        String key = LimitEngine.personKey(t.name);
+        int nid = 8000 + (int) (Math.abs(ts / 1000) % 900);
+        String title = "💸 حوّلت " + fmt(t.amount) + " ر.س لـ " + t.name;
+        String text = d == 2 ? "سلّفته قبل كده — دي كمان سلفة؟" : "سلفة؟ لو أيوه هتتحسب ليك في الديون";
+        notifyActions(ctx, nid, title, text,
+            new String[] { "أيوه، سلفة", "لا" },
+            new PendingIntent[] { LoanActionReceiver.pending(ctx, nid, true, t.amount, key, ts), LoanActionReceiver.pending(ctx, nid, false, t.amount, key, ts) });
+    }
+
+    static LimitEngine.LoanRules loanRules(JSONObject o) {
+        if (o == null) return null;
+        LimitEngine.LoanRules r = new LimitEngine.LoanRules();
+        r.on = o.optBoolean("on", true);
+        r.min = o.optDouble("min", 50);
+        String[] names = { "ignore", "yes", "freq", "self" };
+        for (String n : names) {
+            JSONArray a = o.optJSONArray(n);
+            if (a == null) continue;
+            for (int i = 0; i < a.length(); i++) {
+                String v = a.optString(i);
+                if ("ignore".equals(n)) r.ignore.add(v); else if ("yes".equals(n)) r.yes.add(v); else if ("freq".equals(n)) r.freq.add(v); else r.self.add(v);
+            }
+        }
+        JSONArray rec = o.optJSONArray("recur");
+        if (rec != null) for (int i = 0; i < rec.length(); i++) { JSONArray x = rec.optJSONArray(i); if (x != null) r.recur.add(new Object[] { x.optString(0), x.optDouble(1) }); }
+        return r;
+    }
+
+    // ===== ملخص الجمعة =====
+    static String[] weeklyText(JSONObject cfg) {
+        JSONObject w = cfg.optJSONObject("weekly");
+        if (w != null && !w.optBoolean("on", true)) return null;
+        JSONObject t = cfg.optJSONObject("totals"), pk = cfg.optJSONObject("periodKeys");
+        boolean thisWeek = pk != null && dayKey(System.currentTimeMillis(), true).equals(pk.optString("__week"));
+        double spent = thisWeek && t != null ? t.optDouble("__week", 0) : 0;
+        if (spent <= 0) return new String[] { "📅 ملخص الأسبوع", "ما صرفتش حاجة الأسبوع ده 👏" };
+        StringBuilder s = new StringBuilder("صرفت " + fmt(spent) + " ر.س الأسبوع ده");
+        JSONObject wk = thisWeek ? cfg.optJSONObject("wkcats") : null;
+        if (wk != null) {
+            String top = null; double topV = 0;
+            Iterator<String> it = wk.keys();
+            while (it.hasNext()) { String k = it.next(); double v = wk.optDouble(k, 0); if (v > topV) { topV = v; top = k; } }
+            Map<String, String> names = strings(cfg.optJSONObject("names"));
+            if (top != null) s.append("\nأكتر بند: ").append(names.containsKey(top) ? names.get(top) : top).append(" ").append(fmt(topV));
+        }
+        double limit = w == null ? 0 : w.optDouble("limit", 0), avg = w == null ? 0 : w.optDouble("avg", 0);
+        if (limit > 0) {
+            long pct = Math.round(spent / limit * 100);
+            s.append("\n").append(pct > 100 ? "عدّيت حد الأسبوع (" + pct + "٪) ⚠️" : pct >= 80 ? "قرّبت من حد الأسبوع (" + pct + "٪)" : "ماشي كويس — " + pct + "٪ من حد الأسبوع 👌");
+        } else if (avg > 0) {
+            long diff = Math.round((spent - avg) / avg * 100);
+            s.append("\n").append(Math.abs(diff) < 8 ? "زي عادتك تقريبًا" : diff < 0 ? "أقل من عادتك بـ " + (-diff) + "٪ 👌" : "أكتر من عادتك بـ " + diff + "٪");
+        }
+        return new String[] { "📅 ملخص الأسبوع", s.toString() };
+    }
+
     /** مفتاح اليوم (أو أول يوم في الأسبوع — الأحد) بنفس صيغة الـ JS: 2026-10-21 */
     static String dayKey(long ts, boolean week) {
         Calendar c = Calendar.getInstance();
@@ -329,7 +395,9 @@ public final class LimitStore {
 
     private static String fmt(double v) { return String.format(Locale.US, "%,d", Math.round(v)); }
 
-    public static void notify(Context ctx, int id, String title, String text) {
+    public static void notify(Context ctx, int id, String title, String text) { notifyActions(ctx, id, title, text, null, null); }
+
+    public static void notifyActions(Context ctx, int id, String title, String text, String[] labels, PendingIntent[] actions) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
         NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -351,6 +419,7 @@ public final class LimitStore {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pi);
+        if (labels != null) for (int i = 0; i < labels.length; i++) b.addAction(0, labels[i], actions[i]);
         nm.notify(id, b.build());
     }
 }

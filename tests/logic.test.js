@@ -255,3 +255,60 @@ describe('إخفاء المبالغ', () => {
     expect(fmt(1234)).toBe('••••')
   })
 })
+
+describe('المميزات الجديدة', () => {
+  it('"السعر زاد": اشتراك شهري آخر مرة اتسحب بسعر أعلى', async () => {
+    const { priceUps, dismissPrice } = await import('../src/lib/extras.js')
+    state.settings.priceSeen = []
+    state.smsTx = [tx(95, 'purchase', 100, 'STC'), tx(65, 'purchase', 100, 'STC'), tx(35, 'purchase', 100, 'STC'), tx(4, 'purchase', 115, 'STC')]
+    const p = priceUps.value.find((x) => x.name === 'STC')
+    expect(p).toBeTruthy()
+    expect(p.up).toBe(15)
+    expect(p.was).toBe(100)
+    dismissPrice(p.id)
+    expect(priceUps.value.some((x) => x.name === 'STC')).toBe(false)
+  })
+  it('الرسوم البنكية: رسوم البطاقة + رسوم الحوالات + رسوم العملة الأجنبية', async () => {
+    const { fees } = await import('../src/lib/extras.js')
+    state.smsTx = [tx(20, 'fee', 11.5, 'رسوم تجديد بطاقة صراف'), tx(10, 'intl', 500, 'MONA', { fee: 17.25 }), tx(5, 'purchase', 90, 'NETFLIX', { fx: 2.1 }), tx(400, 'fee', 50, 'رسوم قديمة')]
+    const F = fees.value
+    expect(F.year).toBeCloseTo(30.85, 2)
+    expect(F.month).toBeCloseTo(30.85, 2)
+    expect(F.types.map((t) => t.id)).toEqual(['remit', 'card', 'fx'])
+  })
+  it('أيام من غير أكل برا: بيعد من آخر مرة، وبيحفظ أحسن رقم', async () => {
+    const { streak, setStreak } = await import('../src/lib/extras.js')
+    state.settings.streak = {}
+    state.smsTx = [tx(4.2, 'purchase', 30, 'MCDONALDS', { c: 'food' }), tx(1, 'purchase', 200, 'PANDA', { c: 'grocery' })]
+    // tx() مش بيحدد البند، فبنستنى التصنيف التلقائي: ماكدونالدز = أكل برا
+    expect(allTx.value.find((t) => t.m === 'MCDONALDS').c).toMatch(/food|delivery/)
+    expect(streak.value.days).toBeGreaterThanOrEqual(4)
+    expect(streak.value.best).toBe(streak.value.days)
+    setStreak({ target: 'any' })
+    expect(streak.value.days).toBe(1)
+    setStreak({ off: true })
+    expect(streak.value).toBe(null)
+    state.settings.streak = {}
+  })
+  it('أقدر أشتريها؟ ماشي / ضيقة / هتعدّي', async () => {
+    const { affordCheck } = await import('../src/lib/extras.js')
+    state.settings.totalLimit = 6000
+    state.smsTx = [tx(40, 'salary', 10000, 'راتب'), tx(2, 'purchase', 1000, 'PANDA')]
+    expect(affordCheck(100).level).toBe('ok')
+    expect(affordCheck(1e6).level).toBe('over')
+    expect(affordCheck(1e6).title).toContain('هتعدّي')
+    const r = affordCheck(100)
+    expect(r.perAfter).toBeLessThan(r.perNow)
+    state.settings.totalLimit = ''
+  })
+  it('رد "سلفة؟" من الإشعار بيتطبّق على التحويل الصح — ولو الرسالة لسه ماتقرتش بيستنى', async () => {
+    const { applyLoanInbox, lentPending: lp } = await import('../src/lib/debts.js')
+    state.smsTx = [tx(1, 'transfer', 300, 'SAMIR'), tx(1, 'transfer', 300, 'OTHER')]
+    const t = state.smsTx[0]
+    state.settings.loanInbox = [{ yes: true, a: 300, key: 'samir', ts: t.ts + 60e3 }, { yes: false, a: 77, key: 'x', ts: Date.now() }]
+    applyLoanInbox()
+    expect(autoLent.value.find((d) => d.name === 'SAMIR').amount).toBe(300)
+    expect(lp.value.map((p) => p.tx.m)).toEqual(['OTHER'])
+    expect(state.settings.loanInbox.length).toBe(1) // اللي ملقيناش تحويله لسه مستني
+  })
+})

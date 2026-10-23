@@ -4,9 +4,11 @@ import { totals as debtTotals } from './debts.js'
 import { funds, fundsNeedNow, remit, netWorth, zakat, activeEvent, emergency } from './tools.js'
 import { creditCards } from './credit.js'
 import { fmt, fmtDate } from './format.js'
+import { fees } from './extras.js'
 
 // كل أداة: أيقونة + اسم + سطر واحد حي من أرقامك
 export const toolsList = computed(() => [
+  { id: 'afford', ic: '🤔', t: 'أقدر أشتريها؟', s: 'اكتب السعر وأقولك في ثانية' },
   { id: 'commit', ic: '🔁', t: 'الالتزامات الشهرية', s: `${fmt(commitments.value.next30)} في الـ ٣٠ يوم الجايين` },
   { id: 'debts', ic: '💸', t: 'الديون', s: debtTotals.value.owed || debtTotals.value.lent ? `عليّا ${fmt(debtTotals.value.owed)} · ليّا ${fmt(debtTotals.value.lent)}` : 'سجّل اللي عليك واللي ليك' },
   { id: 'savings', ic: '🎯', t: 'هدف الادخار', s: saveGoal.value ? (savings.value.onTrack ? 'ماشي صح 👌' : 'متأخر شوية') : 'حدد هدف' },
@@ -17,6 +19,7 @@ export const toolsList = computed(() => [
   { id: 'zakat', ic: '🕌', t: 'الزكاة', s: zakat.value.due ? 'الجاية ' + fmtDate(zakat.value.due, { day: 'numeric', month: 'short' }) : 'احسبها وفكّرني بميعادها' },
   { id: 'events', ic: '✈️', t: 'السفر والمناسبات', s: activeEvent.value ? `${activeEvent.value.name} شغال` : 'رحلة، رمضان، العيد…' },
   { id: 'credit', ic: '💳', t: 'البطاقات الائتمانية', s: creditCards.value.length ? `${creditCards.value.length} بطاقة` : 'ضيف بطاقة' },
+  { id: 'fees', ic: '🏦', t: 'الرسوم البنكية', s: fees.value.year ? `${fmt(fees.value.year)} في آخر سنة` : 'مفيش رسوم 👏' },
   { id: 'sortother', ic: '🧹', t: 'رتّب المحلات', s: 'المحلات اللي التطبيق ماعرفهاش' },
   { id: 'limits', ic: '🔔', t: 'الحدود والتنبيهات', s: 'يومي · أسبوعي · شهري · بنود' },
 ])

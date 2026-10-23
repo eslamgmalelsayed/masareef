@@ -24,6 +24,8 @@ import PullRefresh from './components/PullRefresh.vue'
 import CommitView from './components/CommitView.vue'
 import TransfersView from './components/TransfersView.vue'
 import SavingsView from './components/SavingsView.vue'
+import { pullLoanAnswers } from './lib/debts.js'
+import './lib/extras.js'
 import DebtsView from './components/DebtsView.vue'
 import ToolsView from './components/ToolsView.vue'
 import FundsView from './components/FundsView.vue'
@@ -32,6 +34,8 @@ import ZakatView from './components/ZakatView.vue'
 import EventsView from './components/EventsView.vue'
 import EmergencyView from './components/EmergencyView.vue'
 import SortOtherView from './components/SortOtherView.vue'
+import AffordView from './components/AffordView.vue'
+import FeesView from './components/FeesView.vue'
 import './lib/tools.js'
 
 const tab = ref('home')
@@ -68,12 +72,12 @@ if (typeof MutationObserver !== 'undefined') {
 // إخفاء المبالغ: نغبّش الرسوم البيانية كمان
 watch(() => privacy.on, (v) => document.body.classList.toggle('privacy', v), { immediate: true })
 
-const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events', 'emergency', 'sortother']
-const HOME_SUB = ['emergency', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
+const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events', 'emergency', 'sortother', 'afford', 'fees']
+const HOME_SUB = ['afford', 'fees', 'emergency', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
 const stack = []
 function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t)) { if (!SUB.includes(tab.value)) { prevTab.value = tab.value; stack.length = 0 } else if (tab.value !== t) stack.push(tab.value) } else stack.length = 0; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
-onMounted(() => { syncSms().then(findNewBanks); checkUpdate() })
+onMounted(() => { syncSms().then(() => { findNewBanks(); pullLoanAnswers() }); checkUpdate() })
 const refresh = () => Promise.all([syncSms(), checkUpdate()])
 
 // زرار الرجوع في أندرويد
@@ -91,7 +95,7 @@ if (isNative) {
   CapApp.addListener('resume', () => {
     if (state.settings.lock && !authing && pausedAt && Date.now() - pausedAt > 30e3) locked.value = true
     pausedAt = 0
-    syncSms()
+    syncSms().then(pullLoanAnswers)
   })
 }
 
@@ -122,6 +126,8 @@ const tabs = [
     <ZakatView v-else-if="tab === 'zakat'" @back="back" @go="go" />
     <EmergencyView v-else-if="tab === 'emergency'" @back="back" />
     <SortOtherView v-else-if="tab === 'sortother'" @back="back" @open="(t) => (sheet = t)" />
+    <AffordView v-else-if="tab === 'afford'" @back="back" @go="go" />
+    <FeesView v-else-if="tab === 'fees'" @back="back" @open="(t) => (sheet = t)" />
     <EventsView v-else-if="tab === 'events'" @back="back" @open="(t) => (sheet = t)" />
     <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="back" @open="(t) => (sheet = t)" @go="go" />
 

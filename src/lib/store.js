@@ -83,7 +83,7 @@ export function removeBank(k) {
 
 const split = (s) => String(s || '').split(/[,،\n]/).map((x) => x.trim()).filter(Boolean)
 /** القيم اللي بتكتبها بإيدك ليها الأولوية، وإلا اللي اتعرف عليه تلقائيًا */
-function profile() {
+export function profile() {
   const names = split(state.settings.selfNames), accs = split(state.settings.accounts)
   return {
     selfNames: names.length ? names : state.detected.selfNames,

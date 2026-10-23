@@ -74,3 +74,9 @@ export async function listSenders(known) {
   if (!isNative || isIOS) return []
   try { return (await SmsReader.listSenders({ known })).senders || [] } catch { return [] }
 }
+
+/** ردود "سلفة؟" اللي اتضغطت من الإشعار (وبتتمسح بعد ما نقراها) */
+export async function loanAnswers() {
+  if (!isNative) return []
+  try { return (await SmsReader.loanAnswers()).items || [] } catch { return [] }
+}

@@ -14,10 +14,38 @@ import org.json.JSONObject;
 public class ReminderReceiver extends BroadcastReceiver {
     private static final String PREFS = "masareef_reminders";
     private static final String ACTION = "com.islam.masareef.REMINDER";
+    private static final String WEEKLY = "com.islam.masareef.WEEKLY";
+
+    /** ملخص الجمعة: كل جمعة ٨ بالليل (بيجدول نفسه تاني بعد ما يشتغل) */
+    public static void scheduleWeekly(Context ctx) {
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+        Intent it = new Intent(ctx, ReminderReceiver.class);
+        it.setAction(WEEKLY);
+        PendingIntent pi = PendingIntent.getBroadcast(ctx, 6999, it, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        org.json.JSONObject w = LimitStore.loadConfig(ctx).optJSONObject("weekly");
+        if (w != null && !w.optBoolean("on", true)) { am.cancel(pi); return; }
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextFriday(System.currentTimeMillis()), pi);
+    }
+    static long nextFriday(long now) {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.setTimeInMillis(now);
+        c.set(java.util.Calendar.HOUR_OF_DAY, 20); c.set(java.util.Calendar.MINUTE, 0); c.set(java.util.Calendar.SECOND, 0); c.set(java.util.Calendar.MILLISECOND, 0);
+        int add = (java.util.Calendar.FRIDAY - c.get(java.util.Calendar.DAY_OF_WEEK) + 7) % 7;
+        c.add(java.util.Calendar.DAY_OF_MONTH, add);
+        if (c.getTimeInMillis() <= now + 60000L) c.add(java.util.Calendar.DAY_OF_MONTH, 7);
+        return c.getTimeInMillis();
+    }
 
     @Override
     public void onReceive(Context ctx, Intent intent) {
-        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) { reschedule(ctx); return; }
+        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) { reschedule(ctx); scheduleWeekly(ctx); return; }
+        if (WEEKLY.equals(intent.getAction())) {
+            String[] w = LimitStore.weeklyText(LimitStore.loadConfig(ctx));
+            if (w != null) LimitStore.notify(ctx, 7200, w[0], w[1]);
+            scheduleWeekly(ctx);
+            return;
+        }
         String title = intent.getStringExtra("title");
         String text = intent.getStringExtra("text");
         int id = intent.getIntExtra("nid", 5000);

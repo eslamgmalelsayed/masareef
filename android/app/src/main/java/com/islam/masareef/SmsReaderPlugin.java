@@ -57,6 +57,7 @@ public class SmsReaderPlugin extends Plugin {
             JSObject cfg = call.getData();
             LimitStore.saveConfig(getContext(), cfg);
             LimitStore.evaluateAndNotify(getContext());
+            ReminderReceiver.scheduleWeekly(getContext());
             call.resolve();
         } catch (Exception e) {
             call.reject("saveConfig failed: " + e.getMessage(), e);
@@ -188,6 +189,15 @@ public class SmsReaderPlugin extends Plugin {
         }
         LimitStore.notify(getContext(), id, title, text);
         call.resolve();
+    }
+
+    /** ردود "سلفة؟" اللي اتضغطت من الإشعار — بنرجّعها ونمسحها */
+    @PluginMethod
+    public void loanAnswers(PluginCall call) {
+        JSObject r = new JSObject();
+        try { r.put("items", new JSArray(LoanActionReceiver.takeAll(getContext()).toString())); }
+        catch (Exception e) { r.put("items", new JSArray()); }
+        call.resolve(r);
     }
 
     @PluginMethod
