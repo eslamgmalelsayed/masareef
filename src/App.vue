@@ -115,7 +115,7 @@ const tabs = [
     <CommitView v-else-if="tab === 'commit'" @back="back" @open="(t) => (sheet = t)" />
     <TransfersView v-else-if="tab === 'transfers'" @back="back" @open="(t) => (sheet = t)" />
     <SavingsView v-else-if="tab === 'savings'" @back="back" @go="go" />
-    <DebtsView v-else-if="tab === 'debts'" @back="back" @go="go" />
+    <DebtsView v-else-if="tab === 'debts'" :initial="txCat" @back="back" @go="go" @open="(t) => (sheet = t)" />
     <ToolsView v-else-if="tab === 'tools'" @back="back" @go="go" />
     <FundsView v-else-if="tab === 'funds'" @back="back" />
     <WorthView v-else-if="tab === 'worth'" @back="back" @go="go" />

@@ -84,17 +84,76 @@ const autoFrom = () => (state.settings.autoLentFrom === 0 ? 0 : state.settings.a
 /** من إمتى نعتبر التحويلات سلف: عدد شهور لورا (0 = من أول رسالة) */
 export function setAutoLentRange(months) { setS('autoLentFrom', months ? Date.now() - months * 30.44 * DAY : 0); setS('autoLentRange', months) }
 export const autoLentRange = computed(() => (state.settings.autoLentRange ?? 1))
-export const autoLent = computed(() => {
+// ===== التحويلات لأشخاص: بنسأل بدل ما نفترض =====
+// lentYes = تحويلات قلت عليها "سلفة" · lentDismiss = قلت "لا" · lentIgnore = أشخاص منسألش عليهم تاني
+const yesSet = computed(() => new Set(state.settings.lentYes || []))
+const yesPeople = computed(() => {
+  const ids = yesSet.value, s = new Set()
+  for (const t of allTx.value) if (ids.has(t.id)) s.add(personKey(t.m))
+  return s
+})
+const MIN_LOAN = 50
+// تحويل بيتكرر: نفس الشخص ونفس المبلغ تقريبًا من ٢٠–٤٥ يوم (إيجار، مصروف بيت…) — مش بنسأل عليه
+function isRecurring(t, byKey) {
+  return (byKey[personKey(t.m)] || []).some((x) => x.id !== t.id && Math.abs(x.a - t.a) <= Math.max(1, t.a * 0.02) && Math.abs(x.ts - t.ts) >= 20 * DAY && Math.abs(x.ts - t.ts) <= 45 * DAY)
+}
+/** التحويلات اللي مستنية ردك: سلفة ولا لأ؟ (الأحدث الأول) */
+export const lentPending = computed(() => {
   if (!autoLentOn.value) return []
   const from = autoFrom()
+  const yes = yesSet.value
   const dis = new Set(state.settings.lentDismiss || [])
   const ign = new Set(state.settings.lentIgnore || [])
   const manualTx = new Set(list().map((d) => d.fromTx).filter(Boolean))
+  const tr = allTx.value.filter((t) => t.k === 'transfer')
+  const byKey = {}
+  for (const t of tr) (byKey[personKey(t.m)] ||= []).push(t)
+  return tr
+    .filter((t) => {
+      if (t.ts < from || yes.has(t.id) || dis.has(t.id) || manualTx.has(t.id)) return false
+      const k = personKey(t.m)
+      if (!k || k === '—' || ign.has(k)) return false
+      if (yesPeople.value.has(k)) return true
+      // مبالغ صغيرة، أو حد بتحوّله على طول (محل/قهوة بالتحويل)، أو تحويل شهري ثابت → مش بنسأل
+      if (t.a < MIN_LOAN) return false
+      if ((byKey[k] || []).filter((x) => Math.abs(x.ts - t.ts) <= 30 * DAY).length >= 5) return false
+      return !isRecurring(t, byKey)
+    })
+    .map((t) => ({ tx: t, key: personKey(t.m), likely: yesPeople.value.has(personKey(t.m)) }))
+    .sort((a, b) => b.tx.ts - a.tx.ts)
+})
+/** "أيوه سلفة" */
+export function markLoan(txId) {
+  setS('lentYes', [...new Set([...(state.settings.lentYes || []), txId])].slice(-2000))
+  setS('lentDismiss', (state.settings.lentDismiss || []).filter((x) => x !== txId))
+}
+/** "لا": ولو ده تاني "لا" لنفس الشخص من غير ولا "أيوه" → منسألش عليه تاني. بيرجّع true لو اتعمل كده */
+export function answerNo(t) {
+  notLoan(t.id)
+  const k = personKey(t.m)
+  if (yesPeople.value.has(k)) return false
+  const dis = new Set(state.settings.lentDismiss || [])
+  const nos = allTx.value.filter((x) => x.k === 'transfer' && dis.has(x.id) && personKey(x.m) === k).length
+  if (nos >= 2) { ignorePerson(k); return true }
+  return false
+}
+/** تراجع عن الرد (أيوه/لا) — يرجع يتسأل عليه */
+export function unanswer(txId) {
+  setS('lentYes', (state.settings.lentYes || []).filter((x) => x !== txId))
+  setS('lentDismiss', (state.settings.lentDismiss || []).filter((x) => x !== txId))
+}
+export function unignorePerson(key) { setS('lentIgnore', (state.settings.lentIgnore || []).filter((k) => k !== key)) }
+export { personKey }
+
+export const autoLent = computed(() => {
+  if (!autoLentOn.value) return []
+  const yes = yesSet.value
+  const manualTx = new Set(list().map((d) => d.fromTx).filter(Boolean))
   const by = {}
   for (const t of allTx.value) {
-    if (t.k !== 'transfer' || t.ts < from || dis.has(t.id) || manualTx.has(t.id)) continue
+    if (t.k !== 'transfer' || !yes.has(t.id) || manualTx.has(t.id)) continue
     const k = personKey(t.m)
-    if (!k || k === '—' || ign.has(k)) continue
+    if (!k || k === '—') continue
     const o = (by[k] ||= { key: k, names: {}, txs: [] })
     o.names[t.m] = (o.names[t.m] || 0) + 1
     o.txs.push(t)
@@ -119,9 +178,16 @@ export const autoLentTxIds = computed(() => new Set(autoLent.value.flatMap((d) =
 function setS(k, v) { state.settings[k] = v; saveSettings() }
 export function setAutoLent(on) { setS('autoLent', !!on) }
 /** "مش سلفة": تحويل واحد */
-export function notLoan(txId) { setS('lentDismiss', [...new Set([...(state.settings.lentDismiss || []), txId])].slice(-1000)) }
+export function notLoan(txId) {
+  setS('lentDismiss', [...new Set([...(state.settings.lentDismiss || []), txId])].slice(-2000))
+  if ((state.settings.lentYes || []).includes(txId)) setS('lentYes', state.settings.lentYes.filter((x) => x !== txId))
+}
 /** متعتبرش أي تحويل للشخص ده سلفة (دلوقتي وبعدين) */
-export function ignorePerson(key) { setS('lentIgnore', [...new Set([...(state.settings.lentIgnore || []), key])]) }
+export function ignorePerson(key) {
+  setS('lentIgnore', [...new Set([...(state.settings.lentIgnore || []), key])])
+  const mine = new Set(allTx.value.filter((t) => personKey(t.m) === key).map((t) => t.id))
+  if ((state.settings.lentYes || []).some((x) => mine.has(x))) setS('lentYes', state.settings.lentYes.filter((x) => !mine.has(x)))
+}
 export function autoLentPay(key, a) { const m = { ...(state.settings.lentAutoPays || {}) }; m[key] = [...(m[key] || []), { ts: Date.now(), a: Number(a) }]; setS('lentAutoPays', m) }
 export function autoLentUnpay(key, i) { const m = { ...(state.settings.lentAutoPays || {}) }; m[key] = (m[key] || []).filter((_, k) => k !== i); setS('lentAutoPays', m) }
 export function autoLentClose(key, closed = true) { const m = { ...(state.settings.lentAutoClosed || {}) }; if (closed) m[key] = Date.now(); else delete m[key]; setS('lentAutoClosed', m) }

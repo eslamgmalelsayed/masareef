@@ -10,7 +10,8 @@ import UpdateBanner from './UpdateBanner.vue'
 import InstallHint from './InstallHint.vue'
 import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
-import { totals as debtTotals } from '../lib/debts.js'
+import { totals as debtTotals, lentPending } from '../lib/debts.js'
+import LoanAsk from './LoanAsk.vue'
 import { safeToSpend, activeEvent, zakat } from '../lib/tools.js'
 import { commitments, transfers, savings, saveGoal, unusual, dismissFlag, salarySummary, dismissSummary } from '../lib/insights.js'
 
@@ -147,6 +148,11 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
       </div>
     </section>
 
+    <section v-if="lentPending.length" class="card note loan">
+      <LoanAsk :p="lentPending[0]" @open="(t) => emit('open', t)" />
+      <button v-if="lentPending.length > 1" class="link more" @click="emit('go', 'debts', 'lent')">{{ lentPending.length === 2 ? 'وتحويل تاني مستني ردك' : `و${lentPending.length - 1} تحويلات تانية مستنية ردك` }} ‹</button>
+    </section>
+
     <section v-if="unusual.length" class="card note warn">
       <b>{{ unusual[0].type === 'dup' ? '⚠️ عملية مكررة؟' : '👀 عملية أكبر من عادتك' }}</b>
       <div class="sm">{{ unusual[0].text }} · {{ fmtDate(unusual[0].tx.ts, { day: 'numeric', month: 'short' }) }}</div>
@@ -251,5 +257,7 @@ const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'م�
 .safebox .sr { display: flex; justify-content: space-between; padding: 4px 0 }
 .safebox .sr b { font-variant-numeric: tabular-nums }
 .safebox .tot { border-top: 1px solid rgba(255,255,255,.2); margin-top: 4px; padding-top: 8px; font-weight: 600 }
+.note.loan { gap: 8px }
+.note .more { align-self: flex-start; font-size: 12.5px; padding: 0 }
 .note.evb { border-color: #0369a1; background: color-mix(in srgb, #0369a1 7%, var(--surface)); cursor: pointer }
 </style>

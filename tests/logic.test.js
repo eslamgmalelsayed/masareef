@@ -4,7 +4,7 @@ import { state, allTx, effLimits, cycles, setCategory, clearOverride, levelOf } 
 import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
-import { simulate, manualDebts, saveDebt, lent, autoLent, notLoan, ignorePerson, totals, setAutoLentRange } from '../src/lib/debts.js'
+import { simulate, manualDebts, saveDebt, lent, autoLent, notLoan, ignorePerson, totals, setAutoLentRange, lentPending, markLoan, answerNo } from '../src/lib/debts.js'
 import { safeToSpend, funds, saveFund, emergency, zakat, netWorth, saveAssets } from '../src/lib/tools.js'
 import { fmt, setPrivacy } from '../src/lib/format.js'
 
@@ -20,7 +20,7 @@ beforeEach(() => {
   state.bnplSms = []
   state.importedBnpl = []
   state.status = 'ready'
-  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [], autoLent: true, autoLentFrom: NOW - 30 * DAY, lentDismiss: [], lentIgnore: [], lentAutoPays: {}, lentAutoClosed: {} }
+  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [], autoLent: true, autoLentFrom: NOW - 30 * DAY, lentDismiss: [], lentYes: [], lentIgnore: [], lentAutoPays: {}, lentAutoClosed: {} }
   setPrivacy(false)
 })
 
@@ -89,29 +89,60 @@ describe('خطة سداد الديون', () => {
   })
 })
 
-describe('التحويل لشخص = سلفة', () => {
-  it('التحويلات لنفس الشخص بتتجمع، واللي رجّعه بيتطرح', () => {
+describe('التحويل لشخص: بنسأل بدل ما نفترض إنه سلفة', () => {
+  it('أي تحويل جديد مش بيتحسب دين لوحده — بيستنى ردك', () => {
+    state.smsTx = [tx(10, 'transfer', 300, 'SAMIR'), tx(3, 'transfer', 50, 'K FAHMY')]
+    expect(autoLent.value.length).toBe(0)
+    expect(totals.value.lent).toBe(0)
+    expect(lentPending.value.map((p) => p.tx.m)).toEqual(['K FAHMY', 'SAMIR']) // الأحدث الأول
+  })
+  it('"أيوه سلفة" بتدخل الديون، واللي رجّعه بيتطرح', () => {
     state.smsTx = [tx(10, 'transfer', 300, 'SAMIR'), tx(5, 'transfer', 200, 'SAMIR'), tx(2, 'in', 100, 'SAMIR'), tx(3, 'transfer', 50, 'K FAHMY')]
+    markLoan(state.smsTx[0].id); markLoan(state.smsTx[1].id)
     const s = autoLent.value.find((d) => d.name === 'SAMIR')
     expect(s.amount).toBe(500)
     expect(s.left).toBe(400)
-    expect(totals.value.lent).toBe(450)
+    expect(totals.value.lent).toBe(400)
+    expect(lentPending.value.map((p) => p.tx.m)).toEqual(['K FAHMY'])
+  })
+  it('"لا" مرتين لنفس الشخص = منسألش عليه تاني', () => {
+    state.smsTx = [tx(12, 'transfer', 700, 'LANDLORD'), tx(6, 'transfer', 900, 'LANDLORD'), tx(1, 'transfer', 400, 'LANDLORD')]
+    expect(answerNo(state.smsTx[0])).toBe(false)
+    expect(lentPending.value.length).toBe(2)
+    expect(answerNo(state.smsTx[1])).toBe(true)
+    expect(lentPending.value.length).toBe(0)
+  })
+  it('شخص سلّفته قبل كده: "لا" مش بتوقف السؤال عنه، وبنقترح "سلفة"', () => {
+    state.smsTx = [tx(12, 'transfer', 70, 'SAMIR'), tx(6, 'transfer', 90, 'SAMIR'), tx(1, 'transfer', 40, 'SAMIR')]
+    markLoan(state.smsTx[0].id)
+    expect(answerNo(state.smsTx[1])).toBe(false)
+    expect(lentPending.value[0].likely).toBe(true)
+  })
+  it('التحويل اللي بيتكرر كل شهر بنفس المبلغ (إيجار/مصروف) مش بنسأل عليه', () => {
+    setAutoLentRange(3)
+    state.smsTx = [tx(62, 'transfer', 1500, 'RENT GUY'), tx(31, 'transfer', 1500, 'RENT GUY'), tx(1, 'transfer', 1500, 'RENT GUY'), tx(2, 'transfer', 200, 'FRIEND')]
+    expect(lentPending.value.map((p) => p.tx.m)).toEqual(['FRIEND'])
+  })
+  it('مبالغ صغيرة أو حد بتحوّله على طول (محل بالتحويل) مش بنسأل عليهم', () => {
+    state.smsTx = [tx(1, 'transfer', 15, 'TINY'), ...[2, 4, 6, 8, 10].map((d) => tx(d, 'transfer', 120, 'COFFEE GUY')), tx(3, 'transfer', 300, 'FRIEND')]
+    expect(lentPending.value.map((p) => p.tx.m)).toEqual(['FRIEND'])
   })
   it('"مش سلفة" بيشيل التحويل، و"مش سلف" بيشيل الشخص كله', () => {
     state.smsTx = [tx(10, 'transfer', 300, 'SAMIR'), tx(5, 'transfer', 200, 'SAMIR'), tx(3, 'transfer', 50, 'K FAHMY')]
+    state.smsTx.forEach((t) => markLoan(t.id))
     notLoan(state.smsTx[0].id)
     expect(autoLent.value.find((d) => d.name === 'SAMIR').amount).toBe(200)
     ignorePerson(autoLent.value.find((d) => d.name === 'K FAHMY').key)
     expect(lent.value.some((d) => d.name === 'K FAHMY')).toBe(false)
+    expect(lentPending.value.some((p) => p.tx.m === 'K FAHMY')).toBe(false)
   })
-  it('الفترة: آخر شهر افتراضيًا، وتقدر توسّعها لحد "الكل"', () => {
+  it('الأسئلة: آخر شهر افتراضيًا، وتقدر توسّعها لحد "الكل"', () => {
     state.smsTx = [tx(60, 'transfer', 1000, 'OLD'), tx(400, 'transfer', 300, 'OLD')]
-    expect(autoLent.value.length).toBe(0)
+    expect(lentPending.value.length).toBe(0)
     setAutoLentRange(3)
-    expect(autoLent.value[0].amount).toBe(1000)
+    expect(lentPending.value.length).toBe(1)
     setAutoLentRange(0)
-    expect(autoLent.value[0].amount).toBe(1300)
-    expect(autoLent.value[0].txs.length).toBe(2)
+    expect(lentPending.value.length).toBe(2)
   })
 })
 

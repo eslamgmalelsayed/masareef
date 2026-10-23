@@ -2,13 +2,16 @@
 import BottomSheet from './BottomSheet.vue'
 import { ask, choose } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
-import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose, setAutoLentRange, autoLentRange } from '../lib/debts.js'
+import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, addPayment, removePayment, excludeDebt, nudgeText, autoLent, autoLentOn, setAutoLent, notLoan, ignorePerson, autoLentPay, autoLentUnpay, autoLentClose, setAutoLentRange, autoLentRange, lentPending } from '../lib/debts.js'
+import LoanAsk from './LoanAsk.vue'
 import { state, saveSettings } from '../lib/store.js'
 import { savings } from '../lib/insights.js'
 import { fmt, fmtDate, DAY } from '../lib/format.js'
 
-const emit = defineEmits(['back', 'go'])
-const tab = ref('owe')
+const props = defineProps({ initial: String })
+const emit = defineEmits(['back', 'go', 'open'])
+const tab = ref(props.initial === 'lent' ? 'lent' : 'owe')
+const askAll = ref(false)
 const T = computed(() => totals.value)
 const showDone = ref(false)
 const party = ref('')
@@ -82,7 +85,7 @@ function payAuto() { const v = Number(auPay.value); if (v > 0) { autoLentPay(au.
 function closeAuto() { autoLentClose(au.value, true); au.value = null }
 async function ignoreAuto() {
   const d = curAuto.value
-  const v = await choose({ icon: '🤝', title: `تحويلاتك لـ ${d.name}`, text: 'مش هنعتبرها سلف — ولا اللي جاية كمان.', options: [
+  const v = await choose({ icon: '🤝', title: `تحويلاتك لـ ${d.name}`, text: 'هتتشال من الديون، ومش هسألك على تحويلاتك ليه تاني.', options: [
     { label: 'أيوه، كل تحويلاته', value: 'all', kind: 'primary' },
     ...(d.txs.length > 1 ? [{ label: `آخر حوالة بس (${fmt(d.txs[0].a)})`, value: 'one' }] : []),
     { label: 'إلغاء', value: null },
@@ -204,15 +207,21 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
         <span class="lbl">{{ lentOpen.length }} {{ lentOpen.length === 1 ? 'شخص' : 'أشخاص' }}</span>
       </section>
       <section class="card">
+        <section v-if="lentPending.length" class="ask">
+          <b class="askh">🤝 سلفة ولا لأ؟ <small class="muted">{{ lentPending.length }}</small></b>
+          <small class="muted">تحويلات لأشخاص — اللي تقول عليها "أيوه" بس هي اللي تتحسب ليك</small>
+          <LoanAsk v-for="p in (askAll ? lentPending : lentPending.slice(0, 5))" :key="p.tx.id" :p="p" flat @open="(t) => emit('open', t)" />
+          <button v-if="lentPending.length > 5 && !askAll" class="link xs" @click="askAll = true">اعرض الكل ({{ lentPending.length }})</button>
+        </section>
         <label class="autosw">
-          <span><b>اعتبر أي تحويل لشخص سلفة</b><br /><small class="muted">بيتجمع هنا لوحده — ولو تحويل مش سلفة اضغط عليه وشيله</small></span>
+          <span><b>اسألني لما أحوّل لحد</b><br /><small class="muted">علشان تعرف مين مستلف منك — والتحويلات اللي بتتكرر كل شهر (زي الإيجار) مش هنسأل عليها</small></span>
           <input type="checkbox" :checked="autoLentOn" @change="(e) => setAutoLent(e.target.checked)" />
         </label>
         <div v-if="autoLentOn" class="range">
-          <span class="muted xs">التحويلات من</span>
+          <span class="muted xs">اسأل على التحويلات من</span>
           <div class="rseg"><button v-for="o in [[1, 'شهر'], [3, '٣ شهور'], [6, '٦ شهور'], [12, 'سنة'], [0, 'الكل']]" :key="o[0]" :class="{ on: autoLentRange === o[0] }" @click="setAutoLentRange(o[0])">{{ o[1] }}</button></div>
         </div>
-        <div v-if="!lentOpen.length" class="empty"><b>🤝</b>محدش مستلف منك{{ autoLentOn ? ' — أول ما تحوّل لحد هيظهر هنا' : '' }}</div>
+        <div v-if="!lentOpen.length" class="empty"><b>🤝</b>محدش مستلف منك{{ autoLentOn ? ' — لما تحوّل لحد هنسألك' : '' }}</div>
         <div v-for="d in lentOpen" :key="d.id" class="item" @click="openLent(d)">
           <span class="ic av">{{ d.name.trim().charAt(0) }}</span>
           <div class="mid">
@@ -390,6 +399,10 @@ h2 { font-size: 15.5px; margin: 0 0 10px }
 .prow span { flex: 1 }
 .prow b { font-variant-numeric: tabular-nums }
 h3.sm { margin: 16px 0 6px; font-size: 13.5px }
+.ask { display: flex; flex-direction: column; gap: 2px; margin: -2px 0 12px; padding: 12px 14px 4px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)) }
+.ask .askh { font-size: 14.5px }
+.ask .la:last-of-type { border-bottom: 0 }
+.ask .link { margin: 4px 0 8px; align-self: flex-start }
 .autosw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 10px; font-size: 13.5px }
 .range { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; border-bottom: 1px solid var(--line) }
 .rseg { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface-2); border-radius: 10px; padding: 2px }

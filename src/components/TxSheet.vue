@@ -7,7 +7,7 @@ import CatPicker from './CatPicker.vue'
 import { allTx, setCategory, deleteManual } from '../lib/store.js'
 import { showToast } from '../lib/toast.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
-import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson } from '../lib/debts.js'
+import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson, lentPending, markLoan, answerNo, unanswer, unignorePerson } from '../lib/debts.js'
 import { unusual, dismissFlag } from '../lib/insights.js'
 
 const props = defineProps({ t: Object })
@@ -46,7 +46,16 @@ async function notLoanAsk() {
   if (v === 'one') notLoan(props.t.id)
   else if (v === 'all') ignorePerson(d.key)
 }
-function markDebt() { debtFromTx(props.t); emit('close'); emit('go', 'debts') }
+function markDebt() {
+  if (props.t.k === 'transfer') { markLoan(props.t.id); showToast('🤝 اتسجلت سلفة — هتلاقيها في الديون (ليّا)', () => unanswer(props.t.id)); return }
+  debtFromTx(props.t); emit('close'); emit('go', 'debts')
+}
+// تحويل لسه مستني ردك: سلفة ولا لأ؟
+const pend = computed(() => lentPending.value.find((p) => p.tx.id === props.t.id) || null)
+function ansNo() {
+  const p = pend.value, stopped = answerNo(p.tx)
+  showToast(stopped ? '✓ مش هسألك على تحويلاتك للشخص ده تاني' : '✓ تمام، مش سلفة', () => { unanswer(p.tx.id); if (stopped) unignorePerson(p.key) })
+}
 async function del() { if (await ask('تمسح المصروف ده؟', { yes: 'امسح', danger: true })) { deleteManual(props.t.id); emit('close') } }
 </script>
 
@@ -72,7 +81,8 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         </div>
       </div>
 
-      <button v-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
+      <div v-if="pend" class="autoloan ask"><span>🤝 دي سلفة؟</span><span class="ab"><button :class="{ pri: pend.likely }" @click="markLoan(t.id)">أيوه</button><button @click="ansNo">لا</button></span></div>
+      <button v-else-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
       <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoanAsk">مش سلفة</button></div>
       <div v-else-if="hasDebt" class="muted xs" style="text-align: center; margin-top: 10px">✓ متسجلة في الديون</div>
 
@@ -115,5 +125,7 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 .fact { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap }
 .fact .ok { border: 0; border-radius: 12px; padding: 9px 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
 .autoloan { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500 }
+.autoloan .ab { display: flex; gap: 6px }
+.autoloan button.pri { background: var(--accent); color: #fff }
 .autoloan button { border: 0; border-radius: 10px; padding: 7px 12px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 12.5px; cursor: pointer }
 </style>
