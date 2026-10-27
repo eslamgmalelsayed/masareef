@@ -200,12 +200,45 @@ export function resetOverrides() {
 }
 
 /** كل العمليات بعد الدمج والتصنيف */
+/**
+ * تحويل بين حساباتك: حوالة صادرة من بنك + حوالة واردة لبنك تاني بنفس المبلغ في خلال ساعة
+ * (أو انت قلت عليها كده بإيدك). بتتحول لـ k = 'self' — مش مصروف ولا دخل.
+ */
+const SELF_WIN = 60 * 60e3
+function markSelf(list) {
+  const mine = new Set(state.settings.selfTx || [])
+  const not = new Set(state.settings.notSelfTx || [])
+  const ins = list.filter((t) => t.k === 'in' && !not.has(t.id))
+  const used = new Set()
+  for (const t of list) {
+    if (not.has(t.id)) continue
+    if (mine.has(t.id) && ['transfer', 'in', 'intl'].includes(t.k)) { t.k = 'self'; continue }
+    // بس لو التحويل مفيهوش اسم شخص (— أو رقم حساب) — التحويل لحد باسمه ممكن يصادف وارد بنفس المبلغ
+    if (t.k !== 'transfer' || /[A-Za-z\u0600-\u06FF]{3}/.test(t.m || '')) continue
+    const m = ins.find((x) => !used.has(x.id) && x.b !== t.b && Math.abs(x.ts - t.ts) <= SELF_WIN && Math.abs(x.a - t.a) <= 1)
+    if (!m) continue
+    used.add(m.id)
+    t.k = 'self'; t.pair = m.id
+    m.k = 'self'; m.pair = t.id
+  }
+  for (const t of list) if (t.k === 'self') { t.c = 'self'; if (!t.m || t.m === '—') t.m = 'بين حساباتك' }
+}
+/** "دي بين حساباتي" / "لا، مش بين حساباتي" */
+export function setSelfTx(t, on) {
+  const ids = [t.id, ...(t.pair ? [t.pair] : [])]
+  const rm = (k) => (state.settings[k] || []).filter((x) => !ids.includes(x))
+  if (on) { state.settings.selfTx = [...rm('selfTx'), t.id].slice(-500); state.settings.notSelfTx = rm('notSelfTx') }
+  else { state.settings.notSelfTx = [...rm('notSelfTx'), ...ids].slice(-500); state.settings.selfTx = rm('selfTx') }
+  saveSettings()
+}
+
 export const allTx = computed(() => {
   const byId = new Map()
   for (const t of state.importedTx) byId.set(t.id, t)
   for (const t of state.smsTx) byId.set(t.id, t)
   const ov = state.overrides
   const out = [...byId.values()].map((t) => ({ ...t, c: categorize(t, ov), d: new Date(t.ts) }))
+  markSelf(out)
   for (const t of state.manualTx) {
     out.push({ ...t, c: t.cat, d: new Date(t.ts) })
     // لو دفعته كاش من فلوس سحبتها، نطرحه من "سحب نقدي" علشان ميتحسبش مرتين

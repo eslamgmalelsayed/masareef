@@ -4,7 +4,7 @@ import { ask, choose } from '../lib/dialog.js'
 import { computed } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
-import { allTx, setCategory, deleteManual } from '../lib/store.js'
+import { allTx, setCategory, deleteManual, setSelfTx } from '../lib/store.js'
 import { showToast } from '../lib/toast.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
 import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson, lentPending, markLoan, answerNo, unanswer, unignorePerson } from '../lib/debts.js'
@@ -12,8 +12,8 @@ import { unusual, dismissFlag } from '../lib/insights.js'
 
 const props = defineProps({ t: Object })
 const emit = defineEmits(['close', 'edit', 'go'])
-const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت' }
-const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer'].includes(props.t.k))
+const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت', self: 'تحويل بين حساباتك' }
+const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer', 'self'].includes(props.t.k))
 const same = computed(() => {
   if (props.t.k === 'manual') return { n: 0, a: 0 }
   const k = merchantKey(props.t.m)
@@ -46,6 +46,8 @@ async function notLoanAsk() {
   if (v === 'one') notLoan(props.t.id)
   else if (v === 'all') ignorePerson(d.key)
 }
+function selfOn() { const t = props.t; setSelfTx(t, true); showToast('🔁 اتشالت من المصاريف — تحويل بين حساباتك', () => setSelfTx(t, false)) }
+function selfOff() { const t = props.t; setSelfTx(t, false); showToast('✓ رجعت تتحسب', () => setSelfTx(t, true)) }
 function markDebt() {
   if (props.t.k === 'transfer') { markLoan(props.t.id); showToast('🤝 اتسجلت سلفة — هتلاقيها في الديون (ليّا)', () => unanswer(props.t.id)); return }
   debtFromTx(props.t); emit('close'); emit('go', 'debts')
@@ -81,10 +83,12 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         </div>
       </div>
 
-      <div v-if="pend" class="autoloan ask"><span>🤝 دي سلفة؟</span><span class="ab"><button :class="{ pri: pend.likely }" @click="markLoan(t.id)">أيوه</button><button @click="ansNo">لا</button></span></div>
+      <div v-if="t.k === 'self'" class="selfbox"><span>🔁 تحويل بين حساباتك — مش بيتحسب مصروف ولا دخل</span><button class="link" @click="selfOff">مش بين حساباتي</button></div>
+      <div v-else-if="pend" class="autoloan ask"><span>🤝 دي سلفة؟</span><span class="ab"><button :class="{ pri: pend.likely }" @click="markLoan(t.id)">أيوه</button><button @click="ansNo">لا</button></span></div>
       <button v-else-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
       <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoanAsk">مش سلفة</button></div>
       <div v-else-if="hasDebt" class="muted xs" style="text-align: center; margin-top: 10px">✓ متسجلة في الديون</div>
+      <button v-if="['transfer', 'in'].includes(t.k)" class="selfbtn" @click="selfOn">🔁 دي بين حساباتي (مش مصروف)</button>
 
       <template v-if="isOut">
         <h3>غيّر البند</h3>
@@ -125,6 +129,8 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 .fact { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap }
 .fact .ok { border: 0; border-radius: 12px; padding: 9px 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
 .autoloan { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500 }
+.selfbox { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; padding: 11px 12px; border-radius: 14px; background: var(--surface-2); font-size: 13.5px; text-align: center }
+.selfbtn { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px }
 .autoloan .ab { display: flex; gap: 6px }
 .autoloan button.pri { background: var(--accent); color: #fff }
 .autoloan button { border: 0; border-radius: 10px; padding: 7px 12px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 12.5px; cursor: pointer }

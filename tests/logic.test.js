@@ -1,6 +1,6 @@
 // اختبارات الحسابات: الاشتراكات، الأقساط، الكريدت، الديون، الحدود، والخصوصية
 import { describe, it, expect, beforeEach } from 'vitest'
-import { state, allTx, effLimits, cycles, setCategory, clearOverride, levelOf } from '../src/lib/store.js'
+import { state, allTx, spendTx, incomeTx, effLimits, cycles, setCategory, clearOverride, levelOf, setSelfTx } from '../src/lib/store.js'
 import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
@@ -20,7 +20,7 @@ beforeEach(() => {
   state.bnplSms = []
   state.importedBnpl = []
   state.status = 'ready'
-  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [], autoLent: true, autoLentFrom: NOW - 30 * DAY, lentDismiss: [], lentYes: [], lentIgnore: [], lentAutoPays: {}, lentAutoClosed: {} }
+  state.settings = { ...state.settings, limits: {}, rollover: false, debts: [], funds: [], emergency: {}, income: '', saveGoal: '', remit: {}, assets: [], zakat: {}, cards: {}, subsHidden: [], flagsSeen: [], autoLent: true, autoLentFrom: NOW - 30 * DAY, lentDismiss: [], lentYes: [], selfTx: [], notSelfTx: [], loanInbox: [], lentIgnore: [], lentAutoPays: {}, lentAutoClosed: {} }
   setPrivacy(false)
 })
 
@@ -310,5 +310,30 @@ describe('المميزات الجديدة', () => {
     expect(autoLent.value.find((d) => d.name === 'SAMIR').amount).toBe(300)
     expect(lp.value.map((p) => p.tx.m)).toEqual(['OTHER'])
     expect(state.settings.loanInbox.length).toBe(1) // اللي ملقيناش تحويله لسه مستني
+  })
+})
+
+describe('تحويل بين حساباتك', () => {
+  it('صادرة من بنك + واردة لبنك تاني بنفس المبلغ في خلال ساعة = مش مصروف ولا دخل', () => {
+    state.smsTx = [tx(1, 'transfer', 10776, '—', { b: 'الأهلي' }), { ...tx(1, 'in', 10776, '', { b: 'الراجحي' }), ts: NOW - DAY + 6 * 60e3 }, tx(3, 'transfer', 500, 'SAMIR', { b: 'الأهلي' })]
+    const self = allTx.value.filter((t) => t.k === 'self')
+    expect(self.length).toBe(2)
+    expect(self[0].m).toBe('بين حساباتك')
+    expect(spendTx.value.some((t) => t.a === 10776)).toBe(false)
+    expect(incomeTx.value.some((t) => t.a === 10776)).toBe(false)
+    expect(lentPending.value.map((p) => p.tx.m)).toEqual(['SAMIR'])
+  })
+  it('من غير رسالة واردة: تقدر تعلّم عليها بإيدك — وتتراجع', () => {
+    state.smsTx = [tx(1, 'transfer', 3000, '—', { b: 'الأهلي' })]
+    const t = allTx.value[0]
+    expect(t.k).toBe('transfer')
+    setSelfTx(t, true)
+    expect(allTx.value[0].k).toBe('self')
+    setSelfTx(allTx.value[0], false)
+    expect(allTx.value[0].k).toBe('transfer')
+  })
+  it('نفس البنك، أو فرق وقت كبير، أو تحويل لحد باسمه = مش تحويل بين حساباتك', () => {
+    state.smsTx = [tx(1, 'transfer', 700, '*8328', { b: 'الأهلي' }), tx(1, 'in', 700, '', { b: 'الأهلي' }), tx(5, 'transfer', 900, '—', { b: 'الأهلي' }), tx(2, 'in', 900, '', { b: 'الراجحي' }), tx(8, 'transfer', 2301, 'محمد محمود', { b: 'الأهلي' }), tx(8, 'in', 2301, '', { b: 'STC Pay' })]
+    expect(allTx.value.filter((t) => t.k === 'self').length).toBe(0)
   })
 })

@@ -13,6 +13,7 @@ export const CATEGORIES = [
   { id: 'subs', name: 'اشتراكات وأدوات تقنية', color: '#4f46e5', icon: '💻' },
   { id: 'health', name: 'صحة وتأمين', color: '#dc2626', icon: '🩺' },
   { id: 'edu', name: 'تعليم وكتب وقيادة', color: '#65a30d', icon: '📚' },
+  { id: 'sport', name: 'لعب كرة', color: '#15803d', icon: '⚽' },
   { id: 'gov', name: 'حكومية ورسوم', color: '#475569', icon: '🏛️' },
   { id: 'bills', name: 'فواتير وسداد', color: '#a16207', icon: '🧾' },
   { id: 'paypal', name: 'PayPal (متنوع)', color: '#1d4ed8', icon: '🅿️' },
@@ -22,6 +23,7 @@ export const CATEGORIES = [
   { id: 'intl', name: 'حوالات دولية', color: '#b45309', icon: '🌍' },
   { id: 'other', name: 'أخرى', color: '#94a3b8', icon: '•' },
   { id: 'ccpay', name: 'سداد بطاقات ائتمانية', color: '#64748b', icon: '💳', hidden: true }, // مش مصروف — تحويل لسداد الكريدت
+  { id: 'self', name: 'بين حساباتك', color: '#64748b', icon: '🔁', hidden: true }, // تحويل من حساب ليك لحساب تاني ليك
 ]
 export const CAT = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]))
 
@@ -38,6 +40,7 @@ export const RULES = [
   ['telecom', /VIRGIN|STC\b|SAUDI TEL|STCPOSTPA|MOBILY|ZAIN|SAWA|سوا|LEBARA|SALAM MOBILE|VODAFONE|WE-|CCA\*VF|TELECOM|الاتصالات|ONECARD|RED BULL MOBILE|FRIENDI/i],
   ['subs', /ZERO TO MASTERY|FRONTENDMASTERS|VUEMASTERY|WINDSURF|ANTHROPIC|OPENAI|CHATGPT|GOOGLE|APPLE|ICLOUD|NETFLIX|SPOTIFY|SHAHID|OSN|CLOUDFLARE|MICROSOFT|LINKEDIN|GITHUB|FIGMA|ADOBE|NETLIFY|VERCEL|CANVA|NOTION|YOUTUBE|DISNEY|STARZ|ANGHAMI|AWS|DIGITALOCEAN|NAMECHEAP|GODADDY|HOSTINGER|ENVATO|UDEMY|COURSERA|PREPLY|CURSOR|MIDJOURNEY|PAYPAL \*C|STEAM|PLAYSTATION|SONY|CREEM|LEMON ?SQUEEZY|PADDLE/i],
   ['health', /PHAR|NAHDI|DAWAA|DAWA|PHARM|صيدل|HOSPITAL|مستشفى|CLINIC|عيادة|DAR ALSHEFA|SHEFA|MEDICAL|DENTAL|BUPA|TAWUNIYA|TAMEENI|TAMEE|INSURANCE|تأمين|OPTIC|GULF HEAL|MEDGULF/i],
+  ['sport', /MALAEB|MALAAB|MALAB\b|ملعب|ملاعب|FOOTBALL|SOCCER|STADIUM|ستاد|KORA|كورة/i],
   ['edu', /JARIR|DRIVING|DRI\b|DALLAH|NOURA DRI|SCHOOL|ACADEM|AKADIMAT|COURSE|BOOK|مكتبة|C3 COMICS/i],
   ['gov', /MOFA|ABSHER|MOI|QIWA|MUQEEM|وزارة|SADAD|ETIMAD|NAJIZ|SPL|WWW\.SAUDI|SAUDI POST|MOSADAQA|THE ECONOMIC|IQAMA/i],
   ['paypal', /PAYPAL|PAYMOB|ACCEPT/i],
@@ -80,6 +83,7 @@ export const GROUPS = [
   { id: 'g_life', name: 'صحة وتعليم وحكومة', icon: '🩺', color: '#dc2626', cats: ['health', 'edu', 'gov'] },
   { id: 'g_money', name: 'فلوس وأقساط', icon: '💳', color: '#7c3aed', cats: ['bnpl', 'cash', 'fee', 'paypal'] },
   { id: 'g_people', name: 'تحويلات', icon: '↔️', color: '#0f766e', cats: ['transfer', 'intl'] },
+  { id: 'g_sport', name: 'رياضة', icon: '⚽', color: '#15803d', cats: ['sport'] },
   { id: 'g_other', name: 'أخرى', icon: '•', color: '#94a3b8', cats: ['other'] },
 ]
 export const GROUP_OF = Object.fromEntries(GROUPS.flatMap((g) => g.cats.map((c) => [c, g.id])))
