@@ -102,6 +102,7 @@ public class LimitEngineTest {
         int checked = 0;
         LimitEngine.LoanRules self = new LimitEngine.LoanRules(); // نفس selfNames بتاعة tests/fixtures/sms.json
         self.self.add("تست"); self.self.add("testuser"); self.min = 0;
+        for (String a : new String[] { "1001", "2002", "3003", "4004", "5005" }) self.acc.add(a);
         for (String[] r : rows()) {
             String body = unescape(r[2]);
             LimitEngine.Transfer t = LimitEngine.parseTransfer(body, Long.parseLong(r[1]));
@@ -130,6 +131,9 @@ public class LimitEngineTest {
         assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(1500, "RENT GUY"), lent));
         assertEquals(1, LimitEngine.loanDecision(new LimitEngine.Transfer(700, "RENT GUY"), lent));
         assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(500, "ISLAM GAMAL"), lent));
+        LimitEngine.Transfer mine = new LimitEngine.Transfer(10776, "اسلام ج. السي"); mine.acct = "8328";
+        lent.acc.add("8328");
+        assertEquals(0, LimitEngine.loanDecision(mine, lent));
         lent.on = false;
         assertEquals(0, LimitEngine.loanDecision(new LimitEngine.Transfer(300, "FRIEND"), lent));
     }

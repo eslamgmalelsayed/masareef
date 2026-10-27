@@ -80,12 +80,19 @@ function merchant(b) {
 }
 
 function counterparty(b) {
-  for (const p of [/(?:الى|إلى|To|Receiver name|To:)\s*:?\s*([^|\n]+)/, /لـ\s*([^|\n]+)/]) {
+  return counterpartyRaw(b).replace(/^\*?\d+[;\s]*/, '').replace(/\*+$/, '').trim()
+}
+/** الاسم زي ما هو (ممكن يبدأ برقم الحساب: "*8328 اسلام" أو "9999;مجدي") */
+function counterpartyRaw(b) {
+  // "ل*8328 اسلام ج. السي*" (الأهلي — من غير الـ)
+  for (const p of [/(?:الى|إلى|To|Receiver name|To:)\s*:?\s*([^|\n]+)/, /لـ\s*([^|\n]+)/, /^\s*ل\s*(\*?\d[\d*]*[;\s]+[^|\n]+)/m]) {
     const m = b.match(p)
-    if (m) return m[1].replace(/^\d+;/, '').trim()
+    if (m) return m[1].trim()
   }
   return ''
 }
+/** رقم الحساب اللي في أول الاسم (لو موجود) */
+const leadAcct = (raw) => (String(raw).match(/^\*?(\d{3,})/) || [])[1] || ''
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
 
@@ -127,6 +134,9 @@ export function classify(addr, b, ts, profile) {
     if (/^Incoming/i.test(f)) return ['in', a, '']
     const cp = counterparty(b)
     if ((SELF && SELF.test(cp)) || (/urpay/i.test(addr) && !cp)) return ['ignore', a, 'self']
+    // التحويل رايح لحساب من حساباتك (رقمه في أول الاسم: "ل*8328 اسلام")
+    const acct = leadAcct(counterpartyRaw(b))
+    if (acct && (profile.accounts || []).some((x) => x && (String(x).endsWith(acct) || acct.endsWith(String(x))))) return ['ignore', a, 'self']
     if (ACC && ACC.test(cp) && !/[A-Za-z؀-ۿ]{3}/.test(cp)) return ['ignore', a, 'self']
     return ['transfer', a, cp]
   }

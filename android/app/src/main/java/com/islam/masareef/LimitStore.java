@@ -337,13 +337,13 @@ public final class LimitStore {
         LimitEngine.LoanRules r = new LimitEngine.LoanRules();
         r.on = o.optBoolean("on", true);
         r.min = o.optDouble("min", 50);
-        String[] names = { "ignore", "yes", "freq", "self" };
+        String[] names = { "ignore", "yes", "freq", "self", "acc" };
         for (String n : names) {
             JSONArray a = o.optJSONArray(n);
             if (a == null) continue;
             for (int i = 0; i < a.length(); i++) {
                 String v = a.optString(i);
-                if ("ignore".equals(n)) r.ignore.add(v); else if ("yes".equals(n)) r.yes.add(v); else if ("freq".equals(n)) r.freq.add(v); else r.self.add(v);
+                if ("ignore".equals(n)) r.ignore.add(v); else if ("yes".equals(n)) r.yes.add(v); else if ("freq".equals(n)) r.freq.add(v); else if ("acc".equals(n)) r.acc.add(v); else r.self.add(v);
             }
         }
         JSONArray rec = o.optJSONArray("recur");

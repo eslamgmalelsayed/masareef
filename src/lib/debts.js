@@ -277,6 +277,7 @@ watch(() => [autoLentOn.value, state.settings.lentIgnore, yesPeople.value, allTx
     on: autoLentOn.value, min: MIN_LOAN,
     ignore: state.settings.lentIgnore || [], yes: [...yesPeople.value], freq, recur: recur.slice(0, 100),
     self: (profile().selfNames || []).map(nk).filter((x) => x.length >= 3),
+    acc: (profile().accounts || []).map(String).filter((x) => x.length >= 3),
   }
 }, { immediate: true, deep: true })
 
