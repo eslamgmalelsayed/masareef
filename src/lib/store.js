@@ -1,6 +1,6 @@
 import { reactive, computed, watch, ref } from 'vue'
 import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile, BNPL_SENDERS, parseBnplMessages, setExtraBanks, KNOWN_NAMES } from './parser.js'
-import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
+import { categorize, merchantKey, merchantNorm, registerAiCats, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
 import { isNative, readSms, saveNativeConfig, listSenders } from './smsSource.js'
 import { privacy, money } from './format.js'
 import { detectHome, setMoney, SYM } from './money.js'
@@ -49,7 +49,16 @@ export const state = reactive({
   status: 'idle', // idle | loading | ready | denied | error
   error: '',
   lastSync: LS.get('lastSync', 0),
+  aiMerch: LS.get('aiMerch', {}), // الذكاء الاصطناعي: اسم المحل → { b: الاسم الموحّد, c: البند }
 })
+registerAiCats(LS.get('aiCats', {}))
+
+/** نتايج الذكاء الاصطناعي للمحلات (والبنود الجديدة اللي عملها) */
+export function addAiMerchants(m, cats) {
+  if (cats) { const all = { ...LS.get('aiCats', {}), ...cats }; LS.set('aiCats', all); registerAiCats(all) }
+  if (m && Object.keys(m).length) { state.aiMerch = { ...state.aiMerch, ...m }; LS.set('aiMerch', state.aiMerch) }
+}
+const BRANDED = new Set(['purchase', 'bill', 'refund'])
 
 export function saveSettings() { LS.set('settings', state.settings) }
 setExtraBanks(state.settings.extraBanks)
@@ -217,7 +226,7 @@ export function addWebMessage(body) {
   if (state.webMsgs.some((m) => m.body === text)) return { added: false, dup: true, tx: null }
   const msg = { address: '__ios__', body: text, date: Date.now() }
   const tx = parseMessages([msg], profile(), state.tpls)[0] || null
-  if (tx) tx.c = categorize(tx, state.overrides)
+  if (tx) tx.c = categorize(tx, state.overrides, state.aiMerch)
   state.webMsgs = [...state.webMsgs, msg]
   LS.set('webMsgs', state.webMsgs)
   rawSms = state.webMsgs
@@ -341,13 +350,17 @@ export const allTx = computed(() => {
   for (const t of state.smsTx) byId.set(t.id, t)
   const ov = state.overrides
   const one = state.txCats
+  const ai = state.aiMerch
   const fix = state.settings.txFix || {} // "اتقرت غلط؟": تصحيحك بيتطبّق على طول لحد ما القالب الجديد يوصل
   const out = []
   for (const t0 of byId.values()) {
     const f = fix[t0.id]
     if (f?.hide) continue
-    const t = f?.k ? { ...t0, k: f.k, fixed: 1 } : t0
-    out.push({ ...t, c: one[t.id] || categorize(t, ov), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) })
+    const t1 = f?.k ? { ...t0, k: f.k, fixed: 1 } : t0
+    // الذكاء الاصطناعي وحّد اسم المحل (فروعه وطرق كتابته) → كل الشاشات بتشوفه محل واحد
+    const br = BRANDED.has(t1.k) ? ai[merchantNorm(t1.m)]?.b : null
+    const t = br && br !== t1.m ? { ...t1, m: br, mr: t1.m } : t1
+    out.push({ ...t, c: one[t.id] || categorize(t, ov, ai), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) })
   }
   markSelf(out)
   // شراء اترد فلوسه (المراجع الذكي ربطه باسترداده) → مبقاش مصروف

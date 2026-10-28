@@ -417,3 +417,20 @@ describe('اسأل التطبيق: اللي بيطلع أرقام مجمّعة �
     expect(askContext().transfers_this_cycle.to_people).toBe(900)
   })
 })
+
+describe('تصنيف المحلات بالذكاء الاصطناعي', async () => {
+  const { categorize, registerAiCats, CAT, GROUP_OF, merchantNorm } = await import('../src/lib/categories.js')
+  it('تصنيفك بإيدك ← الذكاء الاصطناعي ← القواعد', () => {
+    const t = { k: 'purchase', m: 'ALBAIK 023', a: 30 }
+    const ai = { [merchantNorm('ALBAIK 023')]: { b: 'البيك', c: 'delivery' } }
+    expect(categorize(t)).toBe('food')
+    expect(categorize(t, {}, ai)).toBe('delivery')
+    expect(categorize(t, { ALBAIK023: 'shop' }, ai)).toBe('shop')
+    expect(categorize({ k: 'transfer', m: 'ALBAIK 023', a: 30 }, {}, ai)).toBe('transfer')
+  })
+  it('البند الجديد بيدخل المجموعة اللي الذكاء الاصطناعي اختارها', () => {
+    registerAiCats({ x_abc123: { name: 'نادي رياضي', icon: '🏋️', group: 'g_sport' } })
+    expect(CAT.x_abc123.name).toBe('نادي رياضي')
+    expect(GROUP_OF.x_abc123).toBe('g_sport')
+  })
+})

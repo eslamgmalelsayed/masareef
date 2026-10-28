@@ -21,7 +21,7 @@ globalThis.Netlify = { env: { get: (k) => ENV[k] } }
 globalThis.fetch = vi.fn(async (url, init) => {
   geminiCalls++
   seenPrompt = JSON.parse(init.body).contents[0].parts[0].text
-  const out = { kind: 'transfer', amountLine: 0, partyLine: 1, balanceLine: null, currency: 'SAR' }
+  const out = globalThis.nextOut ? globalThis.nextOut() : { kind: 'transfer', amountLine: 0, partyLine: 1, balanceLine: null, currency: 'SAR' }
   return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(out) }] } }] }))
 })
 
@@ -153,5 +153,27 @@ describe('اسأل التطبيق (السيرفر)', async () => {
     expect(r.answer).toContain('1,200')
     expect(prompt).toContain('صرفت كام على الأكل؟')
     expect([...mem.keys()].every((k) => k.startsWith('q/'))).toBe(true)
+  })
+})
+
+describe('المحلات بالذكاء الاصطناعي', async () => {
+  const { default: merchants } = await import('../netlify/functions/merchants.mjs')
+  it('بيوحّد الاسم ويحدد البند، ويعمل بند جديد لو مفيش مناسب، ومبيسألش تاني', async () => {
+    geminiCalls = 0
+    globalThis.fetch = vi.fn(async () => { geminiCalls++; return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(globalThis.nextOut()) }] } }] })) })
+    globalThis.nextOut = () => [{ brand: 'البيك', cat: 'food' }, { brand: 'Fitness Time', cat: 'new', newCat: { name: 'نادي رياضي', icon: '🏋️', group: 'g_sport' } }, { brand: 'X', cat: 'not-a-cat' }]
+    const r = await (await post(merchants, { names: [{ n: 'ALBAIK-RIYADH 023', hint: 'food' }, { n: 'FITNESS TIME 12' }, { n: 'ZZQ STORE' }] })).json()
+    expect(r.m.ALBAIKRIYADH023).toEqual({ b: 'البيك', c: 'food' })
+    const nc = r.m.FITNESSTIME12.c
+    expect(nc).toMatch(/^x_/)
+    expect(r.cats[nc]).toMatchObject({ name: 'نادي رياضي', group: 'g_sport' })
+    expect(r.m.ZZQSTORE.c).toBe('shop')
+    const r2 = await (await post(merchants, { names: [{ n: 'ALBAIK-RIYADH 023' }] })).json()
+    expect(r2.m.ALBAIKRIYADH023.b).toBe('البيك')
+    expect(geminiCalls).toBe(1)
+    globalThis.nextOut = null
+  })
+  it('بيرفض الطلبات الكبيرة', async () => {
+    expect((await post(merchants, { names: Array.from({ length: 41 }, (_, i) => ({ n: 'SHOP ' + i })) })).status).toBe(400)
   })
 })

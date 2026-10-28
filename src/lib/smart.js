@@ -1,7 +1,8 @@
 // القراية الذكية (شغالة دايمًا): بتاخد الأشكال اللي مالهاش قالب، وتطلب قالبها من السيرفر
 // (بنسخة مخفية البيانات بس)، وتبلّغ لو قالب طلع غلط. القراية نفسها بتفضل جوه الموبايل.
 import { reactive } from 'vue'
-import { state, setSmartHook, setTemplates, reparse, setFxRates, addBanks, dismissBank } from './store.js'
+import { state, setSmartHook, setTemplates, reparse, setFxRates, addBanks, dismissBank, addAiMerchants } from './store.js'
+import { merchantNorm, ruleCat } from './categories.js'
 import { KNOWN_NAMES } from './parser.js'
 import { showToast } from './toast.js'
 import { maskSample, linesOf, validTemplate, applyTemplate, shapeOf } from './shapes.js'
@@ -57,8 +58,58 @@ function onParsed(out) {
   }
   smart.waiting = pending.size
   if (pending.size) schedule()
+  queueMerchants(out)
 }
 setSmartHook(onParsed)
+
+/**
+ * المحلات: الذكاء الاصطناعي بيوحّد اسم المحل (فروعه وطرق كتابته) ويحدد بنده — ولو مفيش بند مناسب بيعمل واحد جديد.
+ * بيطلع أسماء المحلات بس (مش أسماء أشخاص ولا مبالغ)، والنتيجة متخزنة عند الكل فالمحل المعروف مش بيتسأل عليه تاني.
+ */
+const M_KINDS = new Set(['purchase', 'bill', 'refund'])
+const mTried = LS.get('merchTried', {})
+let mQueue = new Map()
+let mTimer = 0
+function queueMerchants(out) {
+  const now = Date.now()
+  for (const t of out || []) {
+    if (!M_KINDS.has(t.k) || !/[A-Za-z؀-ۿ]{2}/.test(t.m || '')) continue
+    const k = merchantNorm(t.m)
+    if (k.length < 2 || state.aiMerch[k] || (mTried[k] && now - mTried[k] < 7 * 864e5)) continue
+    const q = mQueue.get(k)
+    if (q) q.c++
+    else mQueue.set(k, { n: t.m.slice(0, 60), hint: ruleCat(t), c: 1 })
+  }
+  if (mQueue.size) { clearTimeout(mTimer); mTimer = setTimeout(runMerchants, 3000) }
+}
+let mBusy = false
+async function runMerchants() {
+  if (mBusy) return
+  mBusy = true
+  let got = 0
+  try {
+    for (let round = 0; round < 8 && mQueue.size; round++) {
+      const batch = [...mQueue.entries()].sort((a, b) => b[1].c - a[1].c).slice(0, 40)
+      for (const [k] of batch) { mQueue.delete(k); mTried[k] = Date.now() }
+      const r = await api('/api/merchants', { names: batch.map(([, v]) => ({ n: v.n, hint: v.hint })) })
+      addAiMerchants(r.m, r.cats)
+      got += Object.keys(r.m || {}).length
+    }
+  } catch (e) {
+    if (/429/.test(String(e.message))) for (const k of Object.keys(mTried)) if (!state.aiMerch[k] && Date.now() - mTried[k] < 6e4) delete mTried[k] // السقف اليومي: نجرّب بكرة
+  } finally {
+    LS.set('merchTried', mTried)
+    mBusy = false
+  }
+  if (mQueue.size) setTimeout(runMerchants, 60e3)
+  return got
+}
+
+/** اقتراح بنود تتدمج تحت حد واحد (الذكاء الاصطناعي بياخد أسماء البنود ومتوسط صرفها بس) */
+export async function suggestLimitGroups(cats, currency) {
+  const r = await api('/api/limit-groups', { cats, currency })
+  return r.groups || []
+}
 
 /**
  * "الرسالة دي اتقرت غلط": بنشيل قالب الشكل (لو موجود) ونبلّغ، ونطلب يتعلم من جديد بالتصحيح بتاعك.

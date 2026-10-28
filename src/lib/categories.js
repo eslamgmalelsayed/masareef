@@ -57,11 +57,34 @@ export function merchantKey(name) {
     .slice(0, 9)
 }
 
-export function categorize(tx, overrides = {}) {
+/** مفتاح كامل لاسم المحل (للذكاء الاصطناعي: المحل ده اتسأل عليه قبل كده؟) */
+export function merchantNorm(name) {
+  return String(name || '').toUpperCase().replace(/^(TAP|PAYPAL)\s*\*?\s*/, '').replace(/[^A-Z0-9؀-ۿ]/g, '').slice(0, 40)
+}
+
+/** تصنيف بالقواعد الثابتة بس (من غير الذكاء الاصطناعي) — بيتبعت للذكاء الاصطناعي كتلميح */
+export function ruleCat(tx) {
+  if (tx.k === 'bill') {
+    if (tx.a >= 10000) return 'rent'
+    if (/الاتصالات|STC|موبايلي|زين/.test(tx.m)) return 'telecom'
+    return 'bills'
+  }
+  for (const [c, rx] of RULES) if (rx.test(tx.m)) return c
+  return 'shop'
+}
+
+/**
+ * ai: { norm: { b: اسم المحل الموحّد, c: البند } } من الذكاء الاصطناعي.
+ * الترتيب: تصنيفك بإيدك ← نوع العملية (تحويل/سحب/رسوم) ← الذكاء الاصطناعي ← القواعد الثابتة
+ */
+export function categorize(tx, overrides = {}, ai = null) {
   if (tx.k === 'ccpay' || tx.k === 'ccxfer') return 'ccpay'
   const key = merchantKey(tx.m)
   if (key && overrides[key]) return overrides[key]
+  if (tx.mr) { const k0 = merchantKey(tx.mr); if (k0 && overrides[k0]) return overrides[k0] } // تصنيف قديم على الاسم قبل التوحيد
   if (KIND_CAT[tx.k]) return KIND_CAT[tx.k]
+  const a = ai && ['purchase', 'bill', 'refund'].includes(tx.k) ? ai[merchantNorm(tx.mr || tx.m)] : null
+  if (a && CAT[a.c] && !(tx.k === 'bill' && a.c === 'shop')) return a.c
   if (tx.k === 'bill') {
     if (tx.a >= 10000) return 'rent'
     if (/الاتصالات|STC|موبايلي|زين/.test(tx.m)) return 'telecom'
@@ -88,3 +111,22 @@ export const GROUPS = [
 ]
 export const GROUP_OF = Object.fromEntries(GROUPS.flatMap((g) => g.cats.map((c) => [c, g.id])))
 export const GROUP = Object.fromEntries(GROUPS.map((g) => [g.id, g]))
+
+/**
+ * بنود عملها الذكاء الاصطناعي (محل مالوش بند مناسب → بند جديد في المجموعة المناسبة).
+ * { id: { name, icon, group } } — بتتضاف لنفس القوايم علشان كل الشاشات تشوفها
+ */
+export function registerAiCats(map) {
+  let n = 0
+  for (const [id, c] of Object.entries(map || {})) {
+    if (CAT[id] || !/^x_[a-z0-9]+$/.test(id)) continue
+    const g = GROUP[c.group] || GROUP.g_shop
+    const cat = { id, name: String(c.name || 'بند').slice(0, 24), icon: String(c.icon || '•').slice(0, 4), color: g.color, ai: 1 }
+    CATEGORIES.splice(CATEGORIES.findIndex((x) => x.id === 'other'), 0, cat) // قبل "أخرى"
+    CAT[id] = cat
+    g.cats.push(id)
+    GROUP_OF[id] = g.id
+    n++
+  }
+  return n
+}

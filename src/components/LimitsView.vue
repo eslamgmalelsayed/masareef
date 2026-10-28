@@ -1,5 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { suggestLimitGroups } from '../lib/smart.js'
+import { money } from '../lib/format.js'
 import { state, allTx, cycleByCat, setLimit, cycles, lastSalary, saveSettings, daySpent, weekSpent, cycleSpent, income, levelOf, periodBase, setPeriodLimit, dayLimit, weekLimit, totalLimit, cycleDays, saveGroup, deleteGroup, effLimits, prevCycleByCat, warnPct, warnRatio } from '../lib/store.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { isNative, requestNotifications, notify } from '../lib/smsSource.js'
@@ -99,6 +101,32 @@ function suggest(r) {
   if (v) change(r, { target: { value: v } })
 }
 import { setWeekly } from '../lib/extras.js'
+
+// ===== اقتراحات الذكاء الاصطناعي للدمج (أسماء البنود ومتوسط صرفها بس) — بتتحدث كل أسبوع =====
+const aiG = ref([])
+const SKEY = 'limitGroupsAi'
+function readLS(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }
+const shownAi = computed(() => {
+  const no = new Set(state.settings.aiGroupNo || [])
+  const used = new Set((state.settings.groups || []).flatMap((g) => g.cats))
+  return aiG.value.filter((g) => !no.has(g.cats.slice().sort().join('+')) && g.cats.every((c) => CATMAP[c] && !used.has(c)))
+})
+onMounted(async () => {
+  const c = readLS(SKEY, null)
+  if (c && Date.now() - c.at < 7 * DAY) { aiG.value = c.groups; return }
+  const cats = rows.value.filter((r) => r.avg >= 20 && !['transfer', 'intl', 'rent', 'fee'].includes(r.id)).slice(0, 30).map((r) => ({ id: r.id, name: r.name, spent: Math.round(r.avg), limit: r.base }))
+  if (cats.length < 2) return
+  try {
+    aiG.value = await suggestLimitGroups(cats, money.cur)
+    try { localStorage.setItem(SKEY, JSON.stringify({ at: Date.now(), groups: aiG.value })) } catch {}
+  } catch {}
+})
+async function takeAi(g) {
+  const avg = g.cats.reduce((x, c) => x + (avg3.value[c] || 0), 0)
+  saveGroup({ name: g.name, cats: g.cats, limit: avg ? Math.ceil(avg / 50) * 50 : 0 })
+  if (isNative && notifOk.value !== true) notifOk.value = await requestNotifications()
+}
+function skipAi(g) { state.settings.aiGroupNo = [...(state.settings.aiGroupNo || []), g.cats.slice().sort().join('+')].slice(-50); saveSettings() }
 </script>
 
 <template>
@@ -155,6 +183,12 @@ import { setWeekly } from '../lib/extras.js'
     <h2 class="sec">حدود مجمّعة</h2>
     <p class="muted xs sec-note">ادمج كذا بند تحت حد واحد — مثلًا تسوق أونلاين + ملابس — وهيوصلك تنبيه على مجموعهم.</p>
     <section class="card">
+      <div v-for="g in shownAi" :key="g.cats.join()" class="aig">
+        <div class="aih"><span class="gic ic"><i v-for="c in g.cats.slice(0, 3)" :key="c">{{ CATMAP[c]?.icon }}</i></span>
+          <div><b>🤖 {{ g.name }}</b><div class="muted xs">{{ g.cats.map((c) => CATMAP[c]?.name).join(' + ') }}</div></div></div>
+        <div class="xs">{{ g.why }}</div>
+        <div class="acts"><button class="save" @click="takeAi(g)">ادمجهم</button><button class="link" @click="skipAi(g)">لأ</button></div>
+      </div>
       <div v-for="g in groupRows" :key="g.id" class="lim" :class="level(g)">
         <div class="top">
           <span class="ic gic"><i v-for="c in g.cats.slice(0, 3)" :key="c">{{ CATMAP[c]?.icon }}</i></span>
@@ -242,6 +276,8 @@ import { setWeekly } from '../lib/extras.js'
 .sec-note { margin: -4px 4px 8px }
 .sw3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; font-size: 13.5px }
 .sw3 input { width: 20px; height: 20px; accent-color: var(--accent); flex: none }
+.aig { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-bottom: 10px; border-radius: 14px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)) }
+.aih { display: flex; gap: 10px; align-items: center }
 .gic { background: var(--surface-2); font-size: 12px; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 0 }
 .gic i { font-style: normal; line-height: 1.1 }
 .addg { width: 100%; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: none; color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; margin-top: 4px }
