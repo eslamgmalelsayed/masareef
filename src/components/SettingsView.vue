@@ -67,7 +67,23 @@ import { smart } from '../lib/smart.js'
     <header class="hd"><h1>الإعدادات</h1></header>
 
     <section class="card">
-      <h2>الدخل وحد المصروفات</h2>
+      <button class="navrow2" @click="emit('go', 'limits')">
+        <span class="n2ic">🔔</span>
+        <span class="n2mid">
+          <span class="n2t">الحدود والتنبيهات</span>
+          <b>يوم {{ fmt(dayLimit) }} · أسبوع {{ fmt(weekLimit) }} · راتب {{ fmt(totalLimit) }}</b>
+          <small class="muted">صرفت {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} ({{ totalLimit ? Math.round((cycleSpent / totalLimit) * 100) : 0 }}٪)<template v-if="Object.keys(state.settings.limits || {}).length"> · {{ Object.keys(state.settings.limits).length }} بند عليهم حد</template></small>
+        </span>
+        <span class="n2go">تعديل<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg></span>
+      </button>
+      <label class="sw">
+        <span><b>نبّهني لما أقرّب أو أعدّي الحد</b><br /><small class="muted">النسبة بتتغير من صفحة الحدود والتنبيهات</small></span>
+        <input type="checkbox" :checked="state.settings.totalAlert !== false" @change="(e) => { state.settings.totalAlert = e.target.checked; saveMoney() }" />
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>الدخل والراتب</h2>
       <label class="fld">
         <span>دخلك الشهري (ر.س)</span>
         <input type="number" inputmode="numeric" v-model.number="state.settings.income" @change="saveMoney" :placeholder="currentCycle.salary ? 'من رسالة الراتب: ' + fmt(currentCycle.salary) : 'مثلًا 10000'" />
@@ -77,19 +93,6 @@ import { smart } from '../lib/smart.js'
         <span>يوم نزول الراتب</span>
         <input type="number" inputmode="numeric" min="1" max="31" v-model.number="state.settings.salaryDay" @change="saveMoney" :placeholder="salaryDay ? 'تلقائي: يوم ' + salaryDay + ' في الشهر' : 'مثلًا 27'" />
         <small class="muted" v-if="nextSalaryDate">الراتب الجاي متوقع {{ fmtDate(nextSalaryDate, { weekday: 'long', day: 'numeric', month: 'long' }) }} (لو جه جمعة أو سبت بنقدّمه للخميس)</small>
-      </label>
-      <button class="navrow2" @click="emit('go', 'limits')">
-        <span class="n2ic">🔔</span>
-        <span class="n2mid">
-          <span class="n2t">حدود الصرف</span>
-          <b>يوم {{ fmt(dayLimit) }} · أسبوع {{ fmt(weekLimit) }} · راتب {{ fmt(totalLimit) }}</b>
-          <small class="muted">صرفت {{ fmt(cycleSpent) }} من {{ fmt(totalLimit) }} ({{ totalLimit ? Math.round((cycleSpent / totalLimit) * 100) : 0 }}٪)</small>
-        </span>
-        <span class="n2go">تعديل<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg></span>
-      </button>
-      <label class="sw">
-        <span><b>نبّهني لما أقرّب أو أعدّي الحد</b><br /><small class="muted">النسبة بتتغير من صفحة الحدود والتنبيهات</small></span>
-        <input type="checkbox" :checked="state.settings.totalAlert !== false" @change="(e) => { state.settings.totalAlert = e.target.checked; saveMoney() }" />
       </label>
     </section>
 
@@ -110,24 +113,6 @@ import { smart } from '../lib/smart.js'
     <WebImport v-if="!isNative" />
     <IosSetup v-if="isIOS" />
     <NotifyTest />
-
-    <button class="card navrow" @click="emit('go', 'limits')">
-      <span class="nic">🔔</span>
-      <span class="nmid"><b>الحدود والتنبيهات</b><br /><small class="muted">{{ Object.keys(state.settings.limits || {}).length ? Object.keys(state.settings.limits).length + ' بند عليهم حد' : 'حد يومي وأسبوعي وشهري ولكل بند' }}</small></span>
-      <span class="muted">←</span>
-    </button>
-
-    <section class="card">
-      <h2>حساباتك واسمك</h2>
-      <p class="muted sm">التطبيق بيتعرّف عليهم لوحده من رسايل البنك، علشان التحويل بين حساباتك ميتحسبش مصروف. اكتب بإيدك بس لو حاجة غلط.</p>
-      <div class="det" v-if="state.detected.accounts.length">
-        <span class="muted xs">اتعرف تلقائيًا ✓</span>
-        <div><span class="chip" v-for="a in state.detected.accounts" :key="a">••{{ a }}</span><span class="chip" v-for="n in state.detected.selfNames" :key="n">{{ n }}</span></div>
-      </div>
-      <label class="fld"><span>اسمك (للترحيب)</span><input v-model="state.settings.name" @change="save" :placeholder="state.detected.displayName || 'اسمك'" /></label>
-      <label class="fld"><span>اسمك في التحويلات (افصل بفاصلة)</span><input v-model="state.settings.selfNames" @change="save" :placeholder="state.detected.selfNames.length ? 'تلقائي: ' + state.detected.selfNames.join('، ') : 'مثلًا: محمد, MOHAMED'" /></label>
-      <label class="fld"><span>آخر ٤ أرقام من حساباتك (افصل بفاصلة)</span><input v-model="state.settings.accounts" @change="save" inputmode="numeric" :placeholder="state.detected.accounts.length ? 'تلقائي: ' + state.detected.accounts.join('، ') : 'مثلًا: 1234, 5678'" /></label>
-    </section>
 
     <section class="card">
       <h2>البيانات</h2>
@@ -224,6 +209,7 @@ import { smart } from '../lib/smart.js'
 .det .chip { display: inline-block; background: var(--surface); border-radius: 99px; padding: 3px 10px; font-size: 12.5px; margin: 6px 0 0 6px; font-variant-numeric: tabular-nums }
 .about { text-align: center; margin: 18px 20px; line-height: 1.7 }
 .navrow2 { width: 100%; margin-top: 12px; text-align: right; border: 1px solid var(--line); background: var(--surface); border-radius: 16px; padding: 12px; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); transition: transform .1s, background .15s }
+.navrow2:first-child { margin-top: 0 }
 .navrow2:active { transform: scale(.98); background: var(--surface-2) }
 .n2ic { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); display: grid; place-items: center; font-size: 18px; flex: none }
 .n2mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
