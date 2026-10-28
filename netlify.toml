@@ -1,9 +1,5 @@
-# Netlify هنا للسيرفر بس (masareef-api) — التطبيق نفسه على GitHub Pages
+# نسخة الويب (PWA) على Netlify — مشروع "masareef-web" (Base directory: الجذر)
+# السيرفر (masareef-api) ليه إعداداته في server/netlify.toml
 [build]
-  base = "server"
-  publish = "public"
-  command = "npm install"
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+  command = "npm test && npm run build"
+  publish = "dist"
