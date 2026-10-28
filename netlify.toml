@@ -1,5 +1,0 @@
-# نسخة الويب (PWA) على Netlify — مشروع "masareef-web" (Base directory: الجذر)
-# السيرفر (masareef-api) ليه إعداداته في server/netlify.toml
-[build]
-  command = "npm test && npm run build"
-  publish = "dist"

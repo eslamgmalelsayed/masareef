@@ -26,7 +26,6 @@
 - تجربة في المتصفح: `npm run dev` واستورد ملف XML من الإعدادات
 
 ## آيفون
-- **نسخة الويب (PWA):** https://masareef-web.netlify.app — افتحها في سفاري ← مشاركة ← إضافة إلى الشاشة الرئيسية
 - **التطبيق الكامل (SideStore):** ضيف المصدر `https://github.com/eslamgmalelsayed/masareef/releases/download/ios-latest/apps.json`
 
 
