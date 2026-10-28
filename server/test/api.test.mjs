@@ -91,3 +91,21 @@ describe('بلّغ عن مشكلة / اقترح ميزة', async () => {
     expect((await bad({ type: 'hack', message: 'hello there' })).status).toBe(400)
   })
 })
+
+describe('تنضيف الكلمات اللي بتحدد المكان', async () => {
+  const { cleanAnchor } = await import('../lib/gemini.mjs')
+  it('الأرقام والنجوم بتتشال وبيفضل الكلام بس', () => {
+    expect(cleanAnchor('partyAfter', 'حسابك رقم ****0011 لدى ')).toBe(' لدى ')
+    expect(cleanAnchor('amountBefore', ' جنيه من حسابك رقم ****0011')).toBe(' جنيه من حسابك رقم ')
+    expect(cleanAnchor('amountAfter', 'مبلغ ')).toBe('مبلغ ')
+    expect(cleanAnchor('partyAfter', '****0011')).toBe(null)
+  })
+  it('القالب بعد التنضيف بيقرا الرسالة المصرية صح', async () => {
+    const { applyTemplate } = await import('../../src/lib/shapes.js')
+    const raw = { kind: 'purchase', amountLine: 0, partyLine: 0, balanceLine: 0, currency: 'EGP', amountAfter: 'مبلغ ', amountBefore: ' جنيه', partyAfter: 'حسابك رقم ****0011 لدى ', partyBefore: ' في ', balanceAfter: 'الرصيد المتاح ', balanceBefore: ' جنيه' }
+    const t = { ...raw }
+    for (const k of ['amountAfter', 'amountBefore', 'partyAfter', 'partyBefore', 'balanceAfter', 'balanceBefore']) t[k] = cleanAnchor(k, raw[k])
+    const msg = 'تم خصم مبلغ 1,250.00 جنيه من حسابك رقم ****4521 لدى CARREFOUR MAADI في 28/10/2026. الرصيد المتاح 9,800.50 جنيه'
+    expect(applyTemplate(t, msg, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5, cur: 'EGP' }])
+  })
+})

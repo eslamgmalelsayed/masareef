@@ -74,7 +74,19 @@ export async function askGemini(bank, sample, hint) {
     t.partyLine = o.partyLine ?? null
     t.balanceLine = o.balanceLine ?? null
     t.currency = o.currency ? String(o.currency).toUpperCase() : null
-    for (const k of ANCHORS) if (o[k]) t[k] = String(o[k])
+    for (const k of ANCHORS) { const v = cleanAnchor(k, o[k]); if (v) t[k] = v }
   }
   return t
+}
+
+/**
+ * الموديل ساعات بيحط أرقام أو نجوم جوه الكلمة اللي بتحدد المكان ("حسابك رقم ****0011 لدى ").
+ * الأرقام بتتغير من رسالة للتانية، فبناخد الكلام بس: آخر الكلام لـ After، وأوله لـ Before.
+ */
+export function cleanAnchor(k, v) {
+  if (v == null) return null
+  let s = String(v)
+  if (/After$/.test(k)) s = s.replace(/^[\s\S]*[\d*]/, '')
+  else s = s.replace(/[\d*][\s\S]*$/, '')
+  return s.trim() ? s : null
 }
