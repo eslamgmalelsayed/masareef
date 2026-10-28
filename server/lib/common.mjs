@@ -1,8 +1,8 @@
 // حاجات مشتركة بين functions السيرفر
 import { getStore } from '@netlify/blobs'
-import { maskSample, shapeOf, validTemplate, linesOf, KINDS, hash, ANCHORS, applyTemplate } from '../../src/lib/shapes.js'
+import { maskSample, shapeOf, validTemplate, linesOf, KINDS, hash, ANCHORS, applyTemplate, anchorsFound } from '../../src/lib/shapes.js'
 
-export { maskSample, shapeOf, validTemplate, linesOf, KINDS, hash, ANCHORS, applyTemplate }
+export { maskSample, shapeOf, validTemplate, linesOf, KINDS, hash, ANCHORS, applyTemplate, anchorsFound }
 export const store = () => getStore({ name: 'templates', consistency: 'strong' })
 
 // التطبيق بيكلّمنا من جوه الموبايل (أصل مختلف) — لازم CORS. مفيش كوكيز ولا بيانات دخول

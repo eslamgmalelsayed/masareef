@@ -120,3 +120,11 @@ describe('رسالة سطر واحد (بنوك تانية / بلاد تانية)
     expect(m).not.toMatch(/CARREFOUR|MAADI|4521/)
   })
 })
+
+describe('ى/ي وأ/ا في الكلمات اللي بتحدد المكان', () => {
+  it('"لدي" بتلاقي "لدى"', () => {
+    const msg = 'تم خصم مبلغ 1,250.00 جنيه من حسابك لدى CARREFOUR MAADI في 28/10/2026'
+    const t = { kind: 'purchase', amountLine: 0, amountAfter: 'مبلغ ', partyLine: 0, partyAfter: 'لدي ', partyBefore: ' في' }
+    expect(applyTemplate(t, msg, Date.now())[2]).toBe('CARREFOUR MAADI')
+  })
+})

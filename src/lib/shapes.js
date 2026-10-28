@@ -93,11 +93,20 @@ export function validTemplate(t, nLines) {
 }
 export const ANCHORS = ['amountAfter', 'amountBefore', 'partyAfter', 'partyBefore', 'balanceAfter', 'balanceBefore']
 /** جزء السطر بين كلمتين (بعد after وقبل before). لو الكلمة مش موجودة → null (القالب مش مناسب للرسالة) */
+// ى/ي و أ/إ/آ/ا و ة/ه بيتكتبوا بالتبادل — بنقارن من غير الفرق ده (حرف بحرف، فالأماكن ما بتتغيرش)
+const fold = (x) => String(x).replace(/ى/g, 'ي').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه')
+const findIn = (s, w) => fold(s).indexOf(fold(w))
 function segment(line, after, before) {
   let s = String(line || '')
-  if (after) { const i = s.indexOf(after); if (i < 0) return null; s = s.slice(i + after.length) }
-  if (before) { const j = s.indexOf(before); if (j >= 0) s = s.slice(0, j) }
+  if (after) { const i = findIn(s, after); if (i < 0) return null; s = s.slice(i + after.length) }
+  if (before) { const j = findIn(s, before); if (j >= 0) s = s.slice(0, j) }
   return s
+}
+/** كل كلمة في القالب لازم تكون موجودة في سطرها في الرسالة دي */
+export function anchorsFound(t, body) {
+  const ls = linesOf(body)
+  const line = { amount: t.amountLine, party: t.partyLine, balance: t.balanceLine }
+  return ANCHORS.every((k) => t[k] == null || findIn(ls[line[k.replace(/After|Before/, '')]] ?? '', t[k]) >= 0)
 }
 
 /**
