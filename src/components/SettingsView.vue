@@ -56,7 +56,7 @@ async function onFile(e) {
   catch (err) { msg.value = 'الملف ده مش مفهوم: ' + err.message }
   e.target.value = ''
 }
-async function refresh() { await syncSms(); msg.value = state.status === 'ready' ? 'اتحدّث من الرسايل' : state.error }
+async function refresh() { await syncSms(true); msg.value = state.status === 'ready' ? 'اتقرت كل الرسايل من الأول' : state.error } // زرار الإعدادات = قراية كاملة
 async function clearOv() { if (await ask('كل المحلات اللي نقلتها لبنود تانية هترجع للتصنيف التلقائي.', { yes: 'رجّعها للتلقائي', danger: true })) resetOverrides() }
 async function clearImp() { if (await ask('تمسح العمليات اللي اتقرت من الملفات؟ رسايل الموبايل مش هتتأثر.', { yes: 'امسح', danger: true })) clearImported() }
 import { smart } from '../lib/smart.js'
@@ -136,7 +136,7 @@ import { smart } from '../lib/smart.js'
         <template v-if="isNative">آخر تحديث من الرسايل: {{ state.lastSync ? fmtDate(state.lastSync, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—' }}</template>
         <template v-else>نسخة الويب — استورد ملف رسايل</template>
       </p>
-      <button v-if="isNative" class="btn" @click="refresh">↻ {{ isIOS ? 'حدّث' : 'حدّث من رسايل الموبايل' }}</button>
+      <button v-if="isNative" class="btn" @click="refresh">↻ {{ isIOS ? 'حدّث' : 'اقرا كل الرسايل من الأول' }}</button>
       <button class="btn ghost" @click="fileEl.click()">⤒ استورد ملف رسايل (XML أو JSON)</button>
       <input ref="fileEl" type="file" accept=".xml,.json,text/xml,application/json" hidden @change="onFile" />
       <p v-if="msg" class="note">{{ msg }}</p>
