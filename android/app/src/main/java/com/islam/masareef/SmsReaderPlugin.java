@@ -65,7 +65,8 @@ public class SmsReaderPlugin extends Plugin {
     }
 
     // ===== بنك جديد؟ بندوّر على راسلين بيبعتوا رسايل شكلها عمليات بنكية (بنرجّع الاسم والعدد بس — مش الرسايل) =====
-    private static final java.util.regex.Pattern P_MONEY = java.util.regex.Pattern.compile("(SAR|SR|ر\\.?\\s?س|ريال)\\s*[\\d,]+|[\\d,]+(\\.\\d+)?\\s*(SAR|SR|ر\\.?\\s?س|ريال)", java.util.regex.Pattern.CASE_INSENSITIVE);
+    // أي عملة (مش الريال بس) — علشان بنوك ومحافظ أي بلد تتعرف
+    private static final java.util.regex.Pattern P_MONEY = java.util.regex.Pattern.compile("(SAR|SR|EGP|AED|KWD|QAR|BHD|OMR|JOD|USD|EUR|ر\\.?\\s?س|ريال|جنيه|درهم|دينار)\\s*[\\d,]+|[\\d,]+(\\.\\d+)?\\s*(SAR|SR|EGP|AED|KWD|QAR|BHD|OMR|JOD|USD|EUR|ر\\.?\\s?س|ريال|جنيه|درهم|دينار)", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final java.util.regex.Pattern P_TX = java.util.regex.Pattern.compile("شراء|Purchase|حوالة|خصم|debited|credited|إيداع|ايداع|سحب|withdraw|POS", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final java.util.regex.Pattern P_BANKY = java.util.regex.Pattern.compile("بطاقة|card|مدى|mada|حساب|account|IBAN|آيبان|ايبان|حوالة|transfer", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final java.util.regex.Pattern P_NOT = java.util.regex.Pattern.compile("OTP|رمز التحقق|verification|code|كود|باقة|bundle|recharge|شحن|عرض|offer|٪|%|كوبون|coupon|نقاط|points", java.util.regex.Pattern.CASE_INSENSITIVE);
@@ -78,6 +79,7 @@ public class SmsReaderPlugin extends Plugin {
         if (arr != null) for (int i = 0; i < arr.length(); i++) { try { known.add(arr.getString(i).trim().toLowerCase(Locale.ROOT)); } catch (Exception ignored) { } }
         new Thread(() -> {
             java.util.Map<String, long[]> by = new java.util.HashMap<>();
+            java.util.Map<String, String> sample = new java.util.HashMap<>(); // أحدث رسالة من كل راسل (JS بيخفي بياناتها قبل أي حاجة)
             long since = System.currentTimeMillis() - 120L * 86400000L;
             try (Cursor c = getContext().getContentResolver().query(Uri.parse("content://sms/inbox"), new String[] { "address", "body", "date" }, "date > ?", new String[] { String.valueOf(since) }, null)) {
                 if (c != null) while (c.moveToNext()) {
@@ -88,13 +90,14 @@ public class SmsReaderPlugin extends Plugin {
                     if (!P_MONEY.matcher(b).find() || !P_TX.matcher(b).find() || !P_BANKY.matcher(b).find() || P_NOT.matcher(b).find()) continue;
                     long[] o = by.get(a.trim());
                     if (o == null) { o = new long[2]; by.put(a.trim(), o); }
-                    o[0]++; o[1] = Math.max(o[1], c.getLong(2));
+                    o[0]++;
+                    if (c.getLong(2) >= o[1]) { o[1] = c.getLong(2); sample.put(a.trim(), b); }
                 }
             } catch (Exception ignored) { }
             JSArray out = new JSArray();
             for (java.util.Map.Entry<String, long[]> e : by.entrySet()) {
-                if (e.getValue()[0] < 5) continue;
-                JSObject o = new JSObject(); o.put("address", e.getKey()); o.put("n", e.getValue()[0]); o.put("last", e.getValue()[1]);
+                if (e.getValue()[0] < 3) continue;
+                JSObject o = new JSObject(); o.put("address", e.getKey()); o.put("n", e.getValue()[0]); o.put("last", e.getValue()[1]); o.put("sample", sample.get(e.getKey()));
                 out.put(o);
             }
             JSObject r = new JSObject(); r.put("senders", out); call.resolve(r);

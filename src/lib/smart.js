@@ -1,7 +1,9 @@
 // القراية الذكية (شغالة دايمًا): بتاخد الأشكال اللي مالهاش قالب، وتطلب قالبها من السيرفر
 // (بنسخة مخفية البيانات بس)، وتبلّغ لو قالب طلع غلط. القراية نفسها بتفضل جوه الموبايل.
 import { reactive } from 'vue'
-import { state, setSmartHook, setTemplates, reparse, setFxRates } from './store.js'
+import { state, setSmartHook, setTemplates, reparse, setFxRates, addBanks, dismissBank } from './store.js'
+import { KNOWN_NAMES } from './parser.js'
+import { showToast } from './toast.js'
 import { maskSample, linesOf, validTemplate, applyTemplate, shapeOf } from './shapes.js'
 import { amount } from './parser.js'
 
@@ -130,6 +132,32 @@ async function run() {
 
 function report(m) {
   api('/api/report', { id: m.id, device: deviceId(), got: m.got == null ? 'fail' : String(m.got) === 'ignore' ? 'ignore' : 'amount' }).catch(() => {})
+}
+
+/**
+ * البنوك والمحافظ بتتضاف لوحدها: أي راسل بيبعت رسايل شكلها عمليات مالية بنسأل عليه السيرفر
+ * (اسم الراسل + رسالة واحدة مخفية البيانات). النتيجة متخزنة عند الكل، فبنك معروف مش بيتسأل عليه تاني.
+ */
+export async function autoBanks() {
+  const decided = LS.get('bankAuto', {})
+  const add = [], no = []
+  for (const b of (state.bankSuggestions || []).slice(0, 12)) {
+    const k = b.address.toLowerCase()
+    if (decided[k]) continue
+    if (KNOWN_NAMES[k]) { decided[k] = { bank: true, name: KNOWN_NAMES[k] }; add.push([b.address, KNOWN_NAMES[k]]); continue }
+    if (!b.sample) continue
+    try {
+      const r = await api('/api/sender', { sender: b.address, sample: maskSample(b.sample) })
+      decided[k] = { bank: !!r.bank, name: r.name }
+      if (r.bank) add.push([b.address, r.name]); else no.push(b.address)
+    } catch { break } // مفيش نت / السقف — نكمّل المرة الجاية
+  }
+  LS.set('bankAuto', decided)
+  for (const a of no) dismissBank(a)
+  if (add.length) {
+    showToast('🏦 لقيت ' + (add.length === 1 ? 'حساب جديد: ' + add[0][1] : add.length + ' حسابات جديدة: ' + add.map((x) => x[1]).join('، ')) + ' — واتضاف لوحده')
+    await addBanks(add)
+  }
 }
 
 /** أسعار العملات: مرة في اليوم (لو مفيش نت → الجدول الاحتياطي) */

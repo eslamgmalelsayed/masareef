@@ -126,3 +126,20 @@ describe('السقف اليومي لـ Gemini', () => {
     delete ENV.GEMINI_DAILY_CAP
   })
 })
+
+describe('بنك/محفظة جديدة بتتعرف لوحدها', async () => {
+  const { default: sender } = await import('../netlify/functions/sender.mjs')
+  it('بيسأل Gemini مرة واحدة لكل راسل (لكل المستخدمين)، ومن غير بيانات حقيقية', async () => {
+    mem.clear(); let calls = 0, prompt = ''
+    globalThis.fetch = vi.fn(async (u, init) => { calls++; prompt = JSON.parse(init.body).contents[0].parts[0].text; return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ isFinancial: true, name: 'بنك الرياض' }) }] } }] })) })
+    const real = 'تم خصم 250.00 ريال من حسابك 1234 لدى بقالة احمد علي'
+    const r1 = await (await post(sender, { sender: 'RiyadBank', sample: real })).json()
+    expect(r1).toMatchObject({ bank: true, name: 'بنك الرياض' })
+    expect(prompt).not.toMatch(/احمد|علي|1234|250/)
+    await post(sender, { sender: 'RIYADBANK', sample: real })
+    expect(calls).toBe(1)
+  })
+  it('رقم موبايل مش راسل بنك', async () => {
+    expect((await post(sender, { sender: '+966500000000', sample: 'x' })).status).toBe(400)
+  })
+})

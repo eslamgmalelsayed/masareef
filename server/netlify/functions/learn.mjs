@@ -1,5 +1,5 @@
 // POST /api/learn — شكل رسالة جديد: لو اتعلمناه قبل كده نرجّع قالبه (كاش مشترك لكل المستخدمين)، وإلا نسأل Gemini مرة واحدة
-import { store, json, preflight, body, okId, maskSample, shapeOf, validTemplate, linesOf, applyTemplate, anchorsFound } from '../../lib/common.mjs'
+import { store, json, preflight, body, okId, capOk, maskSample, shapeOf, validTemplate, linesOf, applyTemplate, anchorsFound } from '../../lib/common.mjs'
 import { askGemini } from '../../lib/gemini.mjs'
 
 export default async (req) => {
@@ -18,11 +18,7 @@ export default async (req) => {
   if (have && have.status !== 'disputed') return json({ template: have.template, status: have.status })
 
   // سقف يومي لنداءات Gemini على السيرفر كله (حماية من حرق الحصة). القوالب المتخزنة بتفضل شغالة عادي
-  const cap = Number(Netlify.env.get('GEMINI_DAILY_CAP')) || 500
-  const day = new Date().toISOString().slice(0, 10)
-  const { blobs: used } = await s.list({ prefix: `q/${day}/` })
-  if (used.length >= cap) return json({ error: 'daily limit', retryAfter: 'tomorrow' }, 429, { 'retry-after': '3600' })
-  await s.set(`q/${day}/${crypto.randomUUID()}`, '1')
+  if (!(await capOk(s))) return json({ error: 'daily limit', retryAfter: 'tomorrow' }, 429, { 'retry-after': '3600' })
 
   let tpl
   try { tpl = await askGemini(bank, clean, hint && typeof hint === 'object' ? { kind: String(hint.kind || ''), amountLine: Number.isInteger(hint.amountLine) ? hint.amountLine : null } : null) }

@@ -90,3 +90,33 @@ export function cleanAnchor(k, v) {
   else s = s.replace(/[\d*][\s\S]*$/, '')
   return s.trim() ? s : null
 }
+
+/** الراسل ده بنك/محفظة بيبعت عمليات صاحب الموبايل؟ (من اسم الراسل + رسالة مخفية البيانات) */
+export async function askSender(sender, sample) {
+  const out = await gemini(`An SMS sender ID and one of its recent messages (every digit randomized, every personal or merchant name replaced by XXXX / سسسس).
+Sender ID: ${sender}
+Message:
+${sample}
+
+Is this sender a bank, e-wallet, card issuer or payment / BNPL provider that notifies the phone owner about THEIR OWN money movements (purchases, transfers, deposits, withdrawals)?
+Answer NO for shops' marketing, delivery or ride apps, telecom top-up offers, government notices, OTP-only senders.
+Return JSON: isFinancial (boolean), name = a short display name for the institution in Arabic if you know it (e.g. "بنك الرياض", "فودافون كاش"), otherwise the sender ID as written.`, {
+    type: 'OBJECT', properties: { isFinancial: { type: 'BOOLEAN' }, name: { type: 'STRING' } }, required: ['isFinancial', 'name'],
+  })
+  return { bank: !!out.isFinancial, name: String(out.name || sender).slice(0, 30) }
+}
+
+/** نداء عام لـ Gemini بـ JSON schema */
+export async function gemini(text, schema, temperature = 0) {
+  const key = Netlify.env.get('GEMINI_API_KEY')
+  if (!key) throw new Error('GEMINI_API_KEY missing')
+  const model = Netlify.env.get('GEMINI_MODEL') || 'gemini-3.5-flash-lite'
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }], generationConfig: { temperature, responseMimeType: 'application/json', responseSchema: schema } }),
+  })
+  if (!r.ok) throw new Error('gemini ' + r.status + ' ' + (await r.text()).slice(0, 200))
+  const j = await r.json()
+  return JSON.parse(j.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '{}')
+}

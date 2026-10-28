@@ -27,7 +27,7 @@ import TransfersView from './components/TransfersView.vue'
 import SavingsView from './components/SavingsView.vue'
 import { pullLoanAnswers } from './lib/debts.js'
 import './lib/extras.js'
-import './lib/smart.js'
+import { autoBanks } from './lib/smart.js'
 import DebtsView from './components/DebtsView.vue'
 import ToolsView from './components/ToolsView.vue'
 import FundsView from './components/FundsView.vue'
@@ -81,7 +81,7 @@ function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t)) { if (!
 
 // أول تشغيل على الموبايل: شاشة الصلاحيات الأول (اللي استخدم التطبيق قبل كده مش هيشوفها)
 const onboarded = ref(!isNative || !!localStorage.getItem('onboarded') || !!localStorage.getItem('lastSync'))
-function start() { syncSms().then(() => { findNewBanks(); pullLoanAnswers() }) }
+function start() { syncSms().then(() => { findNewBanks().then(autoBanks); pullLoanAnswers() }) }
 function finishOnboarding() { try { localStorage.setItem('onboarded', '1') } catch {} onboarded.value = true }
 onMounted(() => { if (onboarded.value) start(); checkUpdate() })
 const refresh = () => Promise.all([syncSms(), checkUpdate()])

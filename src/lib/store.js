@@ -69,6 +69,17 @@ export function addBank(address, name) {
   saveSettings()
   syncSms()
 }
+/** بنوك اتعرفت لوحدها (القراية الذكية): بنضيفهم مرة واحدة ونقرا مرة واحدة */
+export function addBanks(list) {
+  const m = { ...(state.settings.extraBanks || {}) }
+  for (const [address, name] of list) m[address.trim().toLowerCase()] = name || KNOWN_NAMES[address.trim().toLowerCase()] || address
+  state.settings.extraBanks = m
+  setExtraBanks(m)
+  const ks = new Set(list.map(([a]) => a.trim().toLowerCase()))
+  state.bankSuggestions = state.bankSuggestions.filter((x) => !ks.has(x.address.toLowerCase()))
+  saveSettings()
+  return syncSms()
+}
 export function dismissBank(address) {
   state.settings.bankDismiss = [...(state.settings.bankDismiss || []), address.toLowerCase()]
   state.bankSuggestions = state.bankSuggestions.filter((x) => x.address.toLowerCase() !== address.toLowerCase())
