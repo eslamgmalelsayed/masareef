@@ -1,6 +1,6 @@
 // اختبارات الحسابات: الاشتراكات، الأقساط، الكريدت، الديون، الحدود، والخصوصية
 import { describe, it, expect, beforeEach } from 'vitest'
-import { state, allTx, spendTx, incomeTx, effLimits, cycles, setCategory, clearOverride, levelOf, setSelfTx } from '../src/lib/store.js'
+import { state, allTx, spendTx, incomeTx, effLimits, cycles, setCategory, clearOverride, levelOf, setSelfTx, setTxCat } from '../src/lib/store.js'
 import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
@@ -335,5 +335,26 @@ describe('تحويل بين حساباتك', () => {
   it('نفس البنك، أو فرق وقت كبير، أو تحويل لحد باسمه = مش تحويل بين حساباتك', () => {
     state.smsTx = [tx(1, 'transfer', 700, '*8328', { b: 'الأهلي' }), tx(1, 'in', 700, '', { b: 'الأهلي' }), tx(5, 'transfer', 900, '—', { b: 'الأهلي' }), tx(2, 'in', 900, '', { b: 'الراجحي' }), tx(8, 'transfer', 2301, 'محمد محمود', { b: 'الأهلي' }), tx(8, 'in', 2301, '', { b: 'STC Pay' })]
     expect(allTx.value.filter((t) => t.k === 'self').length).toBe(0)
+  })
+})
+
+describe('بند لعملية واحدة بس', () => {
+  it('حوالة كهربا لشخص: العملية دي بس تروح فواتير، والباقي يفضل تحويلات', () => {
+    state.overrides = {}; state.txCats = {}
+    state.smsTx = [tx(1, 'transfer', 300, 'على ابراهيم حسن'), tx(9, 'transfer', 500, 'على ابراهيم حسن')]
+    setCategory(allTx.value[0], 'bills', true)
+    expect(allTx.value[0].c).toBe('bills')
+    expect(allTx.value[1].c).toBe('transfer')
+    setTxCat(allTx.value[0].id, null)
+    expect(allTx.value[0].c).toBe('transfer')
+  })
+  it('لو نقلت الشخص كله غلط: تخلي العملية دي بس وترجّع الباقي', () => {
+    state.overrides = {}; state.txCats = {}
+    state.smsTx = [tx(1, 'transfer', 300, 'على ابراهيم حسن'), tx(9, 'transfer', 500, 'على ابراهيم حسن')]
+    setCategory(allTx.value[0], 'bills')
+    expect(allTx.value.every((t) => t.c === 'bills')).toBe(true)
+    setTxCat(allTx.value[0].id, 'bills'); clearOverride(merchantKey('على ابراهيم حسن'))
+    expect(allTx.value.map((t) => t.c)).toEqual(['bills', 'transfer'])
+    state.overrides = {}; state.txCats = {}
   })
 })

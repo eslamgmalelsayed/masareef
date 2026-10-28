@@ -1,10 +1,10 @@
 <script setup>
 import BottomSheet from './BottomSheet.vue'
 import { ask, choose } from '../lib/dialog.js'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
-import { allTx, setCategory, deleteManual, setSelfTx } from '../lib/store.js'
+import { allTx, state, setCategory, setTxCat, clearOverride, deleteManual, setSelfTx } from '../lib/store.js'
 import { showToast } from '../lib/toast.js'
 import { fmt2, fmt, fmtDate } from '../lib/format.js'
 import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson, lentPending, markLoan, answerNo, unanswer, unignorePerson } from '../lib/debts.js'
@@ -21,13 +21,31 @@ const same = computed(() => {
   return { n: r.length, a: r.reduce((s, x) => s + x.a, 0) }
 })
 // تغيير البند: الشاشة بتفضل مفتوحة والاختيار بيتغير قدامك
+// العملية دي بس ولا كل عمليات المحل/الشخص؟ (التحويلات: افتراضيًا العملية دي بس)
+const scope = ref(props.t.one || ['transfer', 'intl', 'in'].includes(props.t.k) ? 'one' : 'all')
+const showScope = computed(() => props.t.k !== 'manual' && same.value.n > 1)
 function pick(id) {
   const t = props.t
   if (id === t.c) return
   const prev = t.c
-  const n = t.k === 'manual' ? 1 : allTx.value.filter((x) => merchantKey(x.m) === merchantKey(t.m) && x.k === t.k).length
+  if (showScope.value && scope.value === 'one') {
+    const was = state.txCats[t.id] || null
+    setCategory(t, id, true)
+    showToast(`✓ العملية دي بس اتنقلت لـ ${CAT[id].name}`, () => setTxCat(t.id, was))
+    return
+  }
+  const n = t.k === 'manual' ? 1 : same.value.n
   setCategory(t, id)
   showToast(`✓ ${t.k === 'manual' ? 'المصروف' : n > 1 ? `كل عمليات ${t.m} (${n})` : t.m} اتنقلت لـ ${CAT[id].name}`, () => setCategory(t, prev))
+}
+// المحل/الشخص كله متنقل لبند — تقدر تخلي العملية دي بس فيه وترجّع الباقي
+const ovCat = computed(() => (props.t.k !== 'manual' && same.value.n > 1 ? state.overrides[merchantKey(props.t.m)] || '' : ''))
+function onlyThis() {
+  const t = props.t, cat = ovCat.value, key = merchantKey(t.m)
+  setTxCat(t.id, cat)
+  clearOverride(key)
+  scope.value = 'one'
+  showToast(`✓ العملية دي بس في ${CAT[cat].name} — والباقي رجع لبنده`, () => { setTxCat(t.id, null); setCategory(t, cat) })
 }
 // لو العملية دي عليها تنبيه (مكررة / أكبر من عادتك) — نعرضه هنا ونقفله من هنا
 const flag = computed(() => unusual.value.find((f) => f.tx.id === props.t.id) || null)
@@ -92,7 +110,15 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
 
       <template v-if="isOut">
         <h3>غيّر البند</h3>
-        <div class="muted xs" style="margin-bottom: 10px" v-if="t.k !== 'manual'">هيتطبّق على كل عمليات «{{ t.m }}»</div>
+        <div v-if="showScope" class="scope">
+          <button :class="{ on: scope === 'one' }" @click="scope = 'one'">العملية دي بس</button>
+          <button :class="{ on: scope === 'all' }" @click="scope = 'all'">{{ ['transfer', 'intl', 'in'].includes(t.k) ? 'كل تحويلاته' : 'كل عمليات المحل' }} ({{ same.n }})</button>
+        </div>
+        <div v-if="ovCat && !t.one" class="ovnote">
+          <span>📌 كل عمليات «<bdi>{{ t.m }}</bdi>» متنقلة لـ {{ CAT[ovCat].name }}</span>
+          <button class="link" @click="onlyThis">خليها العملية دي بس</button>
+        </div>
+        <div v-else-if="t.one" class="muted xs" style="margin-bottom: 10px">📌 العملية دي بس في {{ CAT[t.c].name }} <button class="link xs" @click="setTxCat(t.id, null)">رجّعها</button></div>
         <CatPicker :selected="t.c" :exclude="['ccpay']" @pick="pick" />
       </template>
       <div v-if="t.k === 'manual'" class="mact">
@@ -129,6 +155,10 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 .fact { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap }
 .fact .ok { border: 0; border-radius: 12px; padding: 9px 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer }
 .autoloan { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500 }
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--surface-2); border-radius: 12px; padding: 3px; margin-bottom: 10px }
+.scope button { border: 0; background: none; font: inherit; font-size: 12.5px; padding: 8px 6px; border-radius: 10px; color: var(--ink-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.scope button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08) }
+.ovnote { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px; padding: 9px 12px; border-radius: 12px; background: var(--accent-soft); font-size: 13px }
 .selfbox { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; padding: 11px 12px; border-radius: 14px; background: var(--surface-2); font-size: 13.5px; text-align: center }
 .selfbtn { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px }
 .autoloan .ab { display: flex; gap: 6px }

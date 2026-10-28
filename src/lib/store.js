@@ -37,6 +37,7 @@ export const state = reactive({
   settings: { ...DEFAULT_SETTINGS, ...saved },
   detected: LS.get('detected', { accounts: [], selfNames: [], displayName: '' }),
   overrides: LS.get('overrides', {}),
+  txCats: LS.get('txCats', {}), // بند لعملية واحدة بس (id → بند) — بيغلب على بند المحل/الشخص
   smsTx: [],
   importedTx: LS.get('importedTx', []),
   manualTx: LS.get('manualTx', []), // مصاريف بتضيفها بإيدك
@@ -180,12 +181,22 @@ export function clearImported() {
   LS.set('importedBnpl', [])
 }
 
-export function setCategory(tx, catId) {
+export function setCategory(tx, catId, only = false) {
   if (tx.k === 'manual') { const m = state.manualTx.find((x) => x.id === tx.id); if (m) saveManual({ ...m, cat: catId }); return }
+  if (only) return setTxCat(tx.id, catId)
+  if (state.txCats[tx.id]) setTxCat(tx.id, null) // نقلت المحل كله → العملية دي تمشي معاه
   const key = merchantKey(tx.m)
   if (!key) return
   state.overrides = { ...state.overrides, [key]: catId }
   LS.set('overrides', state.overrides)
+}
+/** بند للعملية دي بس (null = رجّعها لبند المحل/الشخص) */
+export function setTxCat(id, catId) {
+  const o = { ...state.txCats }
+  if (catId) o[id] = catId
+  else delete o[id]
+  state.txCats = o
+  LS.set('txCats', o)
 }
 /** تراجع عن نقل محل لبند (يرجع للتصنيف التلقائي) */
 export function clearOverride(key) {
@@ -237,7 +248,8 @@ export const allTx = computed(() => {
   for (const t of state.importedTx) byId.set(t.id, t)
   for (const t of state.smsTx) byId.set(t.id, t)
   const ov = state.overrides
-  const out = [...byId.values()].map((t) => ({ ...t, c: categorize(t, ov), d: new Date(t.ts) }))
+  const one = state.txCats
+  const out = [...byId.values()].map((t) => ({ ...t, c: one[t.id] || categorize(t, ov), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) }))
   markSelf(out)
   for (const t of state.manualTx) {
     out.push({ ...t, c: t.cat, d: new Date(t.ts) })
@@ -500,7 +512,7 @@ function pushNativeConfig() {
 }
 let pushTimer = null
 watch(
-  () => [state.status, nativeExtra, privacy.on, state.settings.extraBanks, state.settings.rollover, state.settings.warnPct, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
+  () => [state.status, state.txCats, nativeExtra, privacy.on, state.settings.extraBanks, state.settings.rollover, state.settings.warnPct, state.settings.limits, state.settings.groups, state.settings.income, state.settings.totalLimit, state.settings.totalAlert, state.settings.dayLimit, state.settings.weekLimit, state.settings.periodBase, state.settings.periodValue, cycleDays.value, periodStarts.value.day.getTime(), state.settings.includeTransfers, state.overrides, state.smsTx.length, state.importedTx.length, state.manualTx, state.webMsgs],
   () => {
     if (state.status !== 'ready') return
     clearTimeout(pushTimer)

@@ -2,7 +2,7 @@ import { state } from './store.js'
 import { isNative } from './smsSource.js'
 
 // اللي بتكتبه بإيدك بس — الرسايل نفسها بتتقري من الموبايل تاني
-const KEYS = ['settings', 'overrides', 'manualTx', 'webMsgs', 'importedTx', 'importedBnpl', 'detected']
+const KEYS = ['settings', 'overrides', 'txCats', 'manualTx', 'webMsgs', 'importedTx', 'importedBnpl', 'detected']
 
 export async function exportBackup() {
   const data = { app: 'masareef', v: 1, at: Date.now() }
