@@ -4,7 +4,8 @@ import { ask, choose } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
-import { allTx, state, setCategory, setTxCat, clearOverride, deleteManual, setSelfTx } from '../lib/store.js'
+import { allTx, state, setCategory, setTxCat, clearOverride, deleteManual, setSelfTx, setTxFix } from '../lib/store.js'
+import { reportWrong } from '../lib/smart.js'
 import { showToast } from '../lib/toast.js'
 import { fmt2, fmt, fmtDate, sym } from '../lib/format.js'
 import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson, lentPending, markLoan, answerNo, unanswer, unignorePerson } from '../lib/debts.js'
@@ -67,6 +68,28 @@ async function notLoanAsk() {
 }
 function selfOn() { const t = props.t; setSelfTx(t, true); showToast('🔁 اتشالت من المصاريف — تحويل بين حساباتك', () => setSelfTx(t, false)) }
 function selfOff() { const t = props.t; setSelfTx(t, false); showToast('✓ رجعت تتحسب', () => setSelfTx(t, true)) }
+// "الرسالة دي اتقرت غلط؟": تختار الصح، يتطبّق على طول، والقراية الذكية تتعلم الشكل ده من جديد
+const KINDS_FIX = [['purchase', '🛍️ شراء'], ['transfer', '↔️ تحويل لشخص'], ['in', '⬇️ فلوس داخلة'], ['salary', '💰 راتب'], ['refund', '↩️ استرداد'], ['bill', '🧾 فاتورة'], ['cash', '💵 سحب نقدي']]
+async function wrong() {
+  const t = props.t
+  const v = await choose({ icon: '🤖', title: 'إيه الغلط؟', text: 'تصحيحك بيتطبّق على طول، والتطبيق بيتعلم شكل الرسالة دي من جديد', options: [
+    { label: 'النوع غلط', value: 'kind', kind: 'primary' },
+    { label: 'دي مش عملية (شيلها)', value: 'hide' },
+    { label: 'إلغاء', value: null },
+  ] })
+  if (!v) return
+  let fix
+  if (v === 'hide') fix = { hide: true }
+  else {
+    const k = await choose({ icon: '🏷️', title: 'النوع الصح', options: [...KINDS_FIX.filter(([id]) => id !== t.k).map(([id, l]) => ({ label: l, value: id })), { label: 'إلغاء', value: null }] })
+    if (!k) return
+    fix = { k }
+  }
+  setTxFix(t.id, fix)
+  reportWrong(t, fix)
+  showToast('🙏 اتصلّحت — والتطبيق بيتعلم الشكل ده من جديد', () => setTxFix(t.id, null))
+  if (fix.hide) emit('close')
+}
 function markDebt() {
   if (props.t.k === 'transfer') { markLoan(props.t.id); showToast('🤝 اتسجلت سلفة — هتلاقيها في الديون (ليّا)', () => unanswer(props.t.id)); return }
   debtFromTx(props.t); emit('close'); emit('go', 'debts')
@@ -127,6 +150,7 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         <button class="ed" @click="emit('edit', t)">✏️ تعديل</button>
         <button class="dl" @click="del">🗑 مسح</button>
       </div>
+      <button v-if="t.sh && t.k !== 'manual'" class="wrong" @click="wrong">🤖 الرسالة دي اتقرت غلط؟</button>
       <button class="close" @click="emit('close')">تمام</button>
     </BottomSheet>
 </template>
@@ -161,6 +185,7 @@ h3 { font-size: 15px; margin: 22px 0 2px }
 .scope button { border: 0; background: none; font: inherit; font-size: 12.5px; padding: 8px 6px; border-radius: 10px; color: var(--ink-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .scope button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08) }
 .ovnote { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px; padding: 9px 12px; border-radius: 12px; background: var(--accent-soft); font-size: 13px }
+.wrong { display: block; margin: 14px auto 0; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px }
 .selfbox { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; padding: 11px 12px; border-radius: 14px; background: var(--surface-2); font-size: 13.5px; text-align: center }
 .selfbtn { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px }
 .autoloan .ab { display: flex; gap: 6px }

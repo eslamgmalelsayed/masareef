@@ -1,6 +1,6 @@
 // اختبارات الحسابات: الاشتراكات، الأقساط، الكريدت، الديون، الحدود، والخصوصية
 import { describe, it, expect, beforeEach } from 'vitest'
-import { state, allTx, spendTx, incomeTx, effLimits, cycles, setCategory, clearOverride, levelOf, setSelfTx, setTxCat } from '../src/lib/store.js'
+import { state, allTx, spendTx, incomeTx, effLimits, cycles, setCategory, clearOverride, levelOf, setSelfTx, setTxCat, setTxFix } from '../src/lib/store.js'
 import { merchantKey } from '../src/lib/categories.js'
 import { subscriptions, bnplPlans, unusual } from '../src/lib/insights.js'
 import { creditCards } from '../src/lib/credit.js'
@@ -356,5 +356,20 @@ describe('بند لعملية واحدة بس', () => {
     setTxCat(allTx.value[0].id, 'bills'); clearOverride(merchantKey('على ابراهيم حسن'))
     expect(allTx.value.map((t) => t.c)).toEqual(['bills', 'transfer'])
     state.overrides = {}; state.txCats = {}
+  })
+})
+
+describe('"الرسالة دي اتقرت غلط؟"', () => {
+  it('النوع الصح بيتطبّق على طول، و"مش عملية" بتختفي — وتقدر تتراجع', () => {
+    state.settings.txFix = {}
+    state.smsTx = [tx(1, 'transfer', 300, 'STORE X'), tx(2, 'purchase', 50, 'PROMO')]
+    const [a, b] = state.smsTx
+    setTxFix(a.id, { k: 'purchase' })
+    expect(allTx.value.find((t) => t.id === a.id).k).toBe('purchase')
+    setTxFix(b.id, { hide: true })
+    expect(allTx.value.some((t) => t.id === b.id)).toBe(false)
+    setTxFix(b.id, null)
+    expect(allTx.value.some((t) => t.id === b.id)).toBe(true)
+    state.settings.txFix = {}
   })
 })

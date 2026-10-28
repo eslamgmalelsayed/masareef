@@ -48,10 +48,40 @@ function onParsed(out) {
     report(m)
     pending.set(m.id, { ...m, n: 1, hint: hintFrom(m) })
   }
+  // نسخة مخفية من كل شكل (مش الرسالة الحقيقية) — علشان زرار "اتقرت غلط؟" يقدر يطلب يتعلم من جديد
+  if (out.samples?.size) {
+    const sm = LS.get('shapeSamples', {})
+    let n = 0
+    for (const [id, x] of out.samples) if (!sm[id]) { sm[id] = { bank: x.bank, sample: maskSample(x.body) }; n++ }
+    if (n) LS.set('shapeSamples', sm)
+  }
   smart.waiting = pending.size
   if (pending.size) schedule()
 }
 setSmartHook(onParsed)
+
+/**
+ * "الرسالة دي اتقرت غلط": بنشيل قالب الشكل (لو موجود) ونبلّغ، ونطلب يتعلم من جديد بالتصحيح بتاعك.
+ * fix: { k: النوع الصح } أو { hide: true } (مش عملية)
+ */
+export function reportWrong(t, fix = {}) {
+  const sm = LS.get('shapeSamples', {})[t.sh]
+  if (!t.sh || !sm) return false
+  const tpl = state.tpls[t.sh]
+  if (tpl) {
+    bad[t.sh] = tpl
+    LS.set('tplBad', bad)
+    const tpls = { ...state.tpls }
+    delete tpls[t.sh]
+    setTemplates(tpls)
+  }
+  api('/api/report', { id: t.sh, device: deviceId(), got: 'user' }).catch(() => {})
+  delete tried[t.sh]
+  pending.set(t.sh, { id: t.sh, bank: sm.bank, body: sm.sample, n: 99, hint: { kind: fix.hide ? 'ignore' : fix.k || t.k, amountLine: null } })
+  smart.waiting = pending.size
+  setTimeout(run, 2500) // بعد ما البلاغ يوصل
+  return true
+}
 
 /** القراية القديمة قالت إيه — بنبعت مكان المبلغ ونوع العملية بس (مفيش بيانات) */
 function hintFrom(m) {

@@ -178,6 +178,7 @@ export function parseMessages(messages, profile, tpls = null) {
   const seen = new Set()
   const unknown = new Map()
   const mismatch = new Map()
+  const samples = new Map() // شكل → رسالة منه (علشان "اتقرت غلط؟")
   for (const msg of messages) {
     const bank = bankOf(msg.address)
     if (!bank) continue
@@ -195,6 +196,7 @@ export function parseMessages(messages, profile, tpls = null) {
     const old = skipped ? null : classify(msg.address, b, ts, profile)
     let r = viaT || old
     const ai = !!viaT
+    if (sh && !samples.has(sh.id)) samples.set(sh.id, { bank, body: b })
     if (sh && !t) {
       const u = unknown.get(sh.id)
       if (u) u.n++
@@ -222,6 +224,7 @@ export function parseMessages(messages, profile, tpls = null) {
       ...meta(b),
       ...(r[3] || (r !== old ? {} : origCur(b))),
       ...(ai && r !== old ? { ai: 1 } : {}),
+      ...(sh ? { sh: sh.id } : {}),
     })
   }
   // الكروت الائتمانية: أي كارت اتسدد أو اتذكر إنه "ائتمانية/credit"
@@ -234,6 +237,7 @@ export function parseMessages(messages, profile, tpls = null) {
   out.sort((x, y) => y.ts - x.ts)
   out.unknown = unknown
   out.mismatch = mismatch
+  out.samples = samples
   return out
 }
 

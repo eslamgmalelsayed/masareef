@@ -268,6 +268,14 @@ export function setCategory(tx, catId, only = false) {
   state.overrides = { ...state.overrides, [key]: catId }
   LS.set('overrides', state.overrides)
 }
+/** تصحيح عملية اتقرت غلط: { k: النوع الصح } أو { hide: true }. null = شيل التصحيح */
+export function setTxFix(id, f) {
+  const m = { ...(state.settings.txFix || {}) }
+  if (f) m[id] = f
+  else delete m[id]
+  state.settings.txFix = m
+  saveSettings()
+}
 /** بند للعملية دي بس (null = رجّعها لبند المحل/الشخص) */
 export function setTxCat(id, catId) {
   const o = { ...state.txCats }
@@ -327,7 +335,14 @@ export const allTx = computed(() => {
   for (const t of state.smsTx) byId.set(t.id, t)
   const ov = state.overrides
   const one = state.txCats
-  const out = [...byId.values()].map((t) => ({ ...t, c: one[t.id] || categorize(t, ov), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) }))
+  const fix = state.settings.txFix || {} // "اتقرت غلط؟": تصحيحك بيتطبّق على طول لحد ما القالب الجديد يوصل
+  const out = []
+  for (const t0 of byId.values()) {
+    const f = fix[t0.id]
+    if (f?.hide) continue
+    const t = f?.k ? { ...t0, k: f.k, fixed: 1 } : t0
+    out.push({ ...t, c: one[t.id] || categorize(t, ov), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) })
+  }
   markSelf(out)
   for (const t of state.manualTx) {
     out.push({ ...t, c: t.cat, d: new Date(t.ts) })

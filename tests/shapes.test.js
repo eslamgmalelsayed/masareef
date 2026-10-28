@@ -156,3 +156,12 @@ describe('عملة البيت بتتعرف لوحدها', async () => {
     expect(normCur('SR')).toBe('SAR')
   })
 })
+
+describe('كل عملية عارفة شكلها', () => {
+  it('sh على العملية + نسخة من كل شكل', () => {
+    const msg = { address: 'AlRajhiBank', date: 1761600000000, body: 'شراء انترنت\nبطاقة:*6056;مدى\nلدى:NOON\nمبلغ:SAR 40.00\nفي:22-10-31 13:44' }
+    const out = parseMessages([msg], {}, {})
+    expect(out[0].sh).toBe(shapeOf('الراجحي', msg.body).id)
+    expect(out.samples.get(out[0].sh).body).toContain('NOON')
+  })
+})
