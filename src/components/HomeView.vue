@@ -59,13 +59,16 @@ const prevSame = computed(() => {
 const last6 = computed(() => {
   const list = cycles.value.slice(-6)
   const cs = getComputedStyle(document.documentElement)
-  const accent = cs.getPropertyValue('--accent').trim(), dim = cs.getPropertyValue('--bar-dim').trim()
+  const v = (k) => cs.getPropertyValue(k).trim()
+  const accent = v('--accent'), bad = v('--bad')
   const data = list.map((c) => sum(spendTx.value.filter((t) => t.d >= c.from && t.d <= c.to)))
+  // أخضر = صرفت أقل من الراتب، أحمر = صرفت أكتر منه. الراتب ده لونه كامل، اللي فاتوا باهتين
+  const col = (i) => { const c = list[i].salary && data[i] > list[i].salary ? bad : accent; return i === list.length - 1 ? c : c + '59' }
   return {
     labels: list.map((c) => c.short),
     datasets: [
-      { label: 'الصرف', data, colors: data.map((_, i) => (i === list.length - 1 ? accent : dim)) },
-      { type: 'line', label: 'الراتب', data: list.map((c) => c.salary), color: cs.getPropertyValue('--ink-2').trim() },
+      { label: 'الصرف', data, colors: data.map((_, i) => col(i)) },
+      { type: 'line', label: 'الراتب', data: list.map((c) => c.salary), color: v('--ink-3'), dots: false },
     ],
     rates: list.map((c, i) => ({ l: c.short, p: c.salary ? Math.round((1 - data[i] / c.salary) * 100) : 0 })),
   }
@@ -123,7 +126,7 @@ const showReview = ref(false)
         <div class="split3">
           <div :class="'pl ' + levelOf(today, dayLimit)"><div class="lbl">النهارده</div><div class="mid">{{ fmt(today) }}</div><div v-if="dayLimit" class="of">من {{ fmt(dayLimit) }}</div></div>
           <div :class="'pl ' + levelOf(week, weekLimit)"><div class="lbl">الأسبوع ده</div><div class="mid">{{ fmt(week) }}</div><div v-if="weekLimit" class="of">من {{ fmt(weekLimit) }}</div></div>
-          <div class="safe" @click="showSafe = !showSafe"><div class="lbl">تقدر تصرف/يوم ⓘ</div><div class="mid">{{ fmt(perDayAllowed) }}</div></div>
+          <button class="safe" :class="{ open: showSafe }" @click="showSafe = !showSafe"><div class="lbl">تقدر تصرف/يوم</div><div class="mid">{{ fmt(perDayAllowed) }}</div><div class="how">اتحسبت إزاي <i>⌄</i></div></button>
         </div>
         <div v-if="showSafe" class="safebox" @click="showSafe = false">
           <div v-for="p in safeToSpend.parts" :key="p.k" class="sr"><span>{{ p.label }}</span><b dir="ltr">{{ p.v < 0 ? '−' : '' }}{{ fmt(Math.abs(p.v)) }}</b></div>
@@ -216,6 +219,7 @@ const showReview = ref(false)
         <div v-for="r in last6.rates" :key="r.l"><span class="muted xs">{{ r.l }}</span><b :class="r.p >= 0 ? 'good' : 'bad'">{{ r.p }}٪</b></div>
       </div>
       <div class="muted xs" style="text-align: center; margin-top: 4px">نسبة اللي فضل من كل راتب · متوسط الراتب {{ fmt(avgSalary) }}</div>
+      <div class="lg muted xs"><span><i class="sw" style="background: var(--accent)"></i>أقل من الراتب</span><span><i class="sw" style="background: var(--bad)"></i>أكتر من الراتب</span><span><i class="dash"></i>الراتب</span></div>
     </section>
 
     <section class="card">
@@ -263,6 +267,10 @@ const showReview = ref(false)
 .cmp { display: flex; gap: 12px; align-items: center; font-size: 14px }
 .arrow { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex: none; font-size: 13px }
 .arrow.up { background: #fee2e2; color: #dc2626 } .arrow.down { background: #dcfce7; color: #15803d }
+.lg { display: flex; justify-content: center; gap: 14px; margin-top: 8px; flex-wrap: wrap }
+.lg span { display: inline-flex; align-items: center; gap: 5px }
+.lg .sw { width: 9px; height: 9px; border-radius: 3px }
+.lg .dash { width: 16px; border-top: 2px dashed var(--ink-3) }
 .rates { display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; margin-top: 8px }
 .rates > div { display: flex; flex-direction: column; font-size: 13px }
 .cct { display: flex; justify-content: space-between; gap: 8px; font-size: 14px }
@@ -288,7 +296,11 @@ const showReview = ref(false)
 .ntx { border: 0; background: none; padding: 0; font: inherit; font-size: 13.5px; color: inherit; text-align: right; cursor: pointer }
 .eye { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; flex: none; align-self: center }
 .eye.on { background: var(--accent); border-color: var(--accent); color: #fff }
-.safe { cursor: pointer }
+.safe { all: unset; box-sizing: border-box; cursor: pointer; text-align: right; margin: -6px -8px; padding: 6px 8px; border-radius: 12px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22) }
+.safe:active { background: rgba(255,255,255,.2) }
+.safe .how { font-size: 11.5px; opacity: .85; margin-top: 2px; text-decoration: underline; text-underline-offset: 3px }
+.safe .how i { display: inline-block; font-style: normal; text-decoration: none; transition: transform .2s }
+.safe.open .how i { transform: rotate(180deg) }
 .safebox { margin-top: 12px; background: rgba(255,255,255,.1); border-radius: 14px; padding: 8px 12px; font-size: 12.5px; cursor: pointer }
 .safebox .sr { display: flex; justify-content: space-between; padding: 4px 0 }
 .safebox .sr b { font-variant-numeric: tabular-nums }

@@ -198,7 +198,7 @@ export async function syncSms(full = false) {
 
 // ===== كاش القراية =====
 // اتغيّر أي حاجة من دي → قراية كاملة مرة واحدة: نسخة القراية، اسمك وحساباتك، البنوك، أو عدد القوالب
-const PARSER_V = 'p3'
+const PARSER_V = 'p4'
 function cacheSig(senders) {
   return [PARSER_V, state.homeCur, JSON.stringify(profile()), senders.slice().sort().join(','), Object.keys(state.tpls || {}).length].join('|')
 }
@@ -308,8 +308,14 @@ function markSelf(list) {
   const ins = list.filter((t) => t.k === 'in' && !not.has(t.id))
   const used = new Set()
   for (const t of list) {
-    if (not.has(t.id)) continue
+    if (not.has(t.id)) { if (t.k === 'self') t.k = 'transfer'; continue } // "مش بين حساباتي" على حاجة القراية قالت عليها كده
     if (mine.has(t.id) && ['transfer', 'in', 'intl'].includes(t.k)) { t.k = 'self'; continue }
+    // القراية عرفت إنها لحسابك (اسمك أو رقم حسابك) → الوارد اللي قصادها في البنك التاني كمان بين حساباتك
+    if (t.k === 'self' && !t.pair) {
+      const m = ins.find((x) => !used.has(x.id) && x.b !== t.b && Math.abs(x.ts - t.ts) <= SELF_WIN && Math.abs(x.a - t.a) <= 1)
+      if (m) { used.add(m.id); t.pair = m.id; m.k = 'self'; m.pair = t.id }
+      continue
+    }
     // بس لو التحويل مفيهوش اسم شخص (— أو رقم حساب) — التحويل لحد باسمه ممكن يصادف وارد بنفس المبلغ
     if (t.k !== 'transfer' || /[A-Za-z\u0600-\u06FF]{3}/.test(t.m || '')) continue
     const m = ins.find((x) => !used.has(x.id) && x.b !== t.b && Math.abs(x.ts - t.ts) <= SELF_WIN && Math.abs(x.a - t.a) <= 1)

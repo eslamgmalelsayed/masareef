@@ -63,7 +63,7 @@ const usedCats = computed(() => CATEGORIES.filter((c) => !c.hidden && allTx.valu
     </div>
     <div class="pills scroll" v-if="kind !== 'in'">
       <button class="pill" :class="{ on: ccOnly }" @click="ccOnly = !ccOnly">💳 كريدت بس</button>
-      <button class="pill" :class="{ on: !cat }" @click="cat = ''">كل البنود</button>
+      <button class="pill" :class="{ on: !cat && !ccOnly }" @click="cat = ''; ccOnly = false">كل البنود</button>
       <button v-for="c in usedCats" :key="c.id" class="pill" :class="{ on: cat === c.id }" @click="cat = cat === c.id ? '' : c.id">{{ c.icon }} {{ c.name }}</button>
     </div>
     <div v-if="bankF" class="bankchip">🏦 {{ bankF }} <button class="link" @click="bankF = ''">✕</button></div>

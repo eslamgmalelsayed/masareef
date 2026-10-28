@@ -29,7 +29,7 @@ function build() {
       labels: [...props.labels],
       datasets: props.datasets.map((d) =>
         d.type === 'line'
-          ? { type: 'line', label: d.label, data: [...d.data], borderColor: d.color, backgroundColor: d.color, borderWidth: 2, borderDash: [5, 4], pointRadius: 3, pointHoverRadius: 5, tension: 0, stack: 'line', order: -1 }
+          ? { type: 'line', label: d.label, data: [...d.data], borderColor: d.color, backgroundColor: d.color, borderWidth: d.dots === false ? 1.5 : 2, borderDash: [5, 4], pointRadius: d.dots === false ? 0 : 3, pointHoverRadius: 5, tension: 0, stack: 'line', order: -1 }
           : { label: d.label, data: [...d.data], backgroundColor: d.colors ? [...d.colors] : d.color, borderRadius: props.stacked ? 3 : 6, borderSkipped: false, maxBarThickness: 30, stack: 'bars' },
       ),
     },

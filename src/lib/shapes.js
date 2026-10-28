@@ -134,16 +134,17 @@ export function applyTemplate(t, body, ts, profile = {}) {
   const a = am.v
   const pSeg = t.partyLine == null ? null : segment(ls[t.partyLine], t.partyAfter, t.partyBefore)
   const p = pSeg == null ? { name: '', acct: '' } : cleanParty(pSeg)
-  if (t.kind === 'transfer') {
+  let kind = t.kind
+  if (kind === 'transfer') {
     const self = (profile.selfNames || []).filter(Boolean)
-    if (self.some((n) => p.name.toLowerCase().includes(String(n).toLowerCase()))) return ['ignore', a, 'self']
-    if (p.acct && (profile.accounts || []).some((x) => x && (String(x).endsWith(p.acct) || p.acct.endsWith(String(x))))) return ['ignore', a, 'self']
+    if (self.some((n) => p.name.toLowerCase().includes(String(n).toLowerCase()))) kind = 'self'
+    if (p.acct && (profile.accounts || []).some((x) => x && (String(x).endsWith(p.acct) || p.acct.endsWith(String(x))))) kind = 'self'
   }
   // الرصيد والعملة (لو القالب حددهم) — بيدخلوا مع العملية
   const extra = {}
   if (t.balanceLine != null) { const bs = segment(ls[t.balanceLine], t.balanceAfter, t.balanceBefore); const bal = bs == null ? null : amountIn(bs, ts, t.currency); if (bal) extra.bal = bal.v }
   if (am.cur !== homeCur()) { extra.cur = am.cur; extra.oa = am.oa } // اتدفعت بعملة تانية: بنحفظ المبلغ الأصلي
-  return [t.kind, a, p.name, extra]
+  return [kind, a, kind === 'self' ? p.name || 'بين حساباتك' : p.name, extra]
 }
 
 const MONEY = /(SAR|SR|ر\.?\s?س|ريال|USD|EUR|AED|EGP|KWD|QAR|BHD|OMR|JOD)\s*:?\s*[\d,]+|[\d,]+(\.\d+)?\s*(SAR|SR|ر\.?\s?س|ريال|USD|EUR|AED|EGP|KWD|QAR|BHD|OMR|JOD|جنيه|درهم|دينار)|(مبلغ|Amount|القيمة)\s*:?\s*[\d,]+/i

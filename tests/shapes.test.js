@@ -36,8 +36,8 @@ describe('تطبيق القالب', () => {
     expect(applyTemplate(T, AHLI_2, 0)).toEqual(['transfer', 750.5, 'سامي محمد العلي', {}])
   })
   it('تحويل لحساب من حساباتك أو باسمك = تحويل لنفسك', () => {
-    expect(applyTemplate(T, AHLI_1, 0, { accounts: ['8328'] })[0]).toBe('ignore')
-    expect(applyTemplate(T, AHLI_1, 0, { selfNames: ['تست'] })[0]).toBe('ignore')
+    expect(applyTemplate(T, AHLI_1, 0, { accounts: ['8328'] })[0]).toBe('self')
+    expect(applyTemplate(T, AHLI_1, 0, { selfNames: ['تست'] })[0]).toBe('self')
   })
   it('الحارس: لو سطر المبلغ مفيهوش مبلغ، القالب مايتستخدمش', () => {
     expect(applyTemplate({ kind: 'transfer', amountLine: 2, partyLine: 1 }, AHLI_1, 0)).toBe(null)

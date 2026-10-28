@@ -143,11 +143,11 @@ export function classify(addr, b, ts, profile) {
     if (f === 'Internal transfer' && /From:/.test(b)) return ['in', a, '']
     if (/^Incoming/i.test(f)) return ['in', a, '']
     const cp = counterparty(b)
-    if ((SELF && SELF.test(cp)) || (/urpay/i.test(addr) && !cp)) return ['ignore', a, 'self']
+    if ((SELF && SELF.test(cp)) || (/urpay/i.test(addr) && !cp)) return ['self', a, cp || 'بين حساباتك']
     // التحويل رايح لحساب من حساباتك (رقمه في أول الاسم: "ل*8328 اسلام")
     const acct = leadAcct(counterpartyRaw(b))
-    if (acct && (profile.accounts || []).some((x) => x && (String(x).endsWith(acct) || acct.endsWith(String(x))))) return ['ignore', a, 'self']
-    if (ACC && ACC.test(cp) && !/[A-Za-z؀-ۿ]{3}/.test(cp)) return ['ignore', a, 'self']
+    if (acct && (profile.accounts || []).some((x) => x && (String(x).endsWith(acct) || acct.endsWith(String(x))))) return ['self', a, cp || 'بين حساباتك']
+    if (ACC && ACC.test(cp) && !/[A-Za-z؀-ۿ]{3}/.test(cp)) return ['self', a, cp || 'بين حساباتك']
     return ['transfer', a, cp]
   }
   if (/مدفوعات|سداد|فاتورة|Bill|payment/i.test(f)) {
@@ -226,6 +226,12 @@ export function parseMessages(messages, profile, tpls = null) {
       ...(ai && r !== old ? { ai: 1 } : {}),
       ...(sh ? { sh: sh.id } : {}),
     })
+    // الحوالة المحلية (أو اللي بين حساباتك) مش دايمًا مصروف، بس رسومها مصروف فعلي → عملية رسوم لوحدها
+    const tx = out[out.length - 1]
+    if (tx.fee && tx.k !== 'intl') {
+      out.push({ id: tx.id + ':fee', ts, a: r2(tx.fee), k: 'fee', m: 'رسوم حوالة', b: bank })
+      delete tx.fee
+    }
   }
   // الكروت الائتمانية: أي كارت اتسدد أو اتذكر إنه "ائتمانية/credit"
   const credit = new Set()
@@ -257,7 +263,8 @@ function meta(b) {
   const fx = b.match(/رسوم وضريبة\s*[:：]\s*([\d,]+(?:\.\d+)?)/)
   if (fx) { const v = num(fx[1]); if (v) o.fx = v }
   // رسوم الحوالة الدولية (الرسوم:SAR 17.25 / رسوم:SR 17.25)
-  if (/حوالة.*دولية|دولية/.test(b.split('\n')[0])) {
+  // رسوم الحوالة (دولية أو محلية): الرسوم:SAR 17.25 / رسوم:SR 1.15
+  if (/حوالة|دولية|transfer/i.test(b.split('\n')[0])) {
     const fee = b.match(/(?:ال)?رسوم\s*[:：]\s*(?:SAR|SR|ر\.?س)?\s*([\d,]+(?:\.\d+)?)/)
     if (fee) { const v = num(fee[1]); if (v) o.fee = v }
   }
