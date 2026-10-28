@@ -4,6 +4,7 @@ import { state, syncSms, allTx, findNewBanks } from './lib/store.js'
 import { isNative, isIOS, biometricAuth } from './lib/smsSource.js'
 import { privacy } from './lib/format.js'
 import LockScreen from './components/LockScreen.vue'
+import Onboarding from './components/Onboarding.vue'
 import AppDialog from './components/AppDialog.vue'
 import QuickSheet from './components/QuickSheet.vue'
 import AppToast from './components/AppToast.vue'
@@ -78,7 +79,11 @@ const HOME_SUB = ['afford', 'fees', 'emergency', 'commit', 'transfers', 'savings
 const stack = []
 function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t)) { if (!SUB.includes(tab.value)) { prevTab.value = tab.value; stack.length = 0 } else if (tab.value !== t) stack.push(tab.value) } else stack.length = 0; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
-onMounted(() => { syncSms().then(() => { findNewBanks(); pullLoanAnswers() }); checkUpdate() })
+// أول تشغيل على الموبايل: شاشة الصلاحيات الأول (اللي استخدم التطبيق قبل كده مش هيشوفها)
+const onboarded = ref(!isNative || !!localStorage.getItem('onboarded') || !!localStorage.getItem('lastSync'))
+function start() { syncSms().then(() => { findNewBanks(); pullLoanAnswers() }) }
+function finishOnboarding() { try { localStorage.setItem('onboarded', '1') } catch {} onboarded.value = true }
+onMounted(() => { if (onboarded.value) start(); checkUpdate() })
 const refresh = () => Promise.all([syncSms(), checkUpdate()])
 
 // زرار الرجوع في أندرويد
@@ -111,6 +116,7 @@ const tabs = [
 
 <template>
   <main>
+    <Onboarding v-if="!onboarded" @sms="start" @done="finishOnboarding" />
     <LockScreen v-if="locked" :error="lockErr" @unlock="unlock" />
     <AppDialog />
     <AppToast />
