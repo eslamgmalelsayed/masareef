@@ -105,25 +105,59 @@ function learnProfile(messages, merge = false) {
   LS.set('detected', state.detected)
 }
 
-let rawSms = []
+let rawSms = [] // null = العمليات جت من الكاش والرسايل القديمة مش في الذاكرة
 
-export async function syncSms() {
+// ===== القراية الذكية: القوالب (من المكتبة المشتركة + اللي اتعلمت على الموبايل ده) =====
+state.tpls = LS.get('tpls', {})
+let smartHook = null
+/** smart.js بيسجّل هنا علشان ياخد الأشكال المجهولة والاختلافات بعد كل قراية */
+export function setSmartHook(fn) { smartHook = fn }
+export function setTemplates(map) { state.tpls = map; LS.set('tpls', map) }
+function parseAll(raw) {
+  const out = parseMessages(raw, profile(), state.tpls)
+  if (smartHook) { try { smartHook(out) } catch {} }
+  return out
+}
+
+export async function syncSms(full = false) {
   if (!isNative) {
     // نسخة الويب (آيفون PWA): الرسايل اللي اتلزقت بإيدك هي "صندوق الرسايل"
     rawSms = state.webMsgs
-    if (rawSms.length) { learnProfile(rawSms, true); state.smsTx = parseMessages(rawSms, profile()); state.bnplSms = parseBnplMessages(rawSms) }
+    if (rawSms.length) { learnProfile(rawSms, true); state.smsTx = parseAll(rawSms); state.bnplSms = parseBnplMessages(rawSms) }
     state.status = 'ready'
     return
   }
   state.status = 'loading'
   state.error = ''
   try {
-    const all = await readSms([...allSenders(), ...BNPL_SENDERS])
+    const senders = [...allSenders(), ...BNPL_SENDERS]
     const isBnpl = (m) => BNPL_SENDERS.includes(String(m.address || '').trim().toLowerCase())
-    rawSms = all.filter((m) => !isBnpl(m))
-    state.bnplSms = parseBnplMessages(all.filter(isBnpl).concat(rawSms))
-    learnProfile(rawSms)
-    state.smsTx = parseMessages(rawSms, profile())
+    const C = full ? null : LS.get('parseCache', null)
+    const sig = cacheSig(senders)
+    // فيه رسايل قديمة لسه مالهاش قالب؟ قراية كاملة مرة في اليوم علشان القراية الذكية تتعلمها
+    const stale = C && C.unknown?.length && Date.now() - (C.fullAt || 0) > 864e5
+    if (C && C.sig === sig && C.maxDate && !stale) {
+      // ===== كاش: العمليات القديمة متخزنة — بنقرا بس الرسايل الجديدة =====
+      const fresh = await readSms(senders, C.maxDate)
+      const freshBank = fresh.filter((m) => !isBnpl(m))
+      learnProfile(freshBank, true)
+      const newTx = freshBank.length ? parseAll(freshBank) : []
+      const byId = new Map(C.tx.map((t) => [t.id, t]))
+      for (const t of newTx) byId.set(t.id, t)
+      state.smsTx = [...byId.values()].sort((a, b) => b.ts - a.ts)
+      state.bnplSms = mergeBnpl(C.bnpl, parseBnplMessages(fresh))
+      rawSms = null // الرسايل القديمة مش في الذاكرة — أي قراية من جديد هتعمل قراية كاملة
+      saveCache(sig, Math.max(C.maxDate, ...fresh.map((m) => Number(m.date) || 0)), C.unknown.concat([...(newTx.unknown?.keys?.() || [])]), C.fullAt)
+    } else {
+      // ===== قراية كاملة (أول مرة، أو حاجة اتغيرت) =====
+      const all = await readSms(senders)
+      rawSms = all.filter((m) => !isBnpl(m))
+      state.bnplSms = parseBnplMessages(all.filter(isBnpl).concat(rawSms))
+      learnProfile(rawSms)
+      const out = parseAll(rawSms)
+      state.smsTx = out
+      saveCache(cacheSig(senders), all.reduce((m, x) => Math.max(m, Number(x.date) || 0), 0), [...(out.unknown?.keys?.() || [])], Date.now())
+    }
     state.lastSync = Date.now()
     LS.set('lastSync', state.lastSync)
     state.status = 'ready'
@@ -134,33 +168,49 @@ export async function syncSms() {
   }
 }
 
+// ===== كاش القراية =====
+// اتغيّر أي حاجة من دي → قراية كاملة مرة واحدة: نسخة القراية، اسمك وحساباتك، البنوك، أو عدد القوالب
+const PARSER_V = 'p3'
+function cacheSig(senders) {
+  return [PARSER_V, JSON.stringify(profile()), senders.slice().sort().join(','), Object.keys(state.tpls || {}).length].join('|')
+}
+function saveCache(sig, maxDate, unknown, fullAt) {
+  LS.set('parseCache', { sig, maxDate, fullAt, tx: state.smsTx.map(({ d, c, ...t }) => t), bnpl: state.bnplSms, unknown: [...new Set(unknown)].slice(-2000) })
+}
+function mergeBnpl(a = [], b = []) {
+  const seen = new Set(a.map((o) => JSON.stringify(o)))
+  return [...a, ...b.filter((o) => !seen.has(JSON.stringify(o)))].sort((x, y) => x.ts - y.ts)
+}
+
 /** نسخة الويب: إضافة رسالة بنك ملزوقة. بيرجّع العملية اللي اتفهمت منها (أو null) */
 export function addWebMessage(body) {
   const text = String(body || '').trim()
   if (!text) return { added: false, tx: null }
   if (state.webMsgs.some((m) => m.body === text)) return { added: false, dup: true, tx: null }
   const msg = { address: '__ios__', body: text, date: Date.now() }
-  const tx = parseMessages([msg], profile())[0] || null
+  const tx = parseMessages([msg], profile(), state.tpls)[0] || null
   if (tx) tx.c = categorize(tx, state.overrides)
   state.webMsgs = [...state.webMsgs, msg]
   LS.set('webMsgs', state.webMsgs)
   rawSms = state.webMsgs
   learnProfile(rawSms, true)
-  state.smsTx = parseMessages(rawSms, profile())
+  state.smsTx = parseAll(rawSms)
   state.bnplSms = parseBnplMessages(rawSms)
   return { added: true, tx }
 }
 
 /** re-parse after the user changes their name / account numbers */
 export function reparse() {
-  if (rawSms.length) state.smsTx = parseMessages(rawSms, profile())
+  if (!isNative) { if (rawSms.length) state.smsTx = parseAll(rawSms); return }
+  if (rawSms && rawSms.length) { state.smsTx = parseAll(rawSms); return }
+  return syncSms(true) // الرسايل القديمة مش في الذاكرة (جت من الكاش) → قراية كاملة
 }
 
 export async function importFile(file) {
   const text = await file.text()
   const msgs = /^\s*[[{]/.test(text) ? messagesFromJson(text) : /<smses|<sms\s/.test(text) ? messagesFromXml(text) : messagesFromText(text)
   learnProfile(msgs, true)
-  const tx = parseMessages(msgs, profile())
+  const tx = parseAll(msgs)
   const byId = new Map(state.importedTx.map((t) => [t.id, t]))
   tx.forEach((t) => byId.set(t.id, t))
   state.importedTx = [...byId.values()].sort((a, b) => b.ts - a.ts)

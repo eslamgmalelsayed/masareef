@@ -1,0 +1,133 @@
+// القراية الذكية (شغالة دايمًا): بتاخد الأشكال اللي مالهاش قالب، وتطلب قالبها من السيرفر
+// (بنسخة مخفية البيانات بس)، وتبلّغ لو قالب طلع غلط. القراية نفسها بتفضل جوه الموبايل.
+import { reactive } from 'vue'
+import { state, setSmartHook, setTemplates, reparse } from './store.js'
+import { maskSample, linesOf, validTemplate, applyTemplate, shapeOf } from './shapes.js'
+import { amount } from './parser.js'
+
+export const API = 'https://masareef-api.netlify.app'
+const BATCH = 25 // أقصى عدد أشكال نسأل عليها في المرة
+const RETRY = 864e5 // شكل فشل → نجرّب تاني بعد يوم
+const CATALOG_EVERY = 12 * 36e5
+
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v) } catch { return d } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
+}
+export const smart = reactive({ learned: Object.keys(state.tpls || {}).length, waiting: 0, busy: false, error: '', lastSync: LS.get('smartSync', 0) })
+
+function deviceId() {
+  let d = LS.get('dev', '')
+  if (!d) { d = Math.random().toString(36).slice(2) + Date.now().toString(36); LS.set('dev', d) }
+  return d
+}
+
+const pending = new Map() // id → { bank, body, n, hint? }
+const tried = LS.get('tplTried', {})
+const bad = LS.get('tplBad', {}) // قوالب طلعت غلط هنا — منقبلهاش تاني
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+/** بعد كل قراية: الأشكال المجهولة تدخل الطابور، والقالب اللي اختلف يتشال ويتبلّغ */
+function onParsed(out) {
+  const now = Date.now()
+  for (const u of out.unknown?.values?.() || []) {
+    if (tried[u.id] && now - tried[u.id] < RETRY) continue
+    const p = pending.get(u.id)
+    if (p) p.n = Math.max(p.n, u.n)
+    else pending.set(u.id, { ...u })
+  }
+  for (const m of out.mismatch?.values?.() || []) {
+    if (!state.tpls[m.id]) continue
+    const tpls = { ...state.tpls }
+    bad[m.id] = tpls[m.id]
+    LS.set('tplBad', bad)
+    delete tpls[m.id]
+    setTemplates(tpls)
+    report(m)
+    pending.set(m.id, { ...m, n: 1, hint: hintFrom(m) })
+  }
+  smart.waiting = pending.size
+  if (pending.size) schedule()
+}
+setSmartHook(onParsed)
+
+/** القراية القديمة قالت إيه — بنبعت مكان المبلغ ونوع العملية بس (مفيش بيانات) */
+function hintFrom(m) {
+  if (!m.want) return null
+  const ls = linesOf(m.body)
+  const amountLine = ls.findIndex((l) => Math.abs((amount(l, Date.now()) || -1) - m.want[1]) < 0.01)
+  return { kind: m.want[0], amountLine: amountLine >= 0 ? amountLine : null }
+}
+
+let timer = null
+function schedule() { clearTimeout(timer); timer = setTimeout(run, 1500) }
+
+async function api(path, body) {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), 20000)
+  try {
+    const r = await fetch(API + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal } : { signal: ctrl.signal })
+    if (!r.ok) throw new Error('HTTP ' + r.status)
+    return await r.json()
+  } finally { clearTimeout(t) }
+}
+
+/** قالب جه من السيرفر: لازم يكون سليم، ويقرا رسالة الموبايل نفسها صح */
+function acceptLocal(tpl, item) {
+  if (bad[item.id] && same(bad[item.id], tpl)) return false
+  if (!validTemplate(tpl, linesOf(item.body).length)) return false
+  if (tpl.kind === 'ignore') return true
+  return !!applyTemplate(tpl, item.body, Date.now(), {})
+}
+
+async function run() {
+  if (smart.busy) return
+  smart.busy = true
+  smart.error = ''
+  let added = 0
+  try {
+    // ١) المكتبة المشتركة (قوالب اتأكدت عند كذا مستخدم)
+    if (Date.now() - smart.lastSync > CATALOG_EVERY) {
+      const cat = await api('/api/catalog')
+      const tpls = { ...state.tpls }
+      for (const [id, t] of Object.entries(cat.templates || {})) if (!tpls[id] && validTemplate(t, 99) && !(bad[id] && same(bad[id], t))) { tpls[id] = t; added++ }
+      setTemplates(tpls)
+      smart.lastSync = Date.now()
+      LS.set('smartSync', smart.lastSync)
+      for (const id of Object.keys(cat.templates || {})) pending.delete(id)
+    }
+    // ٢) الأشكال اللي لسه مالهاش قالب — الأكتر تكرارًا الأول
+    const batch = [...pending.values()].filter((p) => !state.tpls[p.id]).sort((a, b) => b.n - a.n).slice(0, BATCH)
+    const dev = deviceId()
+    for (const item of batch) {
+      pending.delete(item.id)
+      tried[item.id] = Date.now()
+      try {
+        const sample = maskSample(item.body)
+        if (shapeOf(item.bank, sample).id !== item.id) continue // أمان: لازم الشكل يطلع هو هو من النسخة المخفية
+        const res = await api('/api/learn', { id: item.id, bank: item.bank, sample, hint: item.hint || null, device: dev })
+        if (res.template && acceptLocal(res.template, item)) {
+          setTemplates({ ...state.tpls, [item.id]: res.template })
+          added++
+          api('/api/confirm', { id: item.id, device: dev }).catch(() => {})
+        }
+      } catch (e) { smart.error = String(e.message || e) }
+    }
+    LS.set('tplTried', tried)
+  } catch (e) {
+    smart.error = String(e.message || e)
+  } finally {
+    smart.busy = false
+    smart.learned = Object.keys(state.tpls).length
+    smart.waiting = pending.size
+  }
+  if (added) reparse() // القوالب الجديدة تتطبّق على طول
+  if (pending.size) setTimeout(schedule, smart.error ? 10 * 6e4 : 30000) // الباقي بعد شوية (ولو مفيش نت: بعد ١٠ دقايق)
+}
+
+function report(m) {
+  api('/api/report', { id: m.id, device: deviceId(), got: m.got == null ? 'fail' : String(m.got) === 'ignore' ? 'ignore' : 'amount' }).catch(() => {})
+}
+
+/** تشغيل يدوي (سحب للتحديث) */
+export function smartNow() { smart.lastSync = 0; schedule() }

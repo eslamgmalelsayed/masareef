@@ -25,7 +25,7 @@ function hide() { show.value = false; try { localStorage.setItem('installHintHid
     <ol v-else>
       <li>من قائمة المتصفح <b>⋮</b> اختار <b>تثبيت التطبيق</b> أو <b>إضافة إلى الشاشة الرئيسية</b></li>
     </ol>
-    <p class="muted xs">بياناتك بتفضل على موبايلك بس، ومش محتاج نت بعد أول مرة.</p>
+    <p class="muted xs">رسايلك وبياناتك بتفضل على موبايلك بس.</p>
   </section>
 </template>
 

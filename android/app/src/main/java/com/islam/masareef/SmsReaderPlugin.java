@@ -328,11 +328,13 @@ public class SmsReaderPlugin extends Plugin {
             }
         }
 
+        // since: نقرا بس الرسايل الأحدث من آخر قراية (الباقي متخزن في التطبيق)
+        long since = call.getLong("since", 0L);
         JSArray out = new JSArray();
         Cursor c = getContext().getContentResolver().query(
             Uri.parse("content://sms/inbox"),
             new String[] { "address", "body", "date" },
-            null, null, "date DESC"
+            since > 0 ? "date > ?" : null, since > 0 ? new String[] { String.valueOf(since) } : null, "date DESC"
         );
         if (c != null) {
             try {

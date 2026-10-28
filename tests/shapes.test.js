@@ -1,0 +1,100 @@
+// القراية الذكية: الشكل، إخفاء البيانات، وتطبيق القالب
+import { describe, it, expect } from 'vitest'
+import { shapeOf, maskSample, applyTemplate, validTemplate, cleanParty, linesOf } from '../src/lib/shapes.js'
+import { parseMessages, setExtraBanks } from '../src/lib/parser.js'
+
+const AHLI_1 = 'حوالة صادرة محلية ب10776 SAR\nل*8328 تست ا. الاخ*\n27/10/26 08:07'
+const AHLI_2 = 'حوالة صادرة محلية ب750.5 SAR\nل*7777 سامي محمد العلي*\n28/10/26 21:40'
+
+describe('الشكل', () => {
+  it('رسايل بنفس القالب = نفس الشكل، حتى لو الأسماء والمبالغ مختلفة', () => {
+    expect(shapeOf('الأهلي', AHLI_1).id).toBe(shapeOf('الأهلي', AHLI_2).id)
+  })
+  it('بنك تاني أو قالب تاني = شكل تاني', () => {
+    expect(shapeOf('الراجحي', AHLI_1).id).not.toBe(shapeOf('الأهلي', AHLI_1).id)
+    expect(shapeOf('الأهلي', 'شراء انترنت\nمبلغ:SAR 40\nلدى:NOON').id).not.toBe(shapeOf('الأهلي', AHLI_1).id)
+  })
+})
+
+describe('إخفاء البيانات قبل ما الشكل يطلع', () => {
+  const body = 'شراء انترنت\nبطاقة:*6056;مدى\nمن:*8328\nلدى:Riham MITWALLI\nمبلغ:SAR 40.00'
+  const m = maskSample(body, () => 0.5)
+  it('مفيش اسم ولا رقم حقيقي', () => {
+    expect(m).not.toMatch(/Riham|MITWALLI|6056|8328|40\.00/)
+    expect(maskSample(AHLI_1, () => 0.5)).not.toMatch(/تست|الاخ|8328|10776/)
+  })
+  it('الكلمات البنكية والشكل بيفضلوا علشان الموديل يفهم', () => {
+    expect(m).toMatch(/^شراء انترنت\nبطاقة:\*5555;مدى\nمن:\*5555\nلدى:X+ X+\nمبلغ:SAR 55\.55$/)
+    expect(linesOf(m).length).toBe(linesOf(body).length)
+  })
+})
+
+describe('تطبيق القالب', () => {
+  const T = { kind: 'transfer', amountLine: 0, partyLine: 1 }
+  it('بيطلع المبلغ والاسم من مكانهم', () => {
+    expect(applyTemplate(T, AHLI_2, 0)).toEqual(['transfer', 750.5, 'سامي محمد العلي', {}])
+  })
+  it('تحويل لحساب من حساباتك أو باسمك = تحويل لنفسك', () => {
+    expect(applyTemplate(T, AHLI_1, 0, { accounts: ['8328'] })[0]).toBe('ignore')
+    expect(applyTemplate(T, AHLI_1, 0, { selfNames: ['تست'] })[0]).toBe('ignore')
+  })
+  it('الحارس: لو سطر المبلغ مفيهوش مبلغ، القالب مايتستخدمش', () => {
+    expect(applyTemplate({ kind: 'transfer', amountLine: 2, partyLine: 1 }, AHLI_1, 0)).toBe(null)
+  })
+  it('قالب بايظ من السيرفر بيترفض', () => {
+    expect(validTemplate({ kind: 'hack', amountLine: 0 }, 3)).toBe(false)
+    expect(validTemplate({ kind: 'purchase', amountLine: 9 }, 3)).toBe(false)
+    expect(validTemplate({ kind: 'ignore' }, 3)).toBe(true)
+  })
+  it('تنضيف الاسم', () => {
+    expect(cleanParty('لدى:NOON.COM').name).toBe('NOON.COM')
+    expect(cleanParty('إلى: 9999;مجدي فهمي').name).toBe('مجدي فهمي')
+    expect(cleanParty('ل*8328 اسلام ج. السي*')).toEqual({ name: 'اسلام ج. السي', acct: '8328' })
+  })
+})
+
+describe('القراية الذكية جوه parseMessages', () => {
+  setExtraBanks({ newbank: 'بنك جديد' })
+  const msg = { address: 'NewBank', date: 1761600000000, body: 'تم خصم مبلغ من حسابك\nالقيمة 85.25 ر.س\nالجهة: مطعم البيك\n2026-10-28' }
+  it('رسالة بنك جديد مش مفهومة → بترجع كشكل مجهول نسأل عليه', () => {
+    const out = parseMessages([msg], {}, {})
+    expect(out.length).toBe(0)
+    expect(out.unknown.size).toBe(1)
+  })
+  it('بعد ما القالب يوصل → بتتقري، ومتعلّمة إنها من القراية الذكية', () => {
+    const id = [...parseMessages([msg], {}, {}).unknown.keys()][0]
+    const out = parseMessages([msg], {}, { [id]: { kind: 'purchase', amountLine: 1, partyLine: 2 } })
+    expect(out.length).toBe(1)
+    expect(out[0]).toMatchObject({ k: 'purchase', a: 85.25, m: 'مطعم البيك', ai: 1 })
+    expect(out.unknown.size).toBe(0)
+  })
+  it('من غير قوالب = نفس القراية القديمة بالظبط', () => {
+    expect(parseMessages([msg], {}).length).toBe(0)
+  })
+})
+
+describe('القالب الأوسع + تبليغ الاختلاف', () => {
+  it('العملة والرصيد من القالب', () => {
+    const b = 'تم خصم\nالمبلغ: 1,250.00 EGP\nالرصيد: 9,800.50\nالتاجر: Carrefour Maadi'
+    expect(applyTemplate({ kind: 'purchase', amountLine: 1, partyLine: 3, balanceLine: 2, currency: 'EGP' }, b, Date.now())[3]).toEqual({ bal: 9800.5, cur: 'EGP' })
+  })
+  it('القالب قال مبلغ غير القراية القديمة → نثق في القديمة ونبلّغ', () => {
+    const msg = { address: 'AlRajhiBank', date: 1761600000000, body: 'شراء انترنت\nبطاقة:*6056;مدى\nلدى:NOON\nمبلغ:SAR 40.00\nفي:22-10-31 13:44' }
+    const id = [...parseMessages([msg], {}, {}).unknown.keys()][0]
+    const wrong = { [id]: { kind: 'purchase', amountLine: 1, partyLine: 2 } } // سطر البطاقة بدل المبلغ
+    const out = parseMessages([msg], {}, wrong)
+    expect(out[0].a).toBe(40)
+    expect(out[0].ai).toBeUndefined()
+    expect(out.mismatch.has(id)).toBe(true)
+  })
+})
+
+describe('الشكل من الرسالة = الشكل من النسخة المخفية (السيرفر يقدر يتأكد)', () => {
+  it.each([
+    AHLI_1,
+    'شراء انترنت\nبطاقة:*6056;مدى\nمن:*8328\nلدى:Riham MITWALLI\nمبلغ:SAR 40.00\nفي:22-10-31 13:44',
+    'عميلنا العزيز،\nتم خصم مبلغ 55.5 ريال من حسابك لدى مطعم البيك\n2026-10-28',
+  ])('%s', (b) => {
+    expect(shapeOf('X', maskSample(b)).id).toBe(shapeOf('X', b).id)
+  })
+})

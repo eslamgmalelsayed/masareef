@@ -1,4 +1,5 @@
 // تحليل رسايل البنوك السعودية والمحافظ → عمليات مالية
+import { shapeOf, applyTemplate, hasMoney } from './shapes.js'
 // kind: purchase | transfer | intl | cash | bill | gov | fee | refund | salary | in | ignore
 
 export const BANKS = {
@@ -158,20 +159,45 @@ export function classify(addr, b, ts, profile) {
  * messages: [{address, body, date(ms)}]
  * returns transactions: {id, ts, a, k, m, b}
  */
-export function parseMessages(messages, profile) {
+/**
+ * tpls (اختياري): قوالب القراية الذكية { shapeId: {kind, amountLine, partyLine} }.
+ * بتتستخدم بس للرسايل اللي القراية العادية مافهمتهاش أو فهمتها ناقص (من غير اسم).
+ * الرسايل اللي فيها فلوس ومالهاش قالب بترجع في out.unknown علشان نسأل عليها.
+ */
+export function parseMessages(messages, profile, tpls = null) {
   const out = []
   const seen = new Set()
+  const unknown = new Map()
+  const mismatch = new Map()
   for (const msg of messages) {
     const bank = bankOf(msg.address)
     if (!bank) continue
     const b = String(msg.body || '').normalize('NFKC')
     const first = b.split('\n')[0]
-    if (!b.includes('debited with an amount') && SKIP.test(first) && !/شراء|Purchase|حوالة|transfer/i.test(first)) continue
     if (/OTP|رمز|verification|security code|كلمة مرور|Insufficient|Declined|not allowed|مرفوض|غير كاف/i.test(b)) continue
     if (/الرقم السري|لمره واحده|لمرة واحدة|تم تغيير الحد|one time/i.test(b)) continue
     if (BNPL_RX.test(b)) continue // رسايل تابي/تمارا نفسها (مش البنك) — ليها حساب لوحدها
     const ts = Number(msg.date)
-    const r = classify(msg.address, b, ts, profile)
+    const skipped = !b.includes('debited with an amount') && SKIP.test(first) && !/شراء|Purchase|حوالة|transfer/i.test(first)
+    // القراية الذكية: القالب هو اللي بيقرا. القراية القديمة شبكة أمان لحد ما قالب الشكل يوصل
+    const sh = tpls && hasMoney(b) ? shapeOf(bank, b) : null
+    const t = sh ? tpls[sh.id] : undefined
+    const viaT = t ? applyTemplate(t, b, ts, profile) : null
+    const old = skipped ? null : classify(msg.address, b, ts, profile)
+    let r = viaT || old
+    const ai = !!viaT
+    if (sh && !t) {
+      const u = unknown.get(sh.id)
+      if (u) u.n++
+      else unknown.set(sh.id, { id: sh.id, bank, body: b, n: 1 })
+    }
+    // القالب والقراية القديمة مختلفين على المبلغ → نثق في القديمة ونبلّغ (يمكن البنك غيّر شكل رسايله)
+    if (viaT && old && old[0] !== 'ignore' && viaT[0] !== 'ignore' && Math.abs(old[1] - viaT[1]) > 0.01) {
+      mismatch.set(sh.id, { id: sh.id, bank, body: b, got: viaT[1], want: old })
+      r = old
+    }
+    if (viaT && viaT[0] === 'ignore' && old && old[0] !== 'ignore') { mismatch.set(sh.id, { id: sh.id, bank, body: b, got: 'ignore', want: old }); r = old }
+    if (t && !viaT && old && old[0] !== 'ignore') mismatch.set(sh.id, { id: sh.id, bank, body: b, got: null, want: old }) // القالب فشل يقرا الرسالة
     if (!r || r[0] === 'ignore') continue
     const key = msg.address + '|' + b
     if (seen.has(key)) continue
@@ -185,6 +211,8 @@ export function parseMessages(messages, profile) {
       m: (r[0] === 'gov' ? 'وزارة الداخلية – ' + name : name || '—').slice(0, 48),
       b: bank,
       ...meta(b),
+      ...(r[3] || {}),
+      ...(ai && r !== old ? { ai: 1 } : {}),
     })
   }
   // الكروت الائتمانية: أي كارت اتسدد أو اتذكر إنه "ائتمانية/credit"
@@ -195,6 +223,8 @@ export function parseMessages(messages, profile) {
     delete t.cr
   }
   out.sort((x, y) => y.ts - x.ts)
+  out.unknown = unknown
+  out.mismatch = mismatch
   return out
 }
 

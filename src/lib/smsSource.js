@@ -7,8 +7,8 @@ export const platform = Capacitor.getPlatform() // android | ios | web
 export const isIOS = platform === 'ios'
 
 /** يقرأ رسايل الوارد من البنوك المحددة فقط (الفلترة بتحصل جوه Java) */
-export async function readSms(senders) {
-  const res = await SmsReader.read({ senders: senders.map((s) => s.toLowerCase()) })
+export async function readSms(senders, since = 0) {
+  const res = await SmsReader.read({ senders: senders.map((s) => s.toLowerCase()), since })
   return res.messages || []
 }
 

@@ -1,0 +1,9 @@
+# Netlify هنا للسيرفر بس (masareef-api) — التطبيق نفسه على GitHub Pages
+[build]
+  base = "server"
+  publish = "public"
+  command = "npm install"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

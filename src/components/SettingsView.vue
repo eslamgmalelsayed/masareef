@@ -59,6 +59,7 @@ async function onFile(e) {
 async function refresh() { await syncSms(); msg.value = state.status === 'ready' ? 'اتحدّث من الرسايل' : state.error }
 async function clearOv() { if (await ask('كل المحلات اللي نقلتها لبنود تانية هترجع للتصنيف التلقائي.', { yes: 'رجّعها للتلقائي', danger: true })) resetOverrides() }
 async function clearImp() { if (await ask('تمسح العمليات اللي اتقرت من الملفات؟ رسايل الموبايل مش هتتأثر.', { yes: 'امسح', danger: true })) clearImported() }
+import { smart } from '../lib/smart.js'
 </script>
 
 <template>
@@ -159,6 +160,17 @@ async function clearImp() { if (await ask('تمسح العمليات اللي ا
     </section>
 
     <section class="card">
+      <h2>🤖 القراية الذكية</h2>
+      <p class="muted sm" style="line-height: 1.7">التطبيق بيتعلم شكل رسايل أي بنك أو محفظة لوحده — حتى لو البنك غيّر شكل رسايله. كل شكل بيتعلمه مرة واحدة بس، والقراية نفسها بتحصل على موبايلك.</p>
+      <div class="smartrow">
+        <div><b>{{ smart.learned }}</b><small class="muted">شكل اتعلّمه</small></div>
+        <div><b>{{ smart.waiting }}</b><small class="muted">مستني يتعلم</small></div>
+        <div><b :class="smart.error ? 'warnc' : 'okc'">{{ smart.busy ? '…' : smart.error ? 'مفيش نت' : '✓' }}</b><small class="muted">{{ smart.busy ? 'بيتعلم دلوقتي' : smart.error ? 'هيكمّل لوحده' : 'شغالة' }}</small></div>
+      </div>
+      <p class="muted xs privacy">🔒 اللي بيطلع من موبايلك: <b>شكل</b> الرسالة بس — كل الأرقام والأسماء والحسابات بتتبدل بقيم وهمية قبل ما تطلع، ورسايلك نفسها عمرها ما بتتبعت.</p>
+    </section>
+
+    <section class="card">
       <h2>نسخة احتياطية</h2>
       <p class="muted sm">ملف فيه إعداداتك وحدودك وبطاقاتك ومصروفاتك اليدوية — ترجّعه لو غيّرت الموبايل أو مسحت التطبيق.</p>
       <div class="bk">
@@ -184,7 +196,7 @@ async function clearImp() { if (await ask('تمسح العمليات اللي ا
       <button v-if="isNative && !isIOS" class="btn ghost" :disabled="update.checking" @click="checkUpdate">{{ update.checking ? 'بدوّر…' : '↻ تحقق من التحديثات' }}</button>
     </section>
 
-    <p class="muted xs about">كل البيانات بتتقرا وتتحلل على موبايلك بس، ومبتتبعتش لأي سيرفر. النت بيُستخدم بس علشان يشوف لو فيه تحديث جديد.</p>
+    <p class="muted xs about">رسايلك وعملياتك بتتقرا وتتحلل على موبايلك بس، ومبتتبعتش لأي سيرفر. النت بيُستخدم في حاجتين: يشوف لو فيه تحديث، والقراية الذكية تتعلم شكل رسالة جديد (من نسخة مفيهاش أي رقم أو اسم حقيقي).</p>
   </div>
 </template>
 
@@ -220,4 +232,10 @@ async function clearImp() { if (await ask('تمسح العمليات اللي ا
 .n2go { flex: none; display: flex; align-items: center; gap: 2px; color: var(--accent); font-size: 13px; font-weight: 600; background: var(--accent-soft); border-radius: 99px; padding: 6px 8px 6px 10px }
 .bk { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
 .bk .btn { margin: 0 }
+.smartrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 10px }
+.smartrow > div { background: var(--surface-2); border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px }
+.smartrow b { font-size: 18px; font-variant-numeric: tabular-nums }
+.smartrow small { font-size: 11.5px }
+.okc { color: var(--good) } .warnc { color: #b45309 }
+.privacy { line-height: 1.7; margin: 0 }
 </style>
