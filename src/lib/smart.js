@@ -111,7 +111,10 @@ async function run() {
           added++
           api('/api/confirm', { id: item.id, device: dev }).catch(() => {})
         }
-      } catch (e) { smart.error = String(e.message || e) }
+      } catch (e) {
+        smart.error = String(e.message || e)
+        if (/429/.test(smart.error)) { pending.set(item.id, item); delete tried[item.id]; break } // السقف اليومي للسيرفر — نستنى
+      }
     }
     LS.set('tplTried', tried)
   } catch (e) {
@@ -122,7 +125,7 @@ async function run() {
     smart.waiting = pending.size
   }
   if (added) reparse() // القوالب الجديدة تتطبّق على طول
-  if (pending.size) setTimeout(schedule, smart.error ? 10 * 6e4 : 30000) // الباقي بعد شوية (ولو مفيش نت: بعد ١٠ دقايق)
+  if (pending.size) setTimeout(schedule, /429/.test(smart.error) ? 60 * 6e4 : smart.error ? 10 * 6e4 : 30000) // الباقي بعد شوية (ولو مفيش نت: بعد ١٠ دقايق)
 }
 
 function report(m) {

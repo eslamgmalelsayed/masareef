@@ -17,6 +17,13 @@ export default async (req) => {
   // القالب موجود ومش متبلّغ عليه → كاش (مفيش نداء لـ Gemini)
   if (have && have.status !== 'disputed') return json({ template: have.template, status: have.status })
 
+  // سقف يومي لنداءات Gemini على السيرفر كله (حماية من حرق الحصة). القوالب المتخزنة بتفضل شغالة عادي
+  const cap = Number(Netlify.env.get('GEMINI_DAILY_CAP')) || 500
+  const day = new Date().toISOString().slice(0, 10)
+  const { blobs: used } = await s.list({ prefix: `q/${day}/` })
+  if (used.length >= cap) return json({ error: 'daily limit', retryAfter: 'tomorrow' }, 429, { 'retry-after': '3600' })
+  await s.set(`q/${day}/${crypto.randomUUID()}`, '1')
+
   let tpl
   try { tpl = await askGemini(bank, clean, hint && typeof hint === 'object' ? { kind: String(hint.kind || ''), amountLine: Number.isInteger(hint.amountLine) ? hint.amountLine : null } : null) }
   catch (e) { console.error(e); return json({ error: 'ai unavailable' }, 503) }

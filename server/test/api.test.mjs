@@ -16,7 +16,8 @@ vi.mock('@netlify/blobs', () => ({
 }))
 let seenPrompt = ''
 let geminiCalls = 0
-globalThis.Netlify = { env: { get: (k) => ({ GEMINI_API_KEY: 'test' })[k] } }
+const ENV = { GEMINI_API_KEY: 'test' }
+globalThis.Netlify = { env: { get: (k) => ENV[k] } }
 globalThis.fetch = vi.fn(async (url, init) => {
   geminiCalls++
   seenPrompt = JSON.parse(init.body).contents[0].parts[0].text
@@ -107,5 +108,18 @@ describe('تنضيف الكلمات اللي بتحدد المكان', async () 
     for (const k of ['amountAfter', 'amountBefore', 'partyAfter', 'partyBefore', 'balanceAfter', 'balanceBefore']) t[k] = cleanAnchor(k, raw[k])
     const msg = 'تم خصم مبلغ 1,250.00 جنيه من حسابك رقم ****4521 لدى CARREFOUR MAADI في 28/10/2026. الرصيد المتاح 9,800.50 جنيه'
     expect(applyTemplate(t, msg, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5, cur: 'EGP' }])
+  })
+})
+
+describe('السقف اليومي لـ Gemini', () => {
+  it('بعد السقف: شكل جديد بيستنى (429)، والأشكال المتخزنة بترجع عادي', async () => {
+    mem.clear(); ENV.GEMINI_DAILY_CAP = '1'
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ kind: 'transfer', amountLine: 0, partyLine: 1, balanceLine: null, currency: 'SAR' }) }] } }] })))
+    expect((await post(learn, { id, bank: 'الأهلي', sample: maskSample(REAL) })).status).toBe(200)
+    const other = 'حوالة واردة محلية ب500 SAR\nمن*1234 سامي*\n27/10/26 08:07'
+    const r = await post(learn, { id: shapeOf('الأهلي', other).id, bank: 'الأهلي', sample: maskSample(other) })
+    expect(r.status).toBe(429)
+    expect((await post(learn, { id, bank: 'الأهلي', sample: maskSample(REAL) })).status).toBe(200) // من الكاش
+    delete ENV.GEMINI_DAILY_CAP
   })
 })

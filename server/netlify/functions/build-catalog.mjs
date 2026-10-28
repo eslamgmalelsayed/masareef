@@ -11,6 +11,9 @@ export default async () => {
     }
   }
   await s.setJSON('catalog', { templates, at: Date.now() })
+  // عدّاد السقف اليومي: نمسح الأيام اللي فاتت
+  const today = new Date().toISOString().slice(0, 10)
+  for await (const page of s.list({ prefix: 'q/', paginate: true })) for (const b of page.blobs) if (!b.key.startsWith(`q/${today}/`)) await s.delete(b.key)
   console.log('catalog', Object.keys(templates).length)
 }
 
