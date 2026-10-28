@@ -60,6 +60,8 @@ async function refresh() { await syncSms(true); msg.value = state.status === 're
 async function clearOv() { if (await ask('كل المحلات اللي نقلتها لبنود تانية هترجع للتصنيف التلقائي.', { yes: 'رجّعها للتلقائي', danger: true })) resetOverrides() }
 async function clearImp() { if (await ask('تمسح العمليات اللي اتقرت من الملفات؟ رسايل الموبايل مش هتتأثر.', { yes: 'امسح', danger: true })) clearImported() }
 import { smart } from '../lib/smart.js'
+import FeedbackSheet from './FeedbackSheet.vue'
+const fb = ref('')
 </script>
 
 <template>
@@ -167,6 +169,15 @@ import { smart } from '../lib/smart.js'
     </section>
 
     <section class="card">
+      <h2>ساعدنا نحسّن التطبيق</h2>
+      <div class="fbrow">
+        <button class="fbb" @click="fb = 'bug'"><span>🐞</span><b>بلّغ عن مشكلة</b></button>
+        <button class="fbb" @click="fb = 'idea'"><span>💡</span><b>اقترح ميزة</b></button>
+      </div>
+    </section>
+    <FeedbackSheet v-if="fb" :type="fb" @close="fb = ''" />
+
+    <section class="card">
       <h2>التحديثات</h2>
       <p class="muted sm" v-if="isIOS">على آيفون التحديث بيوصلك من SideStore أو TestFlight.</p>
       <p class="muted sm" v-else-if="!isNative">نسخة الويب بتتحدّث لوحدها كل ما تفتحها وانت متصل بالنت.</p>
@@ -224,4 +235,9 @@ import { smart } from '../lib/smart.js'
 .smartrow small { font-size: 11.5px }
 .okc { color: var(--good) } .warnc { color: #b45309 }
 .privacy { line-height: 1.7; margin: 0 }
+.fbrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px }
+.fbb { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); font: inherit; color: var(--ink); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.05) }
+.fbb span { font-size: 22px }
+.fbb b { font-size: 13.5px; font-weight: 600 }
+.fbb:active { transform: scale(.98); background: var(--surface-2) }
 </style>

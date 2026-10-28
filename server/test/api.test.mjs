@@ -73,3 +73,21 @@ describe('سيرفر القراية الذكية', () => {
     expect(seenPrompt).toMatch(/WRONG/)
   })
 })
+
+describe('بلّغ عن مشكلة / اقترح ميزة', async () => {
+  const { default: feedback } = await import('../netlify/functions/feedback.mjs')
+  it('بيتبعت لفورم Netlify بالحقول الصح', async () => {
+    let sent = null
+    globalThis.fetch = vi.fn(async (url, init) => { sent = { url: String(url), body: new URLSearchParams(init.body) }; return new Response('ok') })
+    const r = await feedback(new Request('https://masareef-api.netlify.app/api/feedback', { method: 'POST', body: JSON.stringify({ type: 'bug', message: 'الشاشة بتعلق', contact: 'a@b.com', app: 'b35', device: 'Android 15; SM-S931B' }) }), { site: { url: 'https://masareef-api.netlify.app' } })
+    expect(r.status).toBe(200)
+    expect(sent.url).toBe('https://masareef-api.netlify.app/__forms.html')
+    expect(sent.body.get('form-name')).toBe('feedback')
+    expect(sent.body.get('message')).toBe('الشاشة بتعلق')
+  })
+  it('رسالة فاضية أو نوع غريب = مرفوض', async () => {
+    const bad = (b) => feedback(new Request('https://x/api/feedback', { method: 'POST', body: JSON.stringify(b) }), {})
+    expect((await bad({ type: 'bug', message: '' })).status).toBe(400)
+    expect((await bad({ type: 'hack', message: 'hello there' })).status).toBe(400)
+  })
+})
