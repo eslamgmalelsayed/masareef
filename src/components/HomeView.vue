@@ -12,6 +12,8 @@ import WebImport from './WebImport.vue'
 import { isNative } from '../lib/smsSource.js'
 import { totals as debtTotals, lentPending } from '../lib/debts.js'
 import LoanAsk from './LoanAsk.vue'
+import ReviewSheet from './ReviewSheet.vue'
+import { findings } from '../lib/review.js'
 import BottomSheet from './BottomSheet.vue'
 import { priceUps, dismissPrice, streak, STREAKS, setStreak } from '../lib/extras.js'
 import { safeToSpend, activeEvent, zakat } from '../lib/tools.js'
@@ -82,6 +84,7 @@ const recent = computed(() => allTx.value.filter((t) => t.k !== 'cashAdj').slice
 const hello = computed(() => (now.getHours() < 12 ? 'صباح الخير' : 'مساء الخير') + (displayName.value ? ' يا ' + displayName.value : ''))
 const showStreak = ref(false)
 const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? `${n} أيام` : `${n} يوم`)
+const showReview = ref(false)
 </script>
 
 <template>
@@ -158,6 +161,11 @@ const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 
       <small v-if="!streak.record" class="muted">أحسن رقم {{ streak.best }}</small>
     </button>
 
+    <button v-if="findings.length" class="card note review" @click="showReview = true">
+      <b>🕵️ المراجع الذكي لقى {{ findings.length === 1 ? 'حاجة محتاجة' : findings.length + ' حاجات محتاجة' }} تأكيدك</b>
+      <span class="sm muted">قارن عملياتك ببعض: تحويلات لنفسك، استرداد يخص شراء، سلف رجعت ‹</span>
+    </button>
+
     <section v-if="priceUps.length" class="card note price">
       <button class="x" @click="dismissPrice(priceUps[0].id)">×</button>
       <b>📈 {{ priceUps[0].name }} زاد سعره</b>
@@ -222,6 +230,7 @@ const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 
       <div class="stseg"><button v-for="(v, k) in STREAKS" :key="k" :class="{ on: streak.target === k }" @click="setStreak({ target: k })">{{ v.ic }} {{ v.name }}</button></div>
       <button class="link" style="margin-top: 16px; color: var(--ink-3)" @click="setStreak({ off: true }); showStreak = false">اقفل العدّاد</button>
     </BottomSheet>
+  <ReviewSheet v-if="showReview" @close="showReview = false" @open="(t) => emit('open', t)" />
 </div>
 </template>
 
@@ -283,6 +292,7 @@ const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 
 .safebox .sr b { font-variant-numeric: tabular-nums }
 .safebox .tot { border-top: 1px solid rgba(255,255,255,.2); margin-top: 4px; padding-top: 8px; font-weight: 600 }
 .note.loan { gap: 8px }
+.note.review { width: 100%; text-align: right; font: inherit; color: inherit; cursor: pointer; border-color: #0f766e; background: color-mix(in srgb, #0f766e 6%, var(--surface)) }
 .note .more { align-self: flex-start; font-size: 12.5px; padding: 0 }
 .note.price { border-color: #7c3aed; background: color-mix(in srgb, #7c3aed 6%, var(--surface)) }
 .streak { display: flex; align-items: center; gap: 8px; width: 100%; margin: -2px 0 12px; padding: 10px 14px; border: 1px solid color-mix(in srgb, #f97316 35%, var(--line)); border-radius: 16px; background: color-mix(in srgb, #f97316 7%, var(--surface)); font: inherit; font-size: 13.5px; color: var(--ink); text-align: right; cursor: pointer }

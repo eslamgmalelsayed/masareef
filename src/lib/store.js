@@ -344,6 +344,9 @@ export const allTx = computed(() => {
     out.push({ ...t, c: one[t.id] || categorize(t, ov), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) })
   }
   markSelf(out)
+  // شراء اترد فلوسه (المراجع الذكي ربطه باسترداده) → مبقاش مصروف
+  const refunded = new Set(Object.values(state.settings.refundLinks || {}))
+  if (refunded.size) for (const t of out) if (refunded.has(t.id) && t.k === 'purchase') t.k = 'refunded'
   for (const t of state.manualTx) {
     out.push({ ...t, c: t.cat, d: new Date(t.ts) })
     // لو دفعته كاش من فلوس سحبتها، نطرحه من "سحب نقدي" علشان ميتحسبش مرتين

@@ -14,8 +14,8 @@ import { SYM } from '../lib/money.js'
 
 const props = defineProps({ t: Object })
 const emit = defineEmits(['close', 'edit', 'go'])
-const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت', self: 'تحويل بين حساباتك' }
-const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer', 'self'].includes(props.t.k))
+const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت', self: 'تحويل بين حساباتك', refunded: 'شراء اتردّت فلوسه' }
+const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer', 'self', 'refunded'].includes(props.t.k))
 const same = computed(() => {
   if (props.t.k === 'manual') return { n: 0, a: 0 }
   const k = merchantKey(props.t.m)

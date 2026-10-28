@@ -373,3 +373,36 @@ describe('"الرسالة دي اتقرت غلط؟"', () => {
     state.settings.txFix = {}
   })
 })
+
+describe('المراجع الذكي', async () => {
+  const { findings, answer, unanswer } = await import('../src/lib/review.js')
+  beforeEach(() => { state.settings.reviewSeen = []; state.settings.refundLinks = {} })
+  it('تحويل لحد باسمه + نفس المبلغ وصل بنك تاني في نفس الساعة → تحويل لنفسك؟', () => {
+    state.smsTx = [tx(1, 'transfer', 2000, 'AHMED ALI', { b: 'الأهلي' }), { ...tx(1, 'in', 2000, 'X', { b: 'الراجحي' }), ts: NOW - DAY + 600e3 }]
+    const f = findings.value.find((x) => x.type === 'self')
+    expect(f).toBeTruthy()
+    answer(f, true)
+    expect(allTx.value.filter((t) => t.k === 'self').length).toBeGreaterThan(0)
+    expect(findings.value.some((x) => x.type === 'self')).toBe(false)
+  })
+  it('استرداد بنفس مبلغ شراء → لو أيوه الشراء مبقاش مصروف — وتقدر تتراجع', () => {
+    state.smsTx = [tx(10, 'purchase', 349, 'NOON'), tx(2, 'refund', 349, 'NOON')]
+    const f = findings.value.find((x) => x.type === 'refund')
+    expect(f.other.m).toBe('NOON')
+    answer(f, true)
+    expect(spendTx.value.some((t) => t.a === 349)).toBe(false)
+    unanswer(f)
+    expect(spendTx.value.some((t) => t.a === 349)).toBe(true)
+  })
+  it('فلوس داخلة من حد حوّلتله قبل كده → رجّعلك سلفة؟ (أيوه = بتتحسب سلفة ورجعت)', () => {
+    state.smsTx = [tx(20, 'transfer', 1000, 'SAMIR'), tx(2, 'in', 1000, 'SAMIR')]
+    const f = findings.value.find((x) => x.type === 'loan')
+    answer(f, true)
+    const d = autoLent.value.find((x) => x.name === 'SAMIR')
+    expect(d.left).toBe(0)
+  })
+  it('استرداد ١ ريال (تحقق من الكارت) مش بيتسأل عليه', () => {
+    state.smsTx = [tx(10, 'purchase', 1, 'AMAZON'), tx(9, 'refund', 1, 'AMAZON')]
+    expect(findings.value.length).toBe(0)
+  })
+})
