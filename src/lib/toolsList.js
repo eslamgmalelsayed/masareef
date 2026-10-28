@@ -9,6 +9,7 @@ import { fees } from './extras.js'
 // كل أداة: أيقونة + اسم + سطر واحد حي من أرقامك
 export const toolsList = computed(() => [
   { id: 'ask', ic: '💬', t: 'اسأل التطبيق', s: 'صرفت كام على…؟ أوفر منين؟' },
+  { id: 'report', ic: '📊', t: 'تقرير الشهر', s: 'صورة فيها شهرك — شاركها أو احفظها' },
   { id: 'afford', ic: '🤔', t: 'أقدر أشتريها؟', s: 'اكتب السعر وأقولك في ثانية' },
   { id: 'commit', ic: '🔁', t: 'الالتزامات الشهرية', s: `${fmt(commitments.value.next30)} في الـ ٣٠ يوم الجايين` },
   { id: 'debts', ic: '💸', t: 'الديون', s: debtTotals.value.owed || debtTotals.value.lent ? `عليّا ${fmt(debtTotals.value.owed)} · ليّا ${fmt(debtTotals.value.lent)}` : 'سجّل اللي عليك واللي ليك' },

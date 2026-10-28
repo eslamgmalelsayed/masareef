@@ -147,7 +147,7 @@ const showReview = ref(false)
 
     <section v-if="salarySummary" class="card note sum">
       <button class="x" @click="dismissSummary(salarySummary.id)">×</button>
-      <b>💰 ملخص راتب {{ salarySummary.label }}</b>
+      <b>💰 ملخص راتب {{ salarySummary.label }} <button class="link xs" @click="emit('go', 'report')">📊 التقرير ‹</button></b>
       <div class="sm">صرفت <b>{{ fmt(salarySummary.spent) }}</b> من {{ fmt(salarySummary.salary) }}<template v-if="salarySummary.saved > 0"> وفضل معاك <b class="good">{{ fmt(salarySummary.saved) }}</b></template><template v-else> — زيادة <b class="bad">{{ fmt(-salarySummary.saved) }}</b></template></div>
       <div class="muted xs">
         <template v-if="salarySummary.top">أكتر بند: {{ CAT[salarySummary.top[0]]?.name }} ({{ fmt(salarySummary.top[1]) }})</template>

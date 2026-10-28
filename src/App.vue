@@ -39,6 +39,7 @@ import SortOtherView from './components/SortOtherView.vue'
 import AffordView from './components/AffordView.vue'
 import FeesView from './components/FeesView.vue'
 import AskView from './components/AskView.vue'
+import ReportView from './components/ReportView.vue'
 import './lib/tools.js'
 
 const tab = ref('home')
@@ -75,8 +76,8 @@ if (typeof MutationObserver !== 'undefined') {
 // إخفاء المبالغ: نغبّش الرسوم البيانية كمان
 watch(() => privacy.on, (v) => document.body.classList.toggle('privacy', v), { immediate: true })
 
-const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events', 'emergency', 'sortother', 'afford', 'fees', 'ask']
-const HOME_SUB = ['ask', 'afford', 'fees', 'emergency', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
+const SUB = ['limits', 'credit', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events', 'emergency', 'sortother', 'afford', 'fees', 'ask', 'report']
+const HOME_SUB = ['report', 'ask', 'afford', 'fees', 'emergency', 'commit', 'transfers', 'savings', 'debts', 'tools', 'funds', 'worth', 'zakat', 'events']
 const stack = []
 function go(t, cat = '', range = null, bank = '') { if (SUB.includes(t)) { if (!SUB.includes(tab.value)) { prevTab.value = tab.value; stack.length = 0 } else if (tab.value !== t) stack.push(tab.value) } else stack.length = 0; if (t === 'credit') creditSel.value = cat; tab.value = t; txCat.value = cat; txRange.value = range; txBank.value = bank; window.scrollTo(0, 0) }
 
@@ -137,6 +138,7 @@ const tabs = [
     <AffordView v-else-if="tab === 'afford'" @back="back" @go="go" />
     <FeesView v-else-if="tab === 'fees'" @back="back" @open="(t) => (sheet = t)" />
     <AskView v-else-if="tab === 'ask'" @back="back" />
+    <ReportView v-else-if="tab === 'report'" @back="back" />
     <EventsView v-else-if="tab === 'events'" @back="back" @open="(t) => (sheet = t)" />
     <CreditView v-else-if="tab === 'credit'" :initial="creditSel" @back="back" @open="(t) => (sheet = t)" @go="go" />
 
