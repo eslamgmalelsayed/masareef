@@ -155,6 +155,8 @@ const showReview = ref(false)
       </div>
     </section>
 
+    <button class="askbar" @click="emit('go', 'ask')"><span>💬</span> اسأل عن فلوسك… <small class="muted">صرفت كام على الأكل؟</small></button>
+
     <button v-if="streak && streak.days >= 2" class="streak" @click="showStreak = true">
       <span class="fire">🔥</span>
       <span><b>{{ dayWord(streak.days) }}</b> من غير {{ streak.name }}<template v-if="streak.record && streak.days > 2"> — أحسن رقم ليك!</template></span>
@@ -292,6 +294,8 @@ const showReview = ref(false)
 .safebox .sr b { font-variant-numeric: tabular-nums }
 .safebox .tot { border-top: 1px solid rgba(255,255,255,.2); margin-top: 4px; padding-top: 8px; font-weight: 600 }
 .note.loan { gap: 8px }
+.askbar { display: flex; align-items: center; gap: 8px; width: 100%; margin: -2px 0 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); font: inherit; font-size: 14px; color: var(--ink-2); text-align: right; cursor: pointer }
+.askbar small { margin-right: auto; font-size: 12px }
 .note.review { width: 100%; text-align: right; font: inherit; color: inherit; cursor: pointer; border-color: #0f766e; background: color-mix(in srgb, #0f766e 6%, var(--surface)) }
 .note .more { align-self: flex-start; font-size: 12.5px; padding: 0 }
 .note.price { border-color: #7c3aed; background: color-mix(in srgb, #7c3aed 6%, var(--surface)) }

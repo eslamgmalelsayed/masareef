@@ -143,3 +143,15 @@ describe('بنك/محفظة جديدة بتتعرف لوحدها', async () => {
     expect((await post(sender, { sender: '+966500000000', sample: 'x' })).status).toBe(400)
   })
 })
+
+describe('اسأل التطبيق (السيرفر)', async () => {
+  const { default: ask } = await import('../netlify/functions/ask.mjs')
+  it('بيرد بالنص، ومفيش حاجة بتتخزن غير عدّاد السقف', async () => {
+    mem.clear(); let prompt = ''
+    globalThis.fetch = vi.fn(async (u, init) => { prompt = JSON.parse(init.body).contents[0].parts[0].text; return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'صرفت 1,200 ر.س على الأكل.' }] } }] })) })
+    const r = await (await post(ask, { q: 'صرفت كام على الأكل؟', ctx: { currency: 'SAR', current_cycle: { by_category: { 'مطاعم': 1200 } } } })).json()
+    expect(r.answer).toContain('1,200')
+    expect(prompt).toContain('صرفت كام على الأكل؟')
+    expect([...mem.keys()].every((k) => k.startsWith('q/'))).toBe(true)
+  })
+})

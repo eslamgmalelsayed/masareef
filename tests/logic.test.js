@@ -406,3 +406,14 @@ describe('المراجع الذكي', async () => {
     expect(findings.value.length).toBe(0)
   })
 })
+
+describe('اسأل التطبيق: اللي بيطلع أرقام مجمّعة بس', async () => {
+  const { askContext } = await import('../src/lib/ask.js')
+  it('أسماء المحلات أيوه، أسماء الأشخاص لأ', () => {
+    state.smsTx = [tx(40, 'salary', 10000, 'راتب'), tx(3, 'purchase', 120, 'NOON'), tx(2, 'transfer', 900, 'AHMED SECRET'), tx(1, 'in', 300, 'MONA PRIVATE')]
+    const c = JSON.stringify(askContext())
+    expect(c).toContain('NOON')
+    expect(c).not.toMatch(/AHMED|SECRET|MONA|PRIVATE/)
+    expect(askContext().transfers_this_cycle.to_people).toBe(900)
+  })
+})
