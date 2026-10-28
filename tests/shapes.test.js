@@ -98,3 +98,25 @@ describe('الشكل من الرسالة = الشكل من النسخة المخ
     expect(shapeOf('X', maskSample(b)).id).toBe(shapeOf('X', b).id)
   })
 })
+
+describe('رسالة سطر واحد (بنوك تانية / بلاد تانية)', () => {
+  const CIB = 'تم خصم مبلغ 1,250.00 جنيه من حسابك رقم ****4521 لدى CARREFOUR MAADI في 28/10/2026. الرصيد المتاح 9,800.50 جنيه'
+  const T = { kind: 'purchase', amountLine: 0, amountAfter: 'مبلغ', partyLine: 0, partyAfter: 'لدى', partyBefore: ' في', balanceLine: 0, balanceAfter: 'الرصيد', currency: 'EGP' }
+  it('المبلغ والمحل والرصيد كل واحد من مكانه جوه نفس السطر', () => {
+    expect(applyTemplate(T, CIB, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5, cur: 'EGP' }])
+  })
+  it('القالب بيشتغل على النسخة المخفية كمان (السيرفر بيتأكد بيها)', () => {
+    const r = applyTemplate(T, maskSample(CIB, () => 0.3), Date.now())
+    expect(r[0]).toBe('purchase')
+    expect(r[1]).toBeGreaterThan(0)
+  })
+  it('كلمة مش موجودة في الرسالة = القالب مايتطبقش', () => {
+    expect(applyTemplate({ ...T, amountAfter: 'القيمة' }, CIB, Date.now())).toBe(null)
+  })
+  it('جنيه والمتاح مش بيتخبوا (كلمات بنكية)، والاسم بيتخبى', () => {
+    const m = maskSample(CIB, () => 0.3)
+    expect(m).toMatch(/جنيه/)
+    expect(m).toMatch(/المتاح/)
+    expect(m).not.toMatch(/CARREFOUR|MAADI|4521/)
+  })
+})

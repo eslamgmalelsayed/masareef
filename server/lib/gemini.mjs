@@ -1,5 +1,5 @@
 // بنسأل Gemini عن قالب شكل رسالة — النص اللي بيوصله مخفي البيانات بالكامل (أرقام عشوائية وأسماء وهمية)
-import { KINDS, linesOf } from './common.mjs'
+import { KINDS, linesOf, ANCHORS } from './common.mjs'
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -9,6 +9,12 @@ const SCHEMA = {
     partyLine: { type: 'INTEGER', nullable: true },
     balanceLine: { type: 'INTEGER', nullable: true },
     currency: { type: 'STRING', nullable: true },
+    amountAfter: { type: 'STRING', nullable: true },
+    amountBefore: { type: 'STRING', nullable: true },
+    partyAfter: { type: 'STRING', nullable: true },
+    partyBefore: { type: 'STRING', nullable: true },
+    balanceAfter: { type: 'STRING', nullable: true },
+    balanceBefore: { type: 'STRING', nullable: true },
   },
   required: ['kind', 'amountLine', 'partyLine', 'balanceLine', 'currency'],
 }
@@ -37,7 +43,10 @@ Return JSON describing how to read ANY message with this exact structure:
 - amountLine: index of the line holding the transaction amount (not the balance, not a fee). null only when kind = ignore.
 - partyLine: index of the line holding the merchant / person / payer name, or null if the message has none.
 - balanceLine: index of the line holding the remaining balance, or null.
-- currency: ISO 4217 code of the amount as written (SAR, EGP, AED, USD …), or null if not written.
+- currency: ISO 4217 code of the amount as written (SAR, EGP, AED, USD …; "جنيه" = EGP, "درهم" = AED, "ريال" = SAR in Saudi banks), or null if not written.
+- When a line holds MORE than one value (e.g. the whole message is one sentence with the amount, the merchant and the balance), also give anchors so each value can be cut out of its line:
+  amountAfter / amountBefore, partyAfter / partyBefore, balanceAfter / balanceBefore = a short word or phrase copied EXACTLY from the sample that comes right before / right after that value.
+  Anchors must be real banking words from the sample (never digits, never the XXXX / سسسس placeholders). Use null when the value has its own line.
 ${hint ? `\nA previous reading of this structure was WRONG. The correct reading has kind="${hint.kind}"${hint.amountLine != null ? ` and the amount is on line ${hint.amountLine}` : ''}.` : ''}
 Answer with the JSON only.`
 }
@@ -65,6 +74,7 @@ export async function askGemini(bank, sample, hint) {
     t.partyLine = o.partyLine ?? null
     t.balanceLine = o.balanceLine ?? null
     t.currency = o.currency ? String(o.currency).toUpperCase() : null
+    for (const k of ANCHORS) if (o[k]) t[k] = String(o[k])
   }
   return t
 }

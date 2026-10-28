@@ -1,5 +1,5 @@
 // POST /api/learn — شكل رسالة جديد: لو اتعلمناه قبل كده نرجّع قالبه (كاش مشترك لكل المستخدمين)، وإلا نسأل Gemini مرة واحدة
-import { store, json, preflight, body, okId, maskSample, shapeOf, validTemplate, linesOf } from '../../lib/common.mjs'
+import { store, json, preflight, body, okId, maskSample, shapeOf, validTemplate, linesOf, applyTemplate } from '../../lib/common.mjs'
 import { askGemini } from '../../lib/gemini.mjs'
 
 export default async (req) => {
@@ -20,7 +20,11 @@ export default async (req) => {
   let tpl
   try { tpl = await askGemini(bank, clean, hint && typeof hint === 'object' ? { kind: String(hint.kind || ''), amountLine: Number.isInteger(hint.amountLine) ? hint.amountLine : null } : null) }
   catch (e) { console.error(e); return json({ error: 'ai unavailable' }, 503) }
-  if (!validTemplate(tpl, linesOf(clean).length)) return json({ template: null }, 422)
+  // لازم القالب يقرا النسخة المخفية نفسها (المبلغ يطلع، والكلمات اللي بتحدد المكان موجودة فعلًا)
+  if (!validTemplate(tpl, linesOf(clean).length) || (tpl.kind !== 'ignore' && !applyTemplate(tpl, clean, Date.now(), {}))) {
+    console.warn('rejected template', JSON.stringify(tpl))
+    return json({ template: null }, 422)
+  }
 
   await s.setJSON('t/' + id, { template: tpl, status: 'pending', bank, sample: clean, at: Date.now(), v: (have?.v || 0) + 1 })
   return json({ template: tpl, status: 'pending' })

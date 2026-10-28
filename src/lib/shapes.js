@@ -47,7 +47,8 @@ const VOCAB = new Set(`تم تمت خصم إيداع ايداع عملية ال�
 مبروك عيدية اضافة إضافة الأموال أموال محفظة المحفظة شحن لعملية بمبلغ الدولة دولة مصرف بنك البنك آيبان ايبان المعرف البديل الجهة الخدمة
 مدفوعات حكومية وزارة نقاط البيع POS Purchase Amount Balance Card Account From To At Via Debit Credit Transfer transfer Local local Internal
 Outward Inward outward inward Online online Payment payment Refund Reverse Salary Fee Fees VAT Date Time Ref Wallet wallet Top up top
-Merchant Transaction transaction type SARIE Dear Customer debited credited with an amount of SAR SR USD EUR AED GBP EGP mada VISA`.split(/\s+/))
+Merchant Transaction transaction type SARIE deposit Deposit Available available credited debited
+جنيه جنيهات درهم دراهم دينار ليرة المتاح متاح الحالي خصمت أضيف اضيف أودع اودع Dear Customer debited credited with an amount of SAR SR USD EUR AED GBP EGP mada VISA`.split(/\s+/))
 const keepWord = (w) => VOCAB.has(w) || VOCAB.has(w.replace(/^(و|ب|ل|ال)/, '')) || w.length <= 1
 
 /**
@@ -67,7 +68,7 @@ export function cleanParty(line) {
   if (m) s = s.slice(m[0].length)
   s = s.trim().replace(/^(لـ|ل(?=\s*[*\d])|إلى|الى|لدى|To|At|From|من)\s*:?\s*/i, '')
   const acct = (s.match(/^\*?(\d{3,})/) || [])[1] || ''
-  s = s.replace(/^\*?\d+[;\s]*/, '').replace(/\*+$/, '').replace(/\s+/g, ' ').trim()
+  s = s.replace(/^\*?\d+[;\s]*/, '').replace(/[\s.,،:;]+$/, '').replace(/\*+$/, '').replace(/\s+/g, ' ').trim()
   return { name: s.slice(0, 48), acct }
 }
 
@@ -86,21 +87,34 @@ export function validTemplate(t, nLines) {
   if (t.kind === 'ignore') return true
   const ok = (x) => x == null || (Number.isInteger(x) && x >= 0 && x < nLines)
   if (t.currency != null && !/^[A-Z]{3}$/.test(t.currency)) return false
+  // الكلمات اللي بتحدد مكان القيمة جوه السطر (لو السطر فيه كذا قيمة): كلمة قصيرة من غير أرقام
+  for (const k of ANCHORS) if (t[k] != null && (typeof t[k] !== 'string' || !t[k].trim() || t[k].length > 24 || /\d/.test(t[k]))) return false
   return Number.isInteger(t.amountLine) && ok(t.amountLine) && ok(t.partyLine) && ok(t.balanceLine)
+}
+export const ANCHORS = ['amountAfter', 'amountBefore', 'partyAfter', 'partyBefore', 'balanceAfter', 'balanceBefore']
+/** جزء السطر بين كلمتين (بعد after وقبل before). لو الكلمة مش موجودة → null (القالب مش مناسب للرسالة) */
+function segment(line, after, before) {
+  let s = String(line || '')
+  if (after) { const i = s.indexOf(after); if (i < 0) return null; s = s.slice(i + after.length) }
+  if (before) { const j = s.indexOf(before); if (j >= 0) s = s.slice(0, j) }
+  return s
 }
 
 /**
  * يطبّق القالب على رسالة. بيرجّع نفس شكل classify: [kind, amount, name] أو null لو فشل.
  * الحارس: المبلغ لازم يكون مكتوب فعلًا في سطر المبلغ.
- * القالب: { kind, amountLine, partyLine?, balanceLine?, currency? (ISO زي SAR/EGP/AED) }
+ * القالب: { kind, amountLine, partyLine?, balanceLine?, currency? (ISO زي SAR/EGP/AED),
+ *           amountAfter/Before?, partyAfter/Before?, balanceAfter/Before? (كلمات بتحدد مكان القيمة جوه السطر) }
  */
 export function applyTemplate(t, body, ts, profile = {}) {
   const ls = linesOf(body)
   if (!validTemplate(t, ls.length)) return null
   if (t.kind === 'ignore') return ['ignore', 0, 'ai']
-  const a = amountIn(ls[t.amountLine], ts)
+  const aSeg = segment(ls[t.amountLine], t.amountAfter, t.amountBefore)
+  const a = aSeg == null ? null : amountIn(aSeg, ts)
   if (!(a > 0)) return null
-  const p = t.partyLine == null ? { name: '', acct: '' } : cleanParty(ls[t.partyLine])
+  const pSeg = t.partyLine == null ? null : segment(ls[t.partyLine], t.partyAfter, t.partyBefore)
+  const p = pSeg == null ? { name: '', acct: '' } : cleanParty(pSeg)
   if (t.kind === 'transfer') {
     const self = (profile.selfNames || []).filter(Boolean)
     if (self.some((n) => p.name.toLowerCase().includes(String(n).toLowerCase()))) return ['ignore', a, 'self']
@@ -108,11 +122,11 @@ export function applyTemplate(t, body, ts, profile = {}) {
   }
   // الرصيد والعملة (لو القالب حددهم) — بيدخلوا مع العملية
   const extra = {}
-  if (t.balanceLine != null) { const bal = amountIn(ls[t.balanceLine], ts); if (bal != null) extra.bal = bal }
+  if (t.balanceLine != null) { const bs = segment(ls[t.balanceLine], t.balanceAfter, t.balanceBefore); const bal = bs == null ? null : amountIn(bs, ts); if (bal != null) extra.bal = bal }
   if (t.currency && t.currency !== 'SAR') extra.cur = t.currency
   return [t.kind, a, p.name, extra]
 }
 
-const MONEY = /(SAR|SR|ر\.?\s?س|ريال|USD|EUR|AED|EGP)\s*:?\s*[\d,]+|[\d,]+(\.\d+)?\s*(SAR|SR|ر\.?\s?س|ريال|USD|EUR|AED|EGP)|(مبلغ|Amount|القيمة)\s*:?\s*[\d,]+/i
+const MONEY = /(SAR|SR|ر\.?\s?س|ريال|USD|EUR|AED|EGP|KWD|QAR|BHD|OMR|JOD)\s*:?\s*[\d,]+|[\d,]+(\.\d+)?\s*(SAR|SR|ر\.?\s?س|ريال|USD|EUR|AED|EGP|KWD|QAR|BHD|OMR|JOD|جنيه|درهم|دينار)|(مبلغ|Amount|القيمة)\s*:?\s*[\d,]+/i
 /** رسالة فيها فلوس؟ (لو التطبيق مافهمهاش يبقى تستاهل نسأل عليها) */
 export const hasMoney = (b) => MONEY.test(String(b || '').normalize('NFKC'))
