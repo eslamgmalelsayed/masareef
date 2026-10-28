@@ -131,8 +131,8 @@ import { setWeekly } from '../lib/extras.js'
         <template v-if="p.limit">
           <div class="bar"><i :style="{ width: Math.min(100, (p.spent / p.limit) * 100) + '%' }"></i></div>
           <div class="xs stat">
-            <span v-if="p.spent <= p.limit">باقي {{ fmt(p.limit - p.spent) }} ر.س</span>
-            <span v-else>عدّيت الحد بـ {{ fmt(p.spent - p.limit) }} ر.س</span>
+            <span v-if="p.spent <= p.limit">باقي {{ fmt(p.limit - p.spent) }} {{ $money.sym }}</span>
+            <span v-else>عدّيت الحد بـ {{ fmt(p.spent - p.limit) }} {{ $money.sym }}</span>
             <span>{{ Math.round((p.spent / p.limit) * 100) }}٪</span>
           </div>
         </template>
@@ -167,8 +167,8 @@ import { setWeekly } from '../lib/extras.js'
         <template v-if="g.limit">
           <div class="bar"><i :style="{ width: Math.min(100, (g.spent / g.limit) * 100) + '%' }"></i></div>
           <div class="xs stat">
-            <span v-if="g.spent < g.limit">باقي {{ fmt(g.limit - g.spent) }} ر.س</span>
-            <span v-else>عدّيت الحد بـ {{ fmt(g.spent - g.limit) }} ر.س</span>
+            <span v-if="g.spent < g.limit">باقي {{ fmt(g.limit - g.spent) }} {{ $money.sym }}</span>
+            <span v-else>عدّيت الحد بـ {{ fmt(g.spent - g.limit) }} {{ $money.sym }}</span>
             <span>{{ Math.round((g.spent / g.limit) * 100) }}٪</span>
           </div>
         </template>
@@ -216,8 +216,8 @@ import { setWeekly } from '../lib/extras.js'
         <template v-if="r.base">
           <div class="bar"><i :style="{ width: Math.min(100, (r.spent / Math.max(1, r.limit)) * 100) + '%' }"></i></div>
           <div class="xs stat">
-            <span v-if="r.spent < r.limit">باقي {{ fmt(r.limit - r.spent) }} ر.س</span>
-            <span v-else>عدّيت الحد بـ {{ fmt(r.spent - r.limit) }} ر.س</span>
+            <span v-if="r.spent < r.limit">باقي {{ fmt(r.limit - r.spent) }} {{ $money.sym }}</span>
+            <span v-else>عدّيت الحد بـ {{ fmt(r.spent - r.limit) }} {{ $money.sym }}</span>
             <span v-if="r.carry">{{ r.carry > 0 ? '+' : '−' }}{{ fmt(Math.abs(r.carry)) }} من الراتب اللي فات · {{ Math.round((r.spent / Math.max(1, r.limit)) * 100) }}٪</span>
             <span v-else>{{ Math.round((r.spent / r.limit) * 100) }}٪ · الحد = {{ salPct(r.limit) }}</span>
           </div>

@@ -67,10 +67,10 @@ const usedCats = computed(() => CATEGORIES.filter((c) => !c.hidden && allTx.valu
       <button v-for="c in usedCats" :key="c.id" class="pill" :class="{ on: cat === c.id }" @click="cat = cat === c.id ? '' : c.id">{{ c.icon }} {{ c.name }}</button>
     </div>
     <div v-if="bankF" class="bankchip">🏦 {{ bankF }} <button class="link" @click="bankF = ''">✕</button></div>
-    <div class="muted sm summary">{{ rows.length.toLocaleString('en-US') }} عملية · {{ fmt(total) }} ر.س</div>
+    <div class="muted sm summary">{{ rows.length.toLocaleString('en-US') }} عملية · {{ fmt(total) }} {{ $money.sym }}</div>
 
     <section v-for="g in groups" :key="g.k" class="card day">
-      <div class="dh"><span>{{ g.label }}</span><span v-if="g.sum" class="muted">{{ fmt(g.sum) }} ر.س</span></div>
+      <div class="dh"><span>{{ g.label }}</span><span v-if="g.sum" class="muted">{{ fmt(g.sum) }} {{ $money.sym }}</span></div>
       <TxRow v-for="t in g.items" :key="t.id" :t="t" @open="emit('open', t)" />
     </section>
     <button v-if="rows.length > shown" class="more" @click="shown += 100">عرض المزيد</button>

@@ -37,7 +37,7 @@ async function rename(e) { const n = await promptText('غيّر الاسم', e.n
 
     <section v-if="activeEvent" class="hero2">
       <span class="lbl">{{ activeEvent.icon }} {{ activeEvent.name }} شغال من {{ activeEvent.days }} {{ activeEvent.days === 1 ? 'يوم' : 'أيام' }}</span>
-      <b>{{ fmt(activeEvent.total) }}<small> ر.س</small></b>
+      <b>{{ fmt(activeEvent.total) }}<small> {{ $money.sym }}</small></b>
       <span class="lbl">{{ fmt(activeEvent.perDay) }} في اليوم · كل اللي بتصرفه بيتجمع هنا لوحده</span>
       <button class="stop" @click="stopEvent(activeEvent.id)">⏹ خلّصت</button>
     </section>

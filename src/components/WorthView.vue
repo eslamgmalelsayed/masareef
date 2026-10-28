@@ -39,7 +39,7 @@ const maxH = computed(() => Math.max(1, ...bankHistory.value.map((h) => Math.abs
 
     <section class="hero2" :class="{ neg: N.net < 0 }">
       <span class="lbl">اللي تملكه − اللي عليك</span>
-      <b dir="ltr">{{ N.net < 0 ? '−' : '' }}{{ fmt(Math.abs(N.net)) }}<small> ر.س</small></b>
+      <b dir="ltr">{{ N.net < 0 ? '−' : '' }}{{ fmt(Math.abs(N.net)) }}<small> {{ $money.sym }}</small></b>
       <div class="split">
         <div><span class="lbl">في البنوك</span><b>{{ fmt(N.bank) }}</b></div>
         <div><span class="lbl">ممتلكات + ليك</span><b>{{ fmt(N.other + N.recv) }}</b></div>

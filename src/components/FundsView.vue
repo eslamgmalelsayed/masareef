@@ -42,7 +42,7 @@ const passed = computed(() => funds.value.filter((f) => f.due_passed))
 
     <section v-if="active.length" class="hero2">
       <span class="lbl">حط على جنب من الراتب ده</span>
-      <b>{{ fmt(fundsNeedNow) }}<small> ر.س</small></b>
+      <b>{{ fmt(fundsNeedNow) }}<small> {{ $money.sym }}</small></b>
       <span class="lbl">علشان المصاريف الكبيرة متفاجئكش — وبيتطرح من "تقدر تصرف/يوم"</span>
     </section>
     <p v-else class="muted sm intro">للمصاريف اللي مش كل شهر بس معروفة: بتحدد المبلغ والميعاد، والتطبيق يقولك تحط كام من كل راتب.</p>

@@ -2,7 +2,8 @@ import { reactive, computed, watch, ref } from 'vue'
 import { parseMessages, messagesFromXml, messagesFromJson, messagesFromText, BANKS, detectProfile, BNPL_SENDERS, parseBnplMessages, setExtraBanks, KNOWN_NAMES } from './parser.js'
 import { categorize, merchantKey, TRANSFER_CATS, RULES, CATEGORIES } from './categories.js'
 import { isNative, readSms, saveNativeConfig, listSenders } from './smsSource.js'
-import { privacy } from './format.js'
+import { privacy, money } from './format.js'
+import { detectHome, setMoney, SYM } from './money.js'
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d } catch { return d } },
@@ -105,6 +106,21 @@ function learnProfile(messages, merge = false) {
   LS.set('detected', state.detected)
 }
 
+// ===== عملة البيت: بتتعرف لوحدها من الرسايل (حتى لو بتعيش/بتصرف في أكتر من بلد) =====
+state.homeCur = LS.get('homeCur', 'SAR')
+function applyMoney() {
+  const fx = LS.get('fx', null)
+  setMoney(state.homeCur, fx && fx.toUsd)
+  money.cur = state.homeCur
+  money.sym = SYM[state.homeCur] || state.homeCur
+}
+applyMoney()
+export function setFxRates(toUsd) { LS.set('fx', { at: Date.now(), toUsd }); applyMoney() }
+function learnHome(msgs) {
+  const h = detectHome(msgs)
+  if (h && h !== state.homeCur) { state.homeCur = h; LS.set('homeCur', h); applyMoney() }
+}
+
 let rawSms = [] // null = العمليات جت من الكاش والرسايل القديمة مش في الذاكرة
 
 // ===== القراية الذكية: القوالب (من المكتبة المشتركة + اللي اتعلمت على الموبايل ده) =====
@@ -123,7 +139,7 @@ export async function syncSms(full = false) {
   if (!isNative) {
     // نسخة الويب (آيفون PWA): الرسايل اللي اتلزقت بإيدك هي "صندوق الرسايل"
     rawSms = state.webMsgs
-    if (rawSms.length) { learnProfile(rawSms, true); state.smsTx = parseAll(rawSms); state.bnplSms = parseBnplMessages(rawSms) }
+    if (rawSms.length) { learnProfile(rawSms, true); learnHome(rawSms); state.smsTx = parseAll(rawSms); state.bnplSms = parseBnplMessages(rawSms) }
     state.status = 'ready'
     return
   }
@@ -135,7 +151,7 @@ export async function syncSms(full = false) {
     const C = full ? null : LS.get('parseCache', null)
     const sig = cacheSig(senders)
     // فيه رسايل قديمة لسه مالهاش قالب؟ قراية كاملة مرة في اليوم علشان القراية الذكية تتعلمها
-    const stale = C && C.unknown?.length && Date.now() - (C.fullAt || 0) > 864e5
+    const stale = C && ((C.unknown?.length && Date.now() - (C.fullAt || 0) > 864e5) || Date.now() - (C.fullAt || 0) > 7 * 864e5) // + قراية كاملة كل أسبوع (لو نقلت بلد، عملة البيت تتعرف)
     if (C && C.sig === sig && C.maxDate && !stale) {
       // ===== كاش: العمليات القديمة متخزنة — بنقرا بس الرسايل الجديدة =====
       const fresh = await readSms(senders, C.maxDate)
@@ -152,6 +168,7 @@ export async function syncSms(full = false) {
       // ===== قراية كاملة (أول مرة، أو حاجة اتغيرت) =====
       const all = await readSms(senders)
       rawSms = all.filter((m) => !isBnpl(m))
+      learnHome(rawSms)
       state.bnplSms = parseBnplMessages(all.filter(isBnpl).concat(rawSms))
       learnProfile(rawSms)
       const out = parseAll(rawSms)
@@ -172,7 +189,7 @@ export async function syncSms(full = false) {
 // اتغيّر أي حاجة من دي → قراية كاملة مرة واحدة: نسخة القراية، اسمك وحساباتك، البنوك، أو عدد القوالب
 const PARSER_V = 'p3'
 function cacheSig(senders) {
-  return [PARSER_V, JSON.stringify(profile()), senders.slice().sort().join(','), Object.keys(state.tpls || {}).length].join('|')
+  return [PARSER_V, state.homeCur, JSON.stringify(profile()), senders.slice().sort().join(','), Object.keys(state.tpls || {}).length].join('|')
 }
 function saveCache(sig, maxDate, unknown, fullAt) {
   LS.set('parseCache', { sig, maxDate, fullAt, tx: state.smsTx.map(({ d, c, ...t }) => t), bnpl: state.bnplSms, unknown: [...new Set(unknown)].slice(-2000) })
@@ -556,6 +573,7 @@ function pushNativeConfig() {
     overrides: state.overrides,
     senders: allSenders().map((x) => x.toLowerCase()),
     warnPct: warnPct.value,
+    money: { home: state.homeCur, toUsd: (LS.get('fx', null) || {}).toUsd || null },
     widget: { day: dayLimit.value, cycle: totalLimit.value, daySpent: daySpent.value, cycleSpent: cycleSpent.value, hide: privacy.on },
     ...nativeExtra,
   })

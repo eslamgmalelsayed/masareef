@@ -2,7 +2,7 @@ import { computed, watch } from 'vue'
 import { allTx, spendTx, state, saveSettings, cycles, currentCycle, nextSalaryDate, income, totalLimit, cycleSpent, cycleDays } from './store.js'
 import { commitments, transfers, saveGoal } from './insights.js'
 import { owedOpen, lent, debtReminders } from './debts.js'
-import { fmt } from './format.js'
+import { fmt, sym } from './format.js'
 import { dueReminders } from './credit.js'
 import { scheduleReminders } from './smsSource.js'
 
@@ -212,7 +212,7 @@ export const zakatReminders = computed(() => {
   const out = []
   const before = new Date(d - 3 * DAY); before.setHours(10, 0, 0, 0)
   const on = new Date(d); on.setHours(9, 0, 0, 0)
-  const amt = zakat.value.amount ? ` — تقريبًا ${Math.round(zakat.value.amount).toLocaleString('en-US')} ر.س` : ''
+  const amt = zakat.value.amount ? ` — تقريبًا ${Math.round(zakat.value.amount).toLocaleString('en-US')} ${sym()}` : ''
   if (+before > Date.now()) out.push({ id: 'due-zakat-' + +before, at: +before, title: '🕌 الزكاة بعد ٣ أيام', text: 'افتح مصاريفي وراجع الحساب' + amt })
   if (+on > Date.now()) out.push({ id: 'due-zakat-' + +on, at: +on, title: '🕌 النهارده ميعاد الزكاة', text: 'الحول كمل' + amt })
   return out

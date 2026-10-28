@@ -6,7 +6,7 @@ import { owedOpen, lent, manualDebts, totals, simulate, saveDebt, deleteDebt, ad
 import LoanAsk from './LoanAsk.vue'
 import { state, saveSettings } from '../lib/store.js'
 import { savings } from '../lib/insights.js'
-import { fmt, fmtDate, DAY } from '../lib/format.js'
+import { fmt, fmtDate, DAY, sym } from '../lib/format.js'
 
 const props = defineProps({ initial: String })
 const emit = defineEmits(['back', 'go', 'open'])
@@ -96,7 +96,7 @@ async function ignoreAuto() {
 // "مش سلفة" على حوالة: الحوالة دي بس، ولا كل تحويلاته؟
 async function notLoanAsk(t) {
   const d = curAuto.value
-  const v = d && d.txs.length > 1 ? await choose({ icon: '🤝', title: 'مش سلفة', text: `${fmt(t.a)} ر.س لـ ${d.name}`, options: [
+  const v = d && d.txs.length > 1 ? await choose({ icon: '🤝', title: 'مش سلفة', text: `${fmt(t.a)} ${sym()} لـ ${d.name}`, options: [
     { label: 'الحوالة دي بس', value: 'one', kind: 'primary' },
     { label: `كل تحويلاتي لـ ${d.name}`, value: 'all' },
     { label: 'إلغاء', value: null },
@@ -127,7 +127,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
     <template v-if="tab === 'owe'">
       <section v-if="owedOpen.length" class="hero2">
         <span class="lbl">إجمالي اللي عليك</span>
-        <b>{{ fmt(T.owed) }}<small> ر.س</small></b>
+        <b>{{ fmt(T.owed) }}<small> {{ $money.sym }}</small></b>
         <div class="split">
           <div><span class="lbl">أقساط / شهر</span><b>{{ fmt(T.min) }}</b></div>
           <div v-if="T.ratio != null"><span class="lbl">من دخلك</span><b class="ratio" :class="ratioLvl">{{ Math.round(T.ratio * 100) }}٪</b></div>
@@ -171,7 +171,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
 
         <label class="ex">
           <span>هدفع زيادة على الأقساط كل شهر</span>
-          <b>{{ fmt(extra) }} ر.س</b>
+          <b>{{ fmt(extra) }} {{ $money.sym }}</b>
         </label>
         <input class="range" type="range" min="0" :max="maxExtra" step="50" :value="extra" @input="(e) => (extra = e.target.value)" />
         <p class="muted xs" v-if="suggestExtra">المقترح {{ fmt(suggestExtra) }} = نص اللي بيفضل معاك عادةً من الراتب</p>
@@ -181,7 +181,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
             <span>هتخلص كل ديونك في</span>
             <b>{{ monthName(plan.months) }}</b>
             <span class="muted sm">بعد {{ plan.months }} شهر<template v-if="base && base.months > plan.months"> — بدل {{ base.capped ? 'أكتر من ٣٠ سنة' : base.months + ' شهر' }} لو دفعت الأقساط بس</template></span>
-            <span v-if="base && base.interest - plan.interest > 5" class="good sm">هتوفّر {{ fmt(base.interest - plan.interest) }} ر.س فوايد</span>
+            <span v-if="base && base.interest - plan.interest > 5" class="good sm">هتوفّر {{ fmt(base.interest - plan.interest) }} {{ $money.sym }} فوايد</span>
           </template>
           <template v-else><b>المبلغ ده مش كفاية يخلّص الديون</b><span class="muted sm">زوّد المبلغ الشهري أو راجع الأقساط</span></template>
         </div>
@@ -203,7 +203,7 @@ const lentDone = computed(() => lent.value.filter((d) => d.done))
     <template v-else>
       <section v-if="lentOpen.length" class="hero2 lentc">
         <span class="lbl">ليك عند الناس</span>
-        <b>{{ fmt(T.lent) }}<small> ر.س</small></b>
+        <b>{{ fmt(T.lent) }}<small> {{ $money.sym }}</small></b>
         <span class="lbl">{{ lentOpen.length }} {{ lentOpen.length === 1 ? 'شخص' : 'أشخاص' }}</span>
       </section>
       <section class="card">

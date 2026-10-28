@@ -3,7 +3,7 @@ import { computed, watch } from 'vue'
 import { allTx, spendTx, state, saveSettings, nativeExtra, nextSalaryDate, totalLimit, weekLimit, periodStarts } from './store.js'
 import { subscriptions } from './insights.js'
 import { safeToSpend, saveFund } from './tools.js'
-import { fmt } from './format.js'
+import { fmt, sym } from './format.js'
 import { notify, isNative } from './smsSource.js'
 
 const DAY = 864e5
@@ -96,7 +96,7 @@ export function affordCheck(price) {
   const eq = avgDay.value ? price / avgDay.value : 0
   let level, title
   if (noLimit) { level = 'none'; title = 'حدد حد للصرف الأول علشان أقدر أقولك' }
-  else if (after < 0) { level = 'over'; title = `هتعدّي حدك بـ ${fmt(-after)} ر.س` }
+  else if (after < 0) { level = 'over'; title = `هتعدّي حدك بـ ${fmt(-after)} ${sym()}` }
   else if (perAfter < perNow * 0.6 || perAfter < 30) { level = 'tight'; title = 'تقدر — بس الشهر هيبقى ضيق' }
   else { level = 'ok'; title = 'ماشي، تقدر تشتريها' }
   const ns = nextSalaryDate.value ? +nextSalaryDate.value : null
@@ -139,7 +139,7 @@ watch(priceUps, (list) => {
   const done = new Set(state.settings.priceNotified || [])
   const fresh = list.filter((p) => !done.has(p.id) && Date.now() - p.tx.ts < 3 * DAY)
   if (!fresh.length) return
-  for (const p of fresh.slice(0, 2)) notify(`📈 ${p.name} زاد سعره`, `بقى ${fmt(p.now)} ر.س بدل ${fmt(p.was)} (+${fmt(p.up)}) ${p.period}`, 7300 + (Math.abs(hashStr(p.id)) % 500)).catch(() => {})
+  for (const p of fresh.slice(0, 2)) notify(`📈 ${p.name} زاد سعره`, `بقى ${fmt(p.now)} ${sym()} بدل ${fmt(p.was)} (+${fmt(p.up)}) ${p.period}`, 7300 + (Math.abs(hashStr(p.id)) % 500)).catch(() => {})
   state.settings.priceNotified = [...done, ...fresh.map((p) => p.id)].slice(-200)
   saveSettings()
 })

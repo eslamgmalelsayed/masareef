@@ -87,7 +87,7 @@ const fb = ref('')
     <section class="card">
       <h2>الدخل والراتب</h2>
       <label class="fld">
-        <span>دخلك الشهري (ر.س)</span>
+        <span>دخلك الشهري ({{ $money.sym }})</span>
         <input type="number" inputmode="numeric" v-model.number="state.settings.income" @change="saveMoney" :placeholder="currentCycle.salary ? 'من رسالة الراتب: ' + fmt(currentCycle.salary) : 'مثلًا 10000'" />
         <small class="muted">سيبه فاضي ونحسبه من رسالة الراتب</small>
       </label>

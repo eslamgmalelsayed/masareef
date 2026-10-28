@@ -83,6 +83,7 @@ public final class LimitStore {
     /** بيتنادى من الـ BroadcastReceiver لما توصل رسالة شراء جديدة */
     public static void addPurchase(Context ctx, String address, String body, long ts) {
         JSONObject cfg = loadConfig(ctx);
+        applyMoney(cfg);
         JSONArray senders = cfg.optJSONArray("senders");
         if (senders == null || address == null) return;
         boolean ok = false;
@@ -330,6 +331,15 @@ public final class LimitStore {
         notifyActions(ctx, nid, title, text,
             new String[] { "أيوه، سلفة", "لا" },
             new PendingIntent[] { LoanActionReceiver.pending(ctx, nid, true, t.amount, key, ts), LoanActionReceiver.pending(ctx, nid, false, t.amount, key, ts) });
+    }
+
+    /** عملة البيت وأسعار اليوم من JS → المبالغ في التنبيهات تبقى بنفس عملة التطبيق */
+    static void applyMoney(JSONObject cfg) {
+        JSONObject m = cfg.optJSONObject("money");
+        if (m == null) return;
+        JSONObject r = m.optJSONObject("toUsd");
+        Map<String, Double> rates = r == null ? null : doubles(r);
+        LimitEngine.setMoney(m.optString("home", "SAR"), rates);
     }
 
     static LimitEngine.LoanRules loanRules(JSONObject o) {

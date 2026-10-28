@@ -23,7 +23,7 @@ const maxM = computed(() => Math.max(1, ...T.value.months.map((m) => m.v)))
     <template v-else>
       <section class="hero2">
         <span class="lbl">بعت في آخر ١٢ شهر</span>
-        <b>{{ fmt(T.year) }}<small> ر.س</small></b>
+        <b>{{ fmt(T.year) }}<small> {{ $money.sym }}</small></b>
         <div class="split">
           <div><span class="lbl">الراتب ده</span><b>{{ fmt(T.cycle) }}</b></div>
           <div><span class="lbl">متوسط الشهر</span><b>{{ fmt(T.year / 12) }}</b></div>
@@ -43,8 +43,8 @@ const maxM = computed(() => Math.max(1, ...T.value.months.map((m) => m.v)))
           <p class="muted xs">الباقي بيتطرح من "تقدر تصرف/يوم" علشان تفضل فاكره.</p>
         </template>
         <div v-if="R.avgFee" class="tip">
-          💡 متوسط رسوم الحوالة {{ fmt(R.avgFee) }} ر.س ({{ (R.feePct * 100).toFixed(1) }}٪ من اللي بتبعته).
-          <template v-if="R.mergeSave > 20"> لو جمعت حوالات كل شهر في حوالة واحدة كنت وفرت حوالي <b>{{ fmt(R.mergeSave) }} ر.س</b> في السنة ({{ R.extraCount }} حوالة زيادة).</template>
+          💡 متوسط رسوم الحوالة {{ fmt(R.avgFee) }} {{ $money.sym }} ({{ (R.feePct * 100).toFixed(1) }}٪ من اللي بتبعته).
+          <template v-if="R.mergeSave > 20"> لو جمعت حوالات كل شهر في حوالة واحدة كنت وفرت حوالي <b>{{ fmt(R.mergeSave) }} {{ $money.sym }}</b> في السنة ({{ R.extraCount }} حوالة زيادة).</template>
         </div>
         <div v-if="R.banks.length > 1" class="banks">
           <div v-for="b in R.banks" :key="b.b" class="brow"><span>{{ b.b }}</span><span class="muted">{{ b.n }} حوالة · رسوم {{ fmt(b.avgFee) }} للحوالة</span></div>

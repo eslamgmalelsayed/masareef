@@ -1,7 +1,8 @@
 // القراية الذكية: كل رسالة بنك ليها "شكل" (القالب من غير الأرقام والأسماء).
 // الذكاء الاصطناعي بيتعلم الشكل مرة واحدة (من مثال مخفي البيانات) ويرجّع "قالب":
 // { kind, amountLine, partyLine } — والكود هنا بيطبّق القالب على كل رسالة بنفس الشكل، جوه الموبايل.
-import { amount } from './parser.js'
+import { amountRaw } from './parser.js'
+import { toHome, homeCur } from './money.js'
 
 export const KINDS = ['purchase', 'transfer', 'intl', 'in', 'salary', 'refund', 'cash', 'bill', 'fee', 'ignore']
 
@@ -72,13 +73,21 @@ export function cleanParty(line) {
   return { name: s.slice(0, 48), acct }
 }
 
-/** المبلغ من السطر اللي القالب حدده: بالعملة لو موجودة، وإلا أول رقم في السطر (مش تاريخ ولا وقت) */
-function amountIn(line, ts) {
-  const a = amount(line, ts)
-  if (a > 0) return a
-  const v = String(line).replace(/^[^\d:：]{0,28}[:：]/, '').replace(/\d{1,4}[/\-]\d{1,2}[/\-]\d{1,4}|\d{1,2}:\d{2}(:\d{2})?/g, ' ').match(/(?<![\d*])\d[\d,]*(?:\.\d+)?/)
-  const n = v ? parseFloat(v[0].replace(/,/g, '')) : NaN
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null
+/**
+ * المبلغ من السطر اللي القالب حدده: { v (بعملة البيت), oa (زي ما مكتوب), cur }
+ * بالعملة لو مكتوبة، وإلا أول رقم في السطر (مش تاريخ ولا وقت) بعملة القالب
+ */
+function amountIn(line, ts, tplCur) {
+  let raw = amountRaw(line)
+  if (!raw) {
+    const v = String(line).replace(/^[^\d:：]{0,28}[:：]/, '').replace(/\d{1,4}[/\-]\d{1,2}[/\-]\d{1,4}|\d{1,2}:\d{2}(:\d{2})?/g, ' ').match(/(?<![\d*])\d[\d,]*(?:\.\d+)?/)
+    const n = v ? parseFloat(v[0].replace(/,/g, '')) : NaN
+    if (!(Number.isFinite(n) && n > 0)) return null
+    raw = { v: n, cur: null }
+  }
+  if (!(raw.v > 0)) return null
+  const cur = raw.cur || tplCur || homeCur()
+  return { v: toHome(raw.v, cur, ts), oa: Math.round(raw.v * 100) / 100, cur }
 }
 
 /** القالب صالح شكلًا؟ (بنتأكد من اللي راجع من السيرفر قبل ما نستخدمه) */
@@ -120,8 +129,9 @@ export function applyTemplate(t, body, ts, profile = {}) {
   if (!validTemplate(t, ls.length)) return null
   if (t.kind === 'ignore') return ['ignore', 0, 'ai']
   const aSeg = segment(ls[t.amountLine], t.amountAfter, t.amountBefore)
-  const a = aSeg == null ? null : amountIn(aSeg, ts)
-  if (!(a > 0)) return null
+  const am = aSeg == null ? null : amountIn(aSeg, ts, t.currency)
+  if (!am) return null
+  const a = am.v
   const pSeg = t.partyLine == null ? null : segment(ls[t.partyLine], t.partyAfter, t.partyBefore)
   const p = pSeg == null ? { name: '', acct: '' } : cleanParty(pSeg)
   if (t.kind === 'transfer') {
@@ -131,8 +141,8 @@ export function applyTemplate(t, body, ts, profile = {}) {
   }
   // الرصيد والعملة (لو القالب حددهم) — بيدخلوا مع العملية
   const extra = {}
-  if (t.balanceLine != null) { const bs = segment(ls[t.balanceLine], t.balanceAfter, t.balanceBefore); const bal = bs == null ? null : amountIn(bs, ts); if (bal != null) extra.bal = bal }
-  if (t.currency && t.currency !== 'SAR') extra.cur = t.currency
+  if (t.balanceLine != null) { const bs = segment(ls[t.balanceLine], t.balanceAfter, t.balanceBefore); const bal = bs == null ? null : amountIn(bs, ts, t.currency); if (bal) extra.bal = bal.v }
+  if (am.cur !== homeCur()) { extra.cur = am.cur; extra.oa = am.oa } // اتدفعت بعملة تانية: بنحفظ المبلغ الأصلي
   return [t.kind, a, p.name, extra]
 }
 

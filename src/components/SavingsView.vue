@@ -31,12 +31,12 @@ function setGoal(e) {
         <span>عايز تحوّش كام من كل راتب؟</span>
         <input type="number" inputmode="numeric" min="0" step="100" :value="S.goal || ''" :placeholder="suggest ? 'مثلًا ' + fmt(suggest) : 'مثلًا 2000'" @change="setGoal" />
       </label>
-      <small class="muted" v-if="S.avgSaved > 0">متوسط اللي بيفضل معاك من الراتب: {{ fmt(S.avgSaved) }} ر.س</small>
+      <small class="muted" v-if="S.avgSaved > 0">متوسط اللي بيفضل معاك من الراتب: {{ fmt(S.avgSaved) }} {{ $money.sym }}</small>
     </section>
 
     <section v-if="S.goal" class="hero2" :class="S.onTrack ? 'ok' : 'bad'">
       <span class="lbl">{{ S.onTrack ? 'ماشي صح 👌' : 'بالمعدل ده مش هتوصل للهدف' }}</span>
-      <b>{{ fmt(Math.max(0, S.projected)) }}<small> من {{ fmt(S.goal) }} ر.س</small></b>
+      <b>{{ fmt(Math.max(0, S.projected)) }}<small> من {{ fmt(S.goal) }} {{ $money.sym }}</small></b>
       <span class="lbl">ده اللي متوقع يفضل معاك آخر الراتب</span>
       <div class="track"><i :style="{ width: pct + '%' }"></i></div>
       <div class="split">

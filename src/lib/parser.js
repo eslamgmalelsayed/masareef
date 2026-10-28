@@ -1,5 +1,6 @@
 // تحليل رسايل البنوك السعودية والمحافظ → عمليات مالية
 import { shapeOf, applyTemplate, hasMoney } from './shapes.js'
+import { CUR_RX, normCur, toHome, homeCur } from './money.js'
 // kind: purchase | transfer | intl | cash | bill | gov | fee | refund | salary | in | ignore
 
 export const BANKS = {
@@ -27,9 +28,6 @@ export function bankOf(address) {
 }
 
 const NUM = String.raw`([\d,]+(?:\.\d*)?)`
-const RATES = { SAR: 1, SR: 1, 'ريال': 1, USD: 3.75, EUR: 4.05, AED: 1.02, GBP: 4.8 }
-const egpRate = (ts) => (ts < 1709251200000 ? 1 / 8.2 : 1 / 13.0)
-
 const SKIP = /OTP|رمز|security code|verification|كلمة مرور|password|تسجيل الدخول|logged in|الرقم السري|Declined|declined|not allowed|Insufficient|غير كاف|مرفوض|رفض|maintenance|Hello|هلا|عميلنا|Dear Customer|تفعيل|registered|blocked|Apple Pay successfully/i
 const TOPUP_MERCH = /URPAY|STC ?PAY|STC BANK|stcpay|Mobily Pay|بنك اس تي سي/i
 
@@ -39,31 +37,42 @@ function num(s) {
 }
 const r2 = (v) => Math.round(v * 100) / 100
 
-export function amount(b, ts = 0) {
+/** المبلغ وعملته زي ما مكتوبين في الرسالة: { v, cur } أو null */
+export function amountRaw(b) {
   for (const pat of [new RegExp('(?:إجمالي|اجمالي) المبلغ المستحق:\\s*' + NUM), new RegExp('\\(' + NUM + '\\s*ريال\\)')]) {
     const m = b.match(pat)
-    if (m) return num(m[1])
+    if (m) return { v: num(m[1]), cur: null }
   }
-  const s = b.replace(/(رصيد|Your balance|Balance|رسوم وضريبة|رسوم|Fees|VAT|سعر الصرف)[^|\n]*/g, '')
-  const CUR = '(SAR|SR|USD|EGP|EUR|AED|GBP|ريال)'
-  for (const [p, order] of [[CUR + '\\s*:?\\s*' + NUM, 'cn'], [NUM + '\\s*' + CUR, 'nc']]) {
+  const s = b.replace(/(رصيد|Your balance|Balance|رسوم وضريبة|رسوم|Fees|VAT|سعر الصرف|المتاح)[^|\n]*/g, '')
+  for (const [p, order] of [[CUR_RX + '\\s*:?\\s*' + NUM, 'cn'], [NUM + '\\s*' + CUR_RX + '(\\s*\\S+)?', 'nc']]) {
     const m = s.match(new RegExp(p))
     if (m) {
-      const [c, vs] = order === 'cn' ? [m[1], m[2]] : [m[2], m[1]]
+      const [c, vs, after] = order === 'cn' ? [m[1], m[2], ''] : [m[2], m[1], m[3] || '']
       const v = num(vs)
       if (v === null) continue
-      if (c === 'EGP') return r2(v * egpRate(ts))
-      return r2(v * RATES[c])
+      return { v, cur: normCur(c, after) }
     }
   }
   for (const p of ['Amount:\\s*' + NUM, 'Transaction Amount\\s*' + NUM, 'مبلغ:?\\s*' + NUM, 'With:\\s*' + NUM, 'amount of\\s*' + NUM]) {
     const m = s.match(new RegExp(p))
     if (m) {
       const v = num(m[1])
-      if (v !== null) return v
+      if (v !== null) return { v, cur: null }
     }
   }
   return null
+}
+
+/** العملية اتعملت بعملة غير عملة البيت؟ بنحفظ المبلغ الأصلي وعملته */
+function origCur(b) {
+  const r = amountRaw(b)
+  return r && r.cur && r.cur !== homeCur() ? { cur: r.cur, oa: r2(r.v) } : {}
+}
+
+/** المبلغ بعملة البيت (العملة اللي التطبيق عرف إنك بتصرف بيها) */
+export function amount(b, ts = 0) {
+  const r = amountRaw(b)
+  return r ? toHome(r.v, r.cur, ts) : null
 }
 
 function merchant(b) {
@@ -211,7 +220,7 @@ export function parseMessages(messages, profile, tpls = null) {
       m: (r[0] === 'gov' ? 'وزارة الداخلية – ' + name : name || '—').slice(0, 48),
       b: bank,
       ...meta(b),
-      ...(r[3] || {}),
+      ...(r[3] || (r !== old ? {} : origCur(b))),
       ...(ai && r !== old ? { ai: 1 } : {}),
     })
   }

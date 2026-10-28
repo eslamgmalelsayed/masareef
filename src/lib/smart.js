@@ -1,7 +1,7 @@
 // القراية الذكية (شغالة دايمًا): بتاخد الأشكال اللي مالهاش قالب، وتطلب قالبها من السيرفر
 // (بنسخة مخفية البيانات بس)، وتبلّغ لو قالب طلع غلط. القراية نفسها بتفضل جوه الموبايل.
 import { reactive } from 'vue'
-import { state, setSmartHook, setTemplates, reparse } from './store.js'
+import { state, setSmartHook, setTemplates, reparse, setFxRates } from './store.js'
 import { maskSample, linesOf, validTemplate, applyTemplate, shapeOf } from './shapes.js'
 import { amount } from './parser.js'
 
@@ -131,6 +131,14 @@ async function run() {
 function report(m) {
   api('/api/report', { id: m.id, device: deviceId(), got: m.got == null ? 'fail' : String(m.got) === 'ignore' ? 'ignore' : 'amount' }).catch(() => {})
 }
+
+/** أسعار العملات: مرة في اليوم (لو مفيش نت → الجدول الاحتياطي) */
+async function refreshRates() {
+  const fx = LS.get('fx', null)
+  if (fx && Date.now() - fx.at < 864e5) return
+  try { const r = await api('/api/rates'); if (r.toUsd) setFxRates(r.toUsd) } catch {}
+}
+setTimeout(refreshRates, 4000)
 
 /** تشغيل يدوي (سحب للتحديث) */
 export function smartNow() { smart.lastSync = 0; schedule() }

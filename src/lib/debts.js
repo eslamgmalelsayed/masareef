@@ -1,4 +1,5 @@
 import { computed, watch } from 'vue'
+import { sym } from './format.js'
 import { allTx, state, saveSettings, income, nativeExtra, profile } from './store.js'
 import { loanAnswers, isNative } from './smsSource.js'
 import { norm, personKey } from './person.js'
@@ -242,14 +243,14 @@ export const debtReminders = computed(() => {
         const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + k)
         const due = new Date(base.getFullYear(), base.getMonth(), Math.min(Number(d.dueDay), new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()), 9, 0, 0)
         const before = new Date(+due - DAY); before.setHours(10, 0, 0, 0)
-        const amt = Number(d.monthly) ? ` — ${fmt(Math.min(d.monthly, d.left))} ر.س` : ''
+        const amt = Number(d.monthly) ? ` — ${fmt(Math.min(d.monthly, d.left))} ${sym()}` : ''
         if (+before > now) out.push({ id: `due-debt-${d.id}-${+before}`, at: +before, title: `💸 قسط ${d.name} بكرة`, text: `متنساش تسدد${amt}` })
-        if (+due > now) out.push({ id: `due-debt-${d.id}-${+due}`, at: +due, title: `💸 النهارده ميعاد قسط ${d.name}`, text: `الباقي عليك ${fmt(d.left)} ر.س${amt}` })
+        if (+due > now) out.push({ id: `due-debt-${d.id}-${+due}`, at: +due, title: `💸 النهارده ميعاد قسط ${d.name}`, text: `الباقي عليك ${fmt(d.left)} ${sym()}${amt}` })
       }
     }
     if (d.type === 'lent') {
       const at = new Date(d.ts + (Number(d.remindDays) || 30) * DAY); at.setHours(19, 0, 0, 0)
-      if (+at > now) out.push({ id: `due-lent-${d.id}`, at: +at, title: `🤝 ${d.name} لسه عليه ${fmt(d.left)} ر.س`, text: 'عدّى شهر من ساعة ما سلّفته — تحب تفكّره؟' })
+      if (+at > now) out.push({ id: `due-lent-${d.id}`, at: +at, title: `🤝 ${d.name} لسه عليه ${fmt(d.left)} ${sym()}`, text: 'عدّى شهر من ساعة ما سلّفته — تحب تفكّره؟' })
     }
   }
   return out

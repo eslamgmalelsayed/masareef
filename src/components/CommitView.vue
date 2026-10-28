@@ -32,7 +32,7 @@ const subName = (s) => (/سداد فاتورة/.test(s.name) ? CAT[s.c]?.name ||
     <section class="hero2">
       <div>
         <span class="lbl">عليك في الـ ٣٠ يوم الجايين</span>
-        <b>{{ fmt(c.next30) }}<small> ر.س</small></b>
+        <b>{{ fmt(c.next30) }}<small> {{ $money.sym }}</small></b>
       </div>
       <div class="split">
         <div v-if="nextSalaryDate"><span class="lbl">محجوز من الراتب الجاي</span><b>{{ fmt(c.nextSalary) }}</b></div>
@@ -58,8 +58,8 @@ const subName = (s) => (/سداد فاتورة/.test(s.name) ? CAT[s.c]?.name ||
         <div class="mid">
           <div class="nm">{{ subName(s) }}</div>
           <div class="muted xs">{{ s.period.label }} · الجاي {{ when(s.next) }}</div>
-          <div v-if="s.change > 0" class="chg up">⬆ زاد {{ fmt(s.change) }} ر.س عن المرة اللي فاتت</div>
-          <div v-else-if="s.change < 0" class="chg down">⬇ قلّ {{ fmt(-s.change) }} ر.س</div>
+          <div v-if="s.change > 0" class="chg up">⬆ زاد {{ fmt(s.change) }} {{ $money.sym }} عن المرة اللي فاتت</div>
+          <div v-else-if="s.change < 0" class="chg down">⬇ قلّ {{ fmt(-s.change) }} {{ $money.sym }}</div>
         </div>
         <div class="amt"><b>{{ fmt(s.amount) }}</b><small v-if="s.period.id !== 'monthly'" class="muted">≈ {{ fmt(s.monthly) }}/شهر</small></div>
         <button class="x" title="مش اشتراك" @click="hideSubscription(s.key)">×</button>
@@ -75,7 +75,7 @@ const subName = (s) => (/سداد فاتورة/.test(s.name) ? CAT[s.c]?.name ||
         <div class="mid">
           <div class="nm">{{ p.store }}</div>
           <div class="dots"><i v-for="k in p.n" :key="k" :class="{ on: k <= p.paid }"></i><span class="muted xs">{{ p.paid }} من {{ p.n }}</span></div>
-          <div class="muted xs">القسط الجاي {{ when(p.next) }} · {{ fmt(p.inst) }} ر.س<template v-if="p.estimated"> (تقديري)</template></div>
+          <div class="muted xs">القسط الجاي {{ when(p.next) }} · {{ fmt(p.inst) }} {{ $money.sym }}<template v-if="p.estimated"> (تقديري)</template></div>
         </div>
         <div class="amt"><b>{{ fmt(p.remaining) }}</b><small class="muted">باقي من {{ fmt(p.total) }}</small></div>
       </div>

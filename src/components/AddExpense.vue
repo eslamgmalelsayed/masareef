@@ -1,5 +1,6 @@
 <script setup>
 import BottomSheet from './BottomSheet.vue'
+import { sym } from '../lib/format.js'
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { CATEGORIES, categorize } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
@@ -74,7 +75,7 @@ async function submitPaste() {
   } else {
     const r = addWebMessage(body)
     if (r.dup) pasteMsg.value = 'الرسالة دي متسجّلة قبل كده'
-    else if (r.tx) pasteMsg.value = `✓ اتسجّلت: ${r.tx.a} ر.س · ${r.tx.m} · ${CAT[r.tx.c]?.name || ''}`
+    else if (r.tx) pasteMsg.value = `✓ اتسجّلت: ${r.tx.a} ${sym()} · ${r.tx.m} · ${CAT[r.tx.c]?.name || ''}`
     else pasteMsg.value = 'اتحفظت، بس مش لاقي فيها عملية شراء أو تحويل'
   }
   pasteText.value = ''
@@ -103,7 +104,7 @@ function save() {
 
       <label class="amt">
         <input ref="amtEl" v-model="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" @keyup.enter="save" />
-        <span>ر.س</span>
+        <span>{{ $money.sym }}</span>
       </label>
 
       <input v-model="note" class="note" placeholder="على إيه؟ (بقالة، تاكسي، هدية…)" maxlength="40" @input="onNote" />

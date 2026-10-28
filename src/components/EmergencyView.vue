@@ -28,7 +28,7 @@ const coversTxt = computed(() => { const c = E.value.covers; return c < 0.5 ? '�
 
     <section class="hero2">
       <span class="lbl">معاك في الصندوق</span>
-      <b>{{ fmt(E.saved) }}<small> من {{ fmt(E.target) }} ر.س</small></b>
+      <b>{{ fmt(E.saved) }}<small> من {{ fmt(E.target) }} {{ $money.sym }}</small></b>
       <div class="track"><i :style="{ width: E.pct * 100 + '%' }"></i></div>
       <span class="lbl">يكفيك {{ coversTxt }} من مصاريفك ({{ fmt(E.monthly) }} في الشهر)</span>
     </section>

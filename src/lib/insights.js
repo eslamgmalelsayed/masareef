@@ -1,7 +1,7 @@
 import { computed, watch } from 'vue'
 import { allTx, spendTx, state, saveSettings, cycles, currentCycle, nextSalaryDate, income, totalLimit, cycleSpent, cycleDays, nativeExtra } from './store.js'
 import { merchantKey } from './categories.js'
-import { fmt } from './format.js'
+import { fmt, sym } from './format.js'
 
 const DAY = 864e5
 const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)] }
@@ -162,10 +162,10 @@ export const unusual = computed(() => {
     if (now - t.ts < 30 * DAY && t.c !== 'bnpl') {
       const prev = list[i - 1]
       if (prev && merchantKey(prev.m) === k && Math.abs(prev.a - t.a) < 0.01 && t.ts - prev.ts < 15 * 60e3) {
-        out.push({ id: 'dup' + t.id, type: 'dup', tx: t, text: `اتسحب ${fmt(t.a)} ر.س من ${t.m} مرتين ورا بعض — اتأكد إنها مش مكررة` })
+        out.push({ id: 'dup' + t.id, type: 'dup', tx: t, text: `اتسحب ${fmt(t.a)} ${sym()} من ${t.m} مرتين ورا بعض — اتأكد إنها مش مكررة` })
       } else if (h.length >= 3) {
         const m = median(h)
-        if (t.a >= 150 && t.a >= 3 * m) out.push({ id: 'big' + t.id, type: 'big', tx: t, text: `${fmt(t.a)} ر.س في ${t.m} — عادتك هناك حوالي ${fmt(m)}` })
+        if (t.a >= 150 && t.a >= 3 * m) out.push({ id: 'big' + t.id, type: 'big', tx: t, text: `${fmt(t.a)} ${sym()} في ${t.m} — عادتك هناك حوالي ${fmt(m)}` })
       }
     }
     h.push(t.a)

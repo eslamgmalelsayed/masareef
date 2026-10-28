@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart, BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
-import { fmt } from '../lib/format.js'
+import { fmt, sym } from '../lib/format.js'
 import { state } from '../lib/store.js'
 
 Chart.register(BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend)
@@ -46,8 +46,8 @@ function build() {
           filter: (i) => i.parsed.y > 0,
           itemSort: (a, b) => b.parsed.y - a.parsed.y,
           callbacks: {
-            label: (c) => ` ${props.datasets.length > 1 ? c.dataset.label + ': ' : ''}${fmt(c.parsed.y)} ر.س`,
-            footer: (items) => { const b = items.filter((i) => i.dataset.type !== 'line'); return props.stacked && b.length > 1 ? 'الإجمالي: ' + fmt(b.reduce((s, i) => s + i.parsed.y, 0)) + ' ر.س' : '' },
+            label: (c) => ` ${props.datasets.length > 1 ? c.dataset.label + ': ' : ''}${fmt(c.parsed.y)} ${sym()}`,
+            footer: (items) => { const b = items.filter((i) => i.dataset.type !== 'line'); return props.stacked && b.length > 1 ? 'الإجمالي: ' + fmt(b.reduce((s, i) => s + i.parsed.y, 0)) + ' ' + sym() : '' },
           },
         },
       },

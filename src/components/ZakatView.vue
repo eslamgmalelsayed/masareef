@@ -21,9 +21,9 @@ function setHawl(e) { saveZakat({ hawl: e.target.value ? +new Date(e.target.valu
 
     <section class="card">
       <label class="fld">
-        <span>سعر جرام الدهب عيار ٢٤ النهارده (ر.س)</span>
+        <span>سعر جرام الدهب عيار ٢٤ النهارده ({{ $money.sym }})</span>
         <input type="number" inputmode="decimal" :value="z.gram || ''" placeholder="من أي محل دهب أو موقع" @change="(e) => saveZakat({ gram: Number(e.target.value) || '' })" />
-        <small class="muted" v-if="Z.nisab">النصاب = ٨٥ جرام = {{ fmt(Z.nisab) }} ر.س</small>
+        <small class="muted" v-if="Z.nisab">النصاب = ٨٥ جرام = {{ fmt(Z.nisab) }} {{ $money.sym }}</small>
       </label>
       <label class="fld">
         <span>من إمتى فلوسك وصلت النصاب (بداية الحول)</span>
@@ -44,12 +44,12 @@ function setHawl(e) { saveZakat({ hawl: e.target.value ? +new Date(e.target.valu
     <section class="hero2" v-if="Z.nisab">
       <template v-if="Z.reached">
         <span class="lbl">الزكاة (٢٫٥٪)</span>
-        <b>{{ fmt(Z.amount) }}<small> ر.س</small></b>
+        <b>{{ fmt(Z.amount) }}<small> {{ $money.sym }}</small></b>
         <span class="lbl" v-if="Z.due">ميعادها {{ fmtDate(Z.due, { day: 'numeric', month: 'long', year: 'numeric' }) }}</span>
       </template>
       <template v-else>
         <span class="lbl">فلوسك لسه أقل من النصاب</span>
-        <b>{{ fmt(Z.nisab - Z.base) }}<small> ر.س فاضل</small></b>
+        <b>{{ fmt(Z.nisab - Z.base) }}<small> {{ $money.sym }} فاضل</small></b>
       </template>
     </section>
     <p v-else class="muted sm hint">اكتب سعر جرام الدهب علشان نحسب النصاب والزكاة.</p>

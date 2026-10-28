@@ -28,7 +28,7 @@ function toFund() {
     </header>
 
     <section class="card ask">
-      <label class="big"><input ref="inp" v-model="price" type="number" inputmode="decimal" placeholder="0" /><span>ر.س</span></label>
+      <label class="big"><input ref="inp" v-model="price" type="number" inputmode="decimal" placeholder="0" /><span>{{ $money.sym }}</span></label>
       <input v-model="name" class="nm" placeholder="إيه هي؟ (اختياري)" />
     </section>
 

@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { shapeOf, maskSample, applyTemplate, validTemplate, cleanParty, linesOf } from '../src/lib/shapes.js'
 import { parseMessages, setExtraBanks } from '../src/lib/parser.js'
+import { setMoney } from '../src/lib/money.js'
 
 const AHLI_1 = 'حوالة صادرة محلية ب10776 SAR\nل*8328 تست ا. الاخ*\n27/10/26 08:07'
 const AHLI_2 = 'حوالة صادرة محلية ب750.5 SAR\nل*7777 سامي محمد العلي*\n28/10/26 21:40'
@@ -76,7 +77,9 @@ describe('القراية الذكية جوه parseMessages', () => {
 describe('القالب الأوسع + تبليغ الاختلاف', () => {
   it('العملة والرصيد من القالب', () => {
     const b = 'تم خصم\nالمبلغ: 1,250.00 EGP\nالرصيد: 9,800.50\nالتاجر: Carrefour Maadi'
-    expect(applyTemplate({ kind: 'purchase', amountLine: 1, partyLine: 3, balanceLine: 2, currency: 'EGP' }, b, Date.now())[3]).toEqual({ bal: 9800.5, cur: 'EGP' })
+    setMoney('EGP')
+    expect(applyTemplate({ kind: 'purchase', amountLine: 1, partyLine: 3, balanceLine: 2, currency: 'EGP' }, b, Date.now())[3]).toEqual({ bal: 9800.5 })
+    setMoney('SAR')
   })
   it('القالب قال مبلغ غير القراية القديمة → نثق في القديمة ونبلّغ', () => {
     const msg = { address: 'AlRajhiBank', date: 1761600000000, body: 'شراء انترنت\nبطاقة:*6056;مدى\nلدى:NOON\nمبلغ:SAR 40.00\nفي:22-10-31 13:44' }
@@ -102,8 +105,15 @@ describe('الشكل من الرسالة = الشكل من النسخة المخ
 describe('رسالة سطر واحد (بنوك تانية / بلاد تانية)', () => {
   const CIB = 'تم خصم مبلغ 1,250.00 جنيه من حسابك رقم ****4521 لدى CARREFOUR MAADI في 28/10/2026. الرصيد المتاح 9,800.50 جنيه'
   const T = { kind: 'purchase', amountLine: 0, amountAfter: 'مبلغ', partyLine: 0, partyAfter: 'لدى', partyBefore: ' في', balanceLine: 0, balanceAfter: 'الرصيد', currency: 'EGP' }
-  it('المبلغ والمحل والرصيد كل واحد من مكانه جوه نفس السطر', () => {
-    expect(applyTemplate(T, CIB, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5, cur: 'EGP' }])
+  it('المبلغ والمحل والرصيد كل واحد من مكانه جوه نفس السطر (لو عايش في مصر)', () => {
+    setMoney('EGP')
+    expect(applyTemplate(T, CIB, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5 }])
+    setMoney('SAR')
+  })
+  it('لو عملة البيت ريال: بيتحوّل، والمبلغ الأصلي بالجنيه محفوظ', () => {
+    const r = applyTemplate(T, CIB, Date.now())
+    expect(r[1]).toBeCloseTo(1250 / 13, 1) // جدول الاحتياطي: الجنيه = ١/١٣ ريال
+    expect(r[3]).toMatchObject({ cur: 'EGP', oa: 1250 })
   })
   it('القالب بيشتغل على النسخة المخفية كمان (السيرفر بيتأكد بيها)', () => {
     const r = applyTemplate(T, maskSample(CIB, () => 0.3), Date.now())
@@ -126,5 +136,23 @@ describe('ى/ي وأ/ا في الكلمات اللي بتحدد المكان', (
     const msg = 'تم خصم مبلغ 1,250.00 جنيه من حسابك لدى CARREFOUR MAADI في 28/10/2026'
     const t = { kind: 'purchase', amountLine: 0, amountAfter: 'مبلغ ', partyLine: 0, partyAfter: 'لدي ', partyBefore: ' في' }
     expect(applyTemplate(t, msg, Date.now())[2]).toBe('CARREFOUR MAADI')
+  })
+})
+
+describe('عملة البيت بتتعرف لوحدها', async () => {
+  const { detectHome, normCur } = await import('../src/lib/money.js')
+  const now = Date.now()
+  const m = (body, d = 1) => ({ body, date: now - d * 864e5 })
+  it('اللي بتصرف بيه أكتر، والراتب بيتحسب أكتر', () => {
+    expect(detectHome([m('شراء\nمبلغ:SAR 40'), m('شراء\nمبلغ:SAR 10'), m('تم خصم 100 جنيه')])).toBe('SAR')
+    expect(detectHome([m('شراء\nمبلغ:SAR 40'), m('شراء 20 SAR'), m('إيداع راتب 15,000 جنيه')])).toBe('EGP')
+  })
+  it('رسايل قديمة (أكتر من ٤ شهور) مش بتتحسب — اللي نقل بلد بيتعرف على طول', () => {
+    expect(detectHome([m('مبلغ:SAR 40', 200), m('مبلغ:SAR 40', 200), m('تم خصم 100 درهم', 3)])).toBe('AED')
+  })
+  it('ريال قطري / عماني، ودينار كويتي / بحريني', () => {
+    expect(normCur('ريال', ' قطري')).toBe('QAR')
+    expect(normCur('دينار', ' بحريني')).toBe('BHD')
+    expect(normCur('SR')).toBe('SAR')
   })
 })

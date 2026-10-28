@@ -106,10 +106,10 @@ const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 
         <div class="lbl">{{ cyc.label ? 'صرفت من راتب ' + cyc.label : 'صرفت الشهر ده' }}</div>
         <div class="lbl" v-if="cyc.label">نزل {{ fmtDate(cyc.from, { day: 'numeric', month: 'short' }) }}</div>
       </div>
-      <div class="big">{{ fmt(spent) }}<small> ر.س</small></div>
+      <div class="big">{{ fmt(spent) }}<small> {{ $money.sym }}</small></div>
       <template v-if="limit">
-        <div v-if="totalLevel === 'over'" class="alert">🔴 عدّيت حد المصروفات بـ {{ fmt(-left) }} ر.س</div>
-        <div v-else-if="totalLevel === 'warn'" class="alert">⚠️ قرّبت من الحد — باقي {{ fmt(left) }} ر.س بس</div>
+        <div v-if="totalLevel === 'over'" class="alert">🔴 عدّيت حد المصروفات بـ {{ fmt(-left) }} {{ $money.sym }}</div>
+        <div v-else-if="totalLevel === 'warn'" class="alert">⚠️ قرّبت من الحد — باقي {{ fmt(left) }} {{ $money.sym }} بس</div>
         <div class="track"><i :style="{ width: Math.min(100, pct) + '%' }"></i></div>
         <div class="hint">
           <span><b>{{ Math.round(pct) }}٪</b> من {{ limit === salary ? 'الدخل' : 'الحد' }} ({{ fmt(limit) }})</span>
@@ -161,7 +161,7 @@ const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 
     <section v-if="priceUps.length" class="card note price">
       <button class="x" @click="dismissPrice(priceUps[0].id)">×</button>
       <b>📈 {{ priceUps[0].name }} زاد سعره</b>
-      <div class="sm">بقى <b>{{ fmt(priceUps[0].now) }}</b> بدل {{ fmt(priceUps[0].was) }} ر.س (+{{ fmt(priceUps[0].up) }} · {{ Math.round(priceUps[0].pct * 100) }}٪) {{ priceUps[0].period }}</div>
+      <div class="sm">بقى <b>{{ fmt(priceUps[0].now) }}</b> بدل {{ fmt(priceUps[0].was) }} {{ $money.sym }} (+{{ fmt(priceUps[0].up) }} · {{ Math.round(priceUps[0].pct * 100) }}٪) {{ priceUps[0].period }}</div>
       <div class="nact">
         <button class="ok" @click="dismissPrice(priceUps[0].id)">✓ تمام</button>
         <button class="link" @click="emit('go', 'commit')">شوف الاشتراكات</button>
@@ -186,7 +186,7 @@ const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 
       <span class="arrow" :class="prevSame.diff > 0 ? 'up' : 'down'">{{ prevSame.diff > 0 ? '▲' : '▼' }}</span>
       <div>
         <b>{{ Math.abs(Math.round(prevSame.diff)) }}٪ {{ prevSame.diff > 0 ? 'أكتر' : 'أقل' }}</b> من نفس الوقت في راتب {{ prevSame.label }}
-        <div class="muted xs">وقتها كنت صارف {{ fmt(prevSame.v) }} ر.س بعد {{ Math.round(elapsed) }} يوم من الراتب</div>
+        <div class="muted xs">وقتها كنت صارف {{ fmt(prevSame.v) }} {{ $money.sym }} بعد {{ Math.round(elapsed) }} يوم من الراتب</div>
       </div>
     </section>
 

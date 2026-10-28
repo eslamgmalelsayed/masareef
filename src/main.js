@@ -9,7 +9,10 @@ import '@fontsource/ibm-plex-sans-arabic/latin-700.css'
 import './style.css'
 import App from './App.vue'
 
-createApp(App).mount('#app')
+import { money } from './lib/format.js'
+const app = createApp(App)
+app.config.globalProperties.$money = money // {{ $money.sym }} في أي شاشة
+app.mount('#app')
 
 // نسخة الويب (PWA): تشتغل من غير نت
 import { Capacitor } from '@capacitor/core'

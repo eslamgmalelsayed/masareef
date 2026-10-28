@@ -67,7 +67,7 @@ function doUndo() { clearOverride(undo.value.k); undo.value = null }
 
     <div class="seg"><button :class="{ on: recent }" @click="recent = true">آخر ٦ شهور</button><button :class="{ on: !recent }" @click="recent = false">الكل</button></div>
     <p class="muted sm intro" v-if="rows.length">
-      {{ rows.length }} محل التطبيق ماعرفهمش ({{ fmt(total) }} ر.س) — اتحطوا في "تسوق ومحلات". لو محل مكانه غلط اضغط عليه وانقله؛ النقل بيتطبّق على كل عملياته ومش بيتلغي مع التحديثات.
+      {{ rows.length }} محل التطبيق ماعرفهمش ({{ fmt(total) }} {{ $money.sym }}) — اتحطوا في "تسوق ومحلات". لو محل مكانه غلط اضغط عليه وانقله؛ النقل بيتطبّق على كل عملياته ومش بيتلغي مع التحديثات.
     </p>
     <div v-else class="card empty"><b>✨</b>كل المحلات اتراجعت</div>
 

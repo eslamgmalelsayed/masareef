@@ -18,8 +18,8 @@ const open = ref('')
 
     <section class="hero2">
       <span class="lbl">دفعت رسوم في آخر سنة</span>
-      <b>{{ fmt(F.year) }}<small> ر.س</small></b>
-      <span class="lbl">آخر ٣٠ يوم: {{ fmt(F.month) }} ر.س</span>
+      <b>{{ fmt(F.year) }}<small> {{ $money.sym }}</small></b>
+      <span class="lbl">آخر ٣٠ يوم: {{ fmt(F.month) }} {{ $money.sym }}</span>
     </section>
 
     <section v-if="F.types.length" class="card">

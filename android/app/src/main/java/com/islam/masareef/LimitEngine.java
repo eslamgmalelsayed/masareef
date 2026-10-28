@@ -137,15 +137,33 @@ public final class LimitEngine {
         } catch (Exception e) { return null; }
     }
 
+    // ===== العملات: نفس جدول money.js بالظبط (قيمة الوحدة بالدولار)، وعملة البيت بتيجي من JS =====
+    static String HOME = "SAR";
+    static final Map<String, Double> USD = new java.util.HashMap<>();
+    static {
+        Object[][] t = { { "USD", 1.0 }, { "SAR", 1 / 3.75 }, { "AED", 1 / 3.6725 }, { "QAR", 1 / 3.64 }, { "OMR", 2.6008 }, { "BHD", 2.6596 },
+            { "JOD", 1.4104 }, { "KWD", 3.25 }, { "EGP", 1 / 13.0 / 3.75 }, { "EUR", 4.05 / 3.75 }, { "GBP", 4.8 / 3.75 }, { "TRY", 0.029 } };
+        for (Object[] x : t) USD.put((String) x[0], (Double) x[1]);
+    }
+    /** من JS: عملة البيت + أسعار اليوم (لو موجودة) */
+    public static void setMoney(String home, Map<String, Double> toUsd) {
+        if (toUsd != null) for (Map.Entry<String, Double> e : toUsd.entrySet()) if (e.getValue() != null && e.getValue() > 0 && USD.containsKey(e.getKey())) USD.put(e.getKey(), e.getValue());
+        if (home != null && USD.containsKey(home)) HOME = home;
+    }
+    static String normCur(String c) {
+        String t = c.trim().toUpperCase(Locale.ROOT);
+        if (t.equals("SR") || t.equals("SAR") || t.equals("ريال")) return "SAR";
+        if (t.equals("جنيه")) return "EGP";
+        if (t.equals("درهم")) return "AED";
+        if (t.equals("دينار")) return "KWD";
+        return USD.containsKey(t) ? t : HOME;
+    }
     private static double rate(String cur, long ts) {
-        switch (cur) {
-            case "USD": return 3.75;
-            case "EUR": return 4.05;
-            case "AED": return 1.02;
-            case "GBP": return 4.8;
-            case "EGP": return ts < 1709251200000L ? 1 / 8.2 : 1 / 13.0;
-            default: return 1;
-        }
+        String c = normCur(cur);
+        if (c.equals(HOME)) return 1;
+        double usd = USD.get(c);
+        if (c.equals("EGP") && ts < 1709251200000L) usd = USD.get("SAR") / 8.2; // قبل التعويم
+        return usd / USD.get(HOME);
     }
 
     public static Double amount(String b, long ts) {
@@ -154,7 +172,7 @@ public final class LimitEngine {
         m = Pattern.compile("\\(" + NUM + "\\s*ريال\\)").matcher(b);
         if (m.find()) return num(m.group(1));
         String s = b.replaceAll("(رصيد|Your balance|Balance|رسوم وضريبة|رسوم|Fees|VAT|سعر الصرف)[^|\\n]*", "");
-        String cur = "(SAR|SR|USD|EGP|EUR|AED|GBP|ريال)";
+        String cur = "(SAR|SR|USD|EGP|EUR|AED|GBP|KWD|QAR|BHD|OMR|JOD|TRY|ريال|جنيه|درهم|دينار)";
         m = Pattern.compile(cur + "\\s*:?\\s*" + NUM).matcher(s);
         if (m.find()) { Double v = num(m.group(2)); if (v != null) return round2(v * rate(m.group(1), ts)); }
         m = Pattern.compile(NUM + "\\s*" + cur).matcher(s);

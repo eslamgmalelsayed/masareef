@@ -2,6 +2,9 @@ export const DAY = 864e5
 import { reactive } from 'vue'
 
 // إخفاء المبالغ (لو بتفتح التطبيق قدام حد) — كل الأرقام بتتعرض من fmt/fmt2
+// عملة البيت للعرض (بتتحدد لوحدها من الرسايل — store.js)
+export const money = reactive({ cur: 'SAR', sym: 'ر.س' })
+export const sym = () => money.sym
 export const privacy = reactive({ on: (() => { try { return localStorage.getItem('hideAmounts') === '1' } catch { return false } })() })
 export function setPrivacy(v) {
   privacy.on = !!v

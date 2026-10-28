@@ -6,9 +6,10 @@ import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
 import { allTx, state, setCategory, setTxCat, clearOverride, deleteManual, setSelfTx } from '../lib/store.js'
 import { showToast } from '../lib/toast.js'
-import { fmt2, fmt, fmtDate } from '../lib/format.js'
+import { fmt2, fmt, fmtDate, sym } from '../lib/format.js'
 import { debtFromTx, txHasDebt, autoLentTxIds, notLoan, autoLent, ignorePerson, lentPending, markLoan, answerNo, unanswer, unignorePerson } from '../lib/debts.js'
 import { unusual, dismissFlag } from '../lib/insights.js'
+import { SYM } from '../lib/money.js'
 
 const props = defineProps({ t: Object })
 const emit = defineEmits(['close', 'edit', 'go'])
@@ -56,7 +57,7 @@ const isAutoLoan = computed(() => autoLentTxIds.value.has(props.t.id))
 // الحوالة دي بس، ولا كل تحويلاتي للشخص ده؟
 async function notLoanAsk() {
   const d = autoLent.value.find((x) => x.txs.some((t) => t.id === props.t.id))
-  const v = d && d.txs.length > 1 ? await choose({ icon: '🤝', title: 'مش سلفة', text: `${fmt(props.t.a)} ر.س لـ ${d.name}`, options: [
+  const v = d && d.txs.length > 1 ? await choose({ icon: '🤝', title: 'مش سلفة', text: `${fmt(props.t.a)} ${sym()} لـ ${d.name}`, options: [
     { label: 'الحوالة دي بس', value: 'one', kind: 'primary' },
     { label: `كل تحويلاتي لـ ${d.name}`, value: 'all' },
     { label: 'إلغاء', value: null },
@@ -89,8 +90,9 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         </div>
       </div></template>
       
-      <div class="amt">{{ isOut ? '' : '+' }}{{ fmt2(t.a) }} <small>ر.س</small></div>
-      <div class="muted sm" v-if="same.n > 1" style="text-align: center">{{ same.n }} عملية مع نفس المكان · إجمالي {{ fmt(same.a) }} ر.س</div>
+      <div class="amt">{{ isOut ? '' : '+' }}{{ fmt2(t.a) }} <small>{{ $money.sym }}</small></div>
+      <div v-if="t.cur" class="muted sm" style="text-align: center">اتدفعت {{ fmt2(t.oa) }} {{ SYM[t.cur] || t.cur }}</div>
+      <div class="muted sm" v-if="same.n > 1" style="text-align: center">{{ same.n }} عملية مع نفس المكان · إجمالي {{ fmt(same.a) }} {{ $money.sym }}</div>
 
       <div v-if="flag" class="flag">
         <b>{{ flag.type === 'dup' ? '⚠️ ممكن تكون مكررة' : '👀 أكبر من عادتك' }}</b>

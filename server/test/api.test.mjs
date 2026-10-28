@@ -103,11 +103,14 @@ describe('تنضيف الكلمات اللي بتحدد المكان', async () 
   })
   it('القالب بعد التنضيف بيقرا الرسالة المصرية صح', async () => {
     const { applyTemplate } = await import('../../src/lib/shapes.js')
+    const { setMoney } = await import('../../src/lib/money.js')
+    setMoney('EGP')
     const raw = { kind: 'purchase', amountLine: 0, partyLine: 0, balanceLine: 0, currency: 'EGP', amountAfter: 'مبلغ ', amountBefore: ' جنيه', partyAfter: 'حسابك رقم ****0011 لدى ', partyBefore: ' في ', balanceAfter: 'الرصيد المتاح ', balanceBefore: ' جنيه' }
     const t = { ...raw }
     for (const k of ['amountAfter', 'amountBefore', 'partyAfter', 'partyBefore', 'balanceAfter', 'balanceBefore']) t[k] = cleanAnchor(k, raw[k])
     const msg = 'تم خصم مبلغ 1,250.00 جنيه من حسابك رقم ****4521 لدى CARREFOUR MAADI في 28/10/2026. الرصيد المتاح 9,800.50 جنيه'
-    expect(applyTemplate(t, msg, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5, cur: 'EGP' }])
+    expect(applyTemplate(t, msg, Date.now())).toEqual(['purchase', 1250, 'CARREFOUR MAADI', { bal: 9800.5 }])
+    setMoney('SAR')
   })
 })
 

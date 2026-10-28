@@ -1,4 +1,5 @@
 import { computed, watch } from 'vue'
+import { sym } from './format.js'
 import { allTx, state, saveSettings } from './store.js'
 import { saveCredit } from './smsSource.js'
 
@@ -145,7 +146,7 @@ export const dueReminders = computed(() => {
     if (!c.nextDue) continue
     for (let k = 0; k < 2; k++) {
       const due = k === 0 ? c.nextDue : nextDayOfMonth(c.dueDay, new Date(+c.nextDue + DAY))
-      const owe = c.outstanding > 0 ? ` — المستحق تقريبًا ${fmt(c.outstanding)} ر.س` : ''
+      const owe = c.outstanding > 0 ? ` — المستحق تقريبًا ${fmt(c.outstanding)} ${sym()}` : ''
       const before = new Date(+due - 3 * DAY); before.setHours(10, 0, 0, 0)
       const onDay = new Date(due); onDay.setHours(9, 0, 0, 0)
       if (before > Date.now()) out.push({ id: `due-${c.card}-${+before}`, at: +before, title: `💳 سداد ${c.name} بعد ٣ أيام`, text: `آخر موعد ${due.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long' })}${owe}` })

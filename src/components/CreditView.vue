@@ -86,8 +86,8 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
       <section class="plastic" :class="utilLevel(c.util)">
         <div class="pt"><span>{{ c.name }}</span><span class="chip">••{{ c.card }}</span></div>
         <div class="lbl">المستحق دلوقتي</div>
-        <div class="big">{{ c.outstanding == null ? '—' : fmt(Math.max(0, c.outstanding)) }}<small> ر.س</small></div>
-        <div v-if="c.outstanding != null && c.outstanding < 0" class="xs credit">عندك رصيد دائن {{ fmt(-c.outstanding) }} ر.س</div>
+        <div class="big">{{ c.outstanding == null ? '—' : fmt(Math.max(0, c.outstanding)) }}<small> {{ $money.sym }}</small></div>
+        <div v-if="c.outstanding != null && c.outstanding < 0" class="xs credit">عندك رصيد دائن {{ fmt(-c.outstanding) }} {{ $money.sym }}</div>
         <template v-if="c.limit">
           <div class="track"><i :style="{ width: Math.min(100, (c.util || 0) * 100) + '%' }"></i></div>
           <div class="row"><span>{{ Math.round((c.util || 0) * 100) }}٪ من الحد</span><span>الحد {{ fmt(c.limit) }}{{ c.limitIsInferred ? ' (تقديري)' : '' }}</span></div>
@@ -125,7 +125,7 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
       <button v-else class="card setstm" @click="openEdit">📄 حدد يوم الكشف علشان تشوف صرفك من آخر كشف ←</button>
 
       <section class="card" v-if="c.fxYear">
-        <div class="row-b"><h2>🌍 رسوم العملات الأجنبية</h2><b>{{ fmt2(c.fxYear) }} ر.س</b></div>
+        <div class="row-b"><h2>🌍 رسوم العملات الأجنبية</h2><b>{{ fmt2(c.fxYear) }} {{ $money.sym }}</b></div>
         <div class="muted sm">على {{ c.fxCount }} عملية بعملة أجنبية في آخر سنة (اشتراكات ومواقع برّه)</div>
       </section>
 
@@ -157,8 +157,8 @@ const recent = computed(() => (c.value ? c.value.list.slice(0, 8) : []))
         <div class="fld">
           <span>نبهني لما استخدام البطاقة يوصل</span>
           <div class="seg pcts"><button v-for="p in [50, 60, 70, 80, 90, 0]" :key="p" :class="{ on: form.alertPct === p }" @click="form.alertPct = p">{{ p ? p + '٪' : 'مقفول' }}</button></div>
-          <small class="muted" v-if="form.alertPct && (Number(form.limit) || c.limit)">يعني لما المستحق يعدّي {{ fmt((Number(form.limit) || c.limit) * form.alertPct / 100) }} ر.س — حتى والتطبيق مقفول</small>
-          <div class="minav"><span>أو لما المتاح يقل عن</span><input v-model="form.minAvail" type="number" inputmode="numeric" placeholder="مثلًا 2000" /><span>ر.س</span></div>
+          <small class="muted" v-if="form.alertPct && (Number(form.limit) || c.limit)">يعني لما المستحق يعدّي {{ fmt((Number(form.limit) || c.limit) * form.alertPct / 100) }} {{ $money.sym }} — حتى والتطبيق مقفول</small>
+          <div class="minav"><span>أو لما المتاح يقل عن</span><input v-model="form.minAvail" type="number" inputmode="numeric" placeholder="مثلًا 2000" /><span>{{ $money.sym }}</span></div>
         </div>
         <div class="fld">
           <span>الرصيد دلوقتي (من تطبيق البنك) — اختياري</span>

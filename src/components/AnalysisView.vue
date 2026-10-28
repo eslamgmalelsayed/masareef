@@ -103,8 +103,8 @@ const pctSal = (v) => (salary.value ? Math.round((v / salary.value) * 100) + '٪
 
     <section class="hero" :class="level">
       <div class="lbl">صرفت في الفترة دي</div>
-      <div class="big">{{ fmt(total) }}<small> ر.س</small></div>
-      <div v-if="level === 'over'" class="alert">🔴 المصروفات عدّت الحد ({{ fmt(limitFor) }}) بـ {{ fmt(total - limitFor) }} ر.س</div>
+      <div class="big">{{ fmt(total) }}<small> {{ $money.sym }}</small></div>
+      <div v-if="level === 'over'" class="alert">🔴 المصروفات عدّت الحد ({{ fmt(limitFor) }}) بـ {{ fmt(total - limitFor) }} {{ $money.sym }}</div>
       <template v-if="salary">
         <div class="track"><i :style="{ width: Math.min(100, pctOfSalary) + '%' }" :class="{ over: pctOfSalary > 100 }"></i></div>
         <div class="hint">

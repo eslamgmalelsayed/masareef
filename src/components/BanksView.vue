@@ -85,7 +85,7 @@ const totals = computed(() => banks.value.reduce((s, b) => ({ spend: s.spend + b
         <span class="logo" :style="{ background: LOGO[b.name] || '#475569' }">{{ SHORT[b.name] || b.name.slice(0, 2) }}</span>
         <span class="bn">
           <b>{{ b.name }}</b>
-          <small class="muted" v-if="b.bal">آخر رصيد {{ fmt(b.bal.v) }} ر.س · {{ fmtDate(b.bal.ts, { day: 'numeric', month: 'short' }) }}</small>
+          <small class="muted" v-if="b.bal">آخر رصيد {{ fmt(b.bal.v) }} {{ $money.sym }} · {{ fmtDate(b.bal.ts, { day: 'numeric', month: 'short' }) }}</small>
           <small class="muted" v-else>{{ b.n }} عملية في الفترة</small>
         </span>
         <span class="muted">←</span>
