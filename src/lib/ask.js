@@ -35,7 +35,7 @@ export function askContext() {
     daily.push(r0(sp.filter((t) => t.ts >= +d0 && t.ts < d1).reduce((x, t) => x + t.a, 0)))
   }
   return {
-    currency: money.cur, today: new Date().toISOString().slice(0, 10),
+    currency: money.cur, currency_symbol: money.sym, today: new Date().toISOString().slice(0, 10),
     current_cycle: { started: cc.from.toISOString().slice(0, 10), salary: r0(cc.salary || income.value), spent: r0(cycleSpent.value), limit: r0(totalLimit.value), day_limit: r0(dayLimit.value), week_limit: r0(weekLimit.value), by_category: byCat(inCycle) },
     top_shops_this_cycle: Object.entries(shops).sort((a, b) => b[1].a - a[1].a).slice(0, 15).map(([name, o]) => ({ name, times: o.n, total: r0(o.a) })),
     transfers_this_cycle: (() => { const tr = allTx.value.filter((t) => t.d >= cc.from); const s = (k) => r0(tr.filter((t) => t.k === k).reduce((x, t) => x + t.a, 0)); return { to_people: s('transfer'), international: s('intl'), counted_as_spending: !!state.settings.includeTransfers } })(),
