@@ -103,6 +103,13 @@ function counterpartyRaw(b) {
 }
 /** رقم الحساب اللي في أول الاسم (لو موجود) */
 const leadAcct = (raw) => (String(raw).match(/^\*?(\d{3,})/) || [])[1] || ''
+const last4 = (d) => (d ? String(d).slice(-4) : '')
+/** آخر ٤ أرقام من الحساب اللي الفلوس راحتله / جت منه (علشان حساب الادخار) */
+export function acctsOf(b) {
+  const to = b.match(/(?:آيبان|ايبان|IBAN)\s*[:：]?\s*(?:SA)?[\d*]*?(\d{4})(?!\d)/i)?.[1] || last4(leadAcct(counterpartyRaw(b))) || b.match(/(?:الى|إلى|To)\s*[:：]?\s*\*?(\d{4})(?!\d)/i)?.[1] || ''
+  const fr = b.match(/(?:من|From)\s*[:：]?\s*\*?(\d{4})(?![\d\/:.])/i)?.[1] || ''
+  return { to, fr }
+}
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
 
@@ -226,6 +233,12 @@ export function parseMessages(messages, profile, tpls = null) {
       ...(ai && r !== old ? { ai: 1 } : {}),
       ...(sh ? { sh: sh.id } : {}),
     })
+    // الحسابات اللي في التحويلة (من / إلى) — علشان حساب الادخار
+    if (['transfer', 'self', 'in', 'intl'].includes(r[0])) {
+      const ac = acctsOf(b)
+      if (ac.to) out[out.length - 1].to = ac.to
+      if (ac.fr) out[out.length - 1].fr = ac.fr
+    }
     // الحوالة المحلية (أو اللي بين حساباتك) مش دايمًا مصروف، بس رسومها مصروف فعلي → عملية رسوم لوحدها
     const tx = out[out.length - 1]
     if (tx.fee && tx.k !== 'intl') {

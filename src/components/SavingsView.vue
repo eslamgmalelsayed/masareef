@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { savings } from '../lib/insights.js'
 import { safeToSpend } from '../lib/tools.js'
-import { state, saveSettings } from '../lib/store.js'
+import { state, saveSettings, saveCandidates, toggleSaveAcct } from '../lib/store.js'
+import { ref } from 'vue'
 import { fmt } from '../lib/format.js'
 
 const emit = defineEmits(['back', 'go'])
@@ -11,6 +12,9 @@ const maxH = computed(() => Math.max(1, ...S.value.history.map((h) => Math.abs(h
 const pct = computed(() => (S.value.goal ? Math.max(0, Math.min(100, (S.value.projected / S.value.goal) * 100)) : 0))
 const suggest = computed(() => Math.max(0, Math.floor((S.value.avgSaved * 0.9) / 100) * 100))
 
+const accts = computed(() => new Set(state.settings.saveAccts || []))
+const picking = ref(false)
+const maxPut = computed(() => Math.max(1, ...S.value.history.map((h) => Math.abs(h.put)), S.value.goal || 0))
 function setGoal(e) {
   const v = Math.max(0, Math.round(Number(e.target.value) || 0))
   state.settings.saveGoal = v || ''
@@ -25,6 +29,25 @@ function setGoal(e) {
       <h1>هدف الادخار</h1>
       <span style="width: 38px"></span>
     </header>
+
+    <section class="card acc">
+      <div class="row-b"><h2>🐷 حساب الادخار</h2><button v-if="S.hasAcct && !picking" class="link" @click="picking = true">تعديل</button></div>
+      <template v-if="S.hasAcct && !picking">
+        <div class="put"><span class="muted sm">حوّشت الراتب ده</span><b>{{ fmt(Math.max(0, S.put)) }} <small>{{ $money.sym }}</small></b>
+          <small v-if="S.goal" class="muted">من هدف {{ fmt(S.goal) }} · {{ Math.round((Math.max(0, S.put) / S.goal) * 100) }}٪</small></div>
+        <div v-if="S.goal" class="track2"><i :style="{ width: Math.min(100, (Math.max(0, S.put) / S.goal) * 100) + '%' }"></i></div>
+        <p class="muted xs">أي تحويل للحساب {{ [...accts].map((a) => '••' + a).join(' / ') }} بيتحسب ادخار، وأي فلوس ترجع منه بتتخصم.</p>
+      </template>
+      <template v-else>
+        <p class="muted sm">اختار الحساب اللي بتحوّش فيه — التحويلات ليه هتتحسب ادخار مش صرف.</p>
+        <label v-for="c in saveCandidates" :key="c.acct" class="cand">
+          <input type="checkbox" :checked="accts.has(c.acct)" @change="(e) => toggleSaveAcct(c.acct, e.target.checked)" />
+          <span><b>••{{ c.acct }}</b> {{ c.name }}<br /><small class="muted">{{ c.mine ? 'حسابك · ' : '' }}حوّلت له {{ c.n }} مرة · {{ fmt(c.a) }} {{ $money.sym }} في السنة</small></span>
+        </label>
+        <p v-if="!saveCandidates.length" class="muted xs">لسه مفيش تحويلات لحسابات تانية.</p>
+        <button v-if="S.hasAcct" class="link" @click="picking = false">تمام</button>
+      </template>
+    </section>
 
     <section class="card goal">
       <label>
@@ -58,10 +81,26 @@ function setGoal(e) {
       </div>
       <p class="muted xs foot">الراتب ناقص كل المصروفات في نفس الفترة. لو بالسالب يبقى صرفت أكتر من الراتب.</p>
     </section>
+    <section class="card" v-if="S.hasAcct && S.history.length">
+      <h2>حوّلت كام للادخار من كل راتب</h2>
+      <div v-for="h in S.history" :key="h.id" class="hrow">
+        <span class="m">{{ h.label }}</span>
+        <span class="bar"><i :class="h.put >= 0 ? (S.goal && h.put >= S.goal ? 'hit' : 'pos') : 'neg'" :style="{ width: Math.min(100, (Math.abs(h.put) / maxPut) * 100) + '%' }"></i></span>
+        <b dir="ltr" :class="{ neg: h.put < 0 }">{{ h.put < 0 ? '−' : '' }}{{ fmt(Math.abs(h.put)) }}</b>
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
+.acc .put { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 8px }
+.acc .put b { font-size: 26px; font-variant-numeric: tabular-nums }
+.acc .put b small { font-size: 14px; font-weight: 500; opacity: .7 }
+.track2 { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-bottom: 8px }
+.track2 i { display: block; height: 100%; background: var(--accent); border-radius: 99px }
+.cand { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; cursor: pointer }
+.cand:last-of-type { border-bottom: 0 }
+.cand input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; margin-top: 2px }
 .goal label { display: flex; flex-direction: column; gap: 8px; font-weight: 500 }
 .goal input { font: inherit; font-size: 22px; font-weight: 700; text-align: center; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); outline: none; font-variant-numeric: tabular-nums }
 .goal input:focus { border-color: var(--accent) }

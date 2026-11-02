@@ -1,5 +1,5 @@
 import { computed, watch } from 'vue'
-import { allTx, spendTx, state, saveSettings, cycles, currentCycle, nextSalaryDate, income, totalLimit, cycleSpent, cycleDays, nativeExtra } from './store.js'
+import { allTx, spendTx, state, saveSettings, cycles, currentCycle, nextSalaryDate, income, totalLimit, cycleSpent, cycleDays, nativeExtra, savedIn } from './store.js'
 import { merchantKey } from './categories.js'
 import { fmt, sym } from './format.js'
 
@@ -240,7 +240,7 @@ export const savings = computed(() => {
   const projectedSpend = Math.max(cycleSpent.value, (cycleSpent.value / elapsed) * cycleDays.value)
   const history = cycles.value.filter((c) => !c.current).slice(-6).map((c) => {
     const spent = spentIn(c.from, c.to)
-    return { id: c.id, label: c.short || c.label, salary: c.salary, spent, saved: c.salary - spent }
+    return { id: c.id, label: c.short || c.label, salary: c.salary, spent, saved: c.salary - spent, put: savedIn(c.from, c.to) }
   })
   const daysLeft = nextSalaryDate.value ? Math.max(1, Math.ceil((nextSalaryDate.value - Date.now()) / DAY)) : Math.max(1, Math.round(cycleDays.value - elapsed))
   const budget = saveGoal.value ? Math.min(totalLimit.value || Infinity, inc - saveGoal.value) : totalLimit.value
@@ -250,6 +250,8 @@ export const savings = computed(() => {
     onTrack: saveGoal.value ? inc - projectedSpend >= saveGoal.value : null,
     perDay: budget ? Math.max(0, (budget - cycleSpent.value) / daysLeft) : 0,
     daysLeft, history,
+    hasAcct: !!(state.settings.saveAccts || []).length,
+    put: savedIn(cyc.from, new Date()), // اللي حوّلته فعلًا لحساب الادخار الراتب ده
     avgSaved: history.length ? history.reduce((x, h) => x + h.saved, 0) / history.length : 0,
   }
 })

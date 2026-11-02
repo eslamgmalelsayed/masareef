@@ -1,5 +1,5 @@
 // تقرير الشهر (فترة راتب): أرقام + صورة تتشارك
-import { spendTx, cycles, currentCycle } from './store.js'
+import { spendTx, cycles, currentCycle, savedIn, state } from './store.js'
 import { CAT } from './categories.js'
 import { money, fmt } from './format.js'
 import { isNative } from './smsSource.js'
@@ -27,7 +27,7 @@ export function monthStats(idx = -2) {
   return {
     label: c.label ? `${c.label} ${c.year}` : 'الشهر ده', current: !!c.current, salary: c.salary || 0, spent,
     saved: c.salary ? c.salary - spent : null, perDay: spent / nDays, top, zeroDays: Math.max(0, zero),
-    fav: fav ? { name: fav[0], n: fav[1] } : null, change: prevSpent ? (spent - prevSpent) / prevSpent : null, n: rows.length,
+    fav: fav ? { name: fav[0], n: fav[1] } : null, put: (state.settings.saveAccts || []).length ? savedIn(c.from, c.to) : null, change: prevSpent ? (spent - prevSpent) / prevSpent : null, n: rows.length,
   }
 }
 
@@ -67,8 +67,12 @@ export async function drawReport(s, line = '') {
   })
   let y = 830 + s.top.length * 92 + 40
   g.font = F(500, 34); g.globalAlpha = 0.85
-  if (s.zeroDays) { g.fillText(`🔥 ${s.zeroDays === 1 ? 'يوم' : s.zeroDays === 2 ? 'يومين' : s.zeroDays + (s.zeroDays <= 10 ? ' أيام' : ' يوم')} ما صرفتش فيهم حاجة`, R, y); y += 58 }
-  if (s.fav) { g.fillText(`🛍️ أكتر مكان: ${s.fav.name.slice(0, 22)} (${s.fav.n} مرة)`, R, y); y += 58 }
+  // أقصى سطرين تحت البنود (علشان سطر الذكاء الاصطناعي يفضل له مكان)
+  const extra = []
+  if (s.put > 0) extra.push(`🐷 حوّشت ${fmt(s.put)} ${sym} في حساب الادخار`)
+  if (s.zeroDays) extra.push(`🔥 ${s.zeroDays === 1 ? 'يوم' : s.zeroDays === 2 ? 'يومين' : s.zeroDays + (s.zeroDays <= 10 ? ' أيام' : ' يوم')} ما صرفتش فيهم حاجة`)
+  if (s.fav) extra.push(`🛍️ أكتر مكان: ${s.fav.name.slice(0, 22)} (${s.fav.n} مرة)`)
+  for (const x of extra.slice(0, 2)) { g.fillText(x, R, y); y += 58 }
   g.globalAlpha = 1
   if (line) { g.font = F(600, 38); wrap(g, '💬 ' + line, R, Math.max(y + 20, 1180), W - 160, 54, 2) }
   g.font = F(500, 28); g.globalAlpha = 0.6; g.fillText('مصاريفي — بيقرا رسايل البنك ويحسبلك لوحده', R, H - 50)

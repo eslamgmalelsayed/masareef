@@ -4,7 +4,7 @@ import { ask, choose } from '../lib/dialog.js'
 import { computed, ref } from 'vue'
 import { CAT, CATEGORIES, merchantKey } from '../lib/categories.js'
 import CatPicker from './CatPicker.vue'
-import { allTx, state, setCategory, setTxCat, clearOverride, deleteManual, setSelfTx, setTxFix } from '../lib/store.js'
+import { allTx, state, setCategory, setTxCat, clearOverride, deleteManual, setSelfTx, setTxFix, toggleSaveAcct } from '../lib/store.js'
 import { reportWrong } from '../lib/smart.js'
 import { showToast } from '../lib/toast.js'
 import { fmt2, fmt, fmtDate, sym } from '../lib/format.js'
@@ -15,7 +15,7 @@ import { SYM } from '../lib/money.js'
 const props = defineProps({ t: Object })
 const emit = defineEmits(['close', 'edit', 'go'])
 const KIND = { purchase: 'شراء', transfer: 'تحويل لشخص', intl: 'حوالة دولية', cash: 'سحب نقدي', bill: 'سداد فاتورة', gov: 'مدفوعات حكومية', fee: 'رسوم', refund: 'استرداد', salary: 'راتب', in: 'تحويل وارد', manual: 'مصروف يدوي', ccpay: 'سداد بطاقة ائتمانية', ccxfer: 'سداد بطاقة بنك تاني بالكريدت', self: 'تحويل بين حساباتك', refunded: 'شراء اتردّت فلوسه' }
-const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer', 'self', 'refunded'].includes(props.t.k))
+const isOut = computed(() => !['refund', 'salary', 'in', 'ccpay', 'ccxfer', 'self', 'refunded', 'save', 'unsave'].includes(props.t.k))
 const same = computed(() => {
   if (props.t.k === 'manual') return { n: 0, a: 0 }
   const k = merchantKey(props.t.m)
@@ -126,7 +126,8 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         </div>
       </div>
 
-      <div v-if="t.k === 'self'" class="selfbox"><span>🔁 تحويل بين حساباتك — مش بيتحسب مصروف ولا دخل</span><button class="link" @click="selfOff">مش بين حساباتي</button></div>
+      <div v-if="t.k === 'save' || t.k === 'unsave'" class="selfbox"><span>🐷 {{ t.k === 'save' ? 'تحويل لحساب الادخار — بيتحسب ادخار مش صرف' : 'فلوس راجعة من حساب الادخار — بتتخصم من اللي حوّشته' }}</span><button class="link" @click="toggleSaveAcct(t.k === 'save' ? t.to : t.fr, false)">الحساب ده مش للادخار</button></div>
+      <div v-if="t.k === 'self'" class="selfbox"><span>🔁 تحويل بين حساباتك — مش بيتحسب مصروف ولا دخل</span><button class="link" @click="selfOff">مش بين حساباتي</button><button v-if="t.to && !(state.settings.saveAccts || []).includes(t.to)" class="link" @click="toggleSaveAcct(t.to, true)">🐷 الحساب ده (••{{ t.to }}) للادخار</button></div>
       <div v-else-if="pend" class="autoloan ask"><span>🤝 دي سلفة؟</span><span class="ab"><button :class="{ pri: pend.likely }" @click="markLoan(t.id)">أيوه</button><button @click="ansNo">لا</button></span></div>
       <button v-else-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
       <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoanAsk">مش سلفة</button></div>

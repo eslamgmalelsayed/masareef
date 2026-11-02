@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, effLimits, warnRatio, dayLimit, weekLimit, levelOf } from '../lib/store.js'
+import { saveCandidates, toggleSaveAcct, state, spendTx, allTx, cycles, currentCycle, cycleByCat, nextSalaryDate, avgSalary, income, totalLimit, totalLevel, displayName, effLimits, warnRatio, dayLimit, weekLimit, levelOf } from '../lib/store.js'
 import { CAT } from '../lib/categories.js'
 import { privacy, setPrivacy, fmt, fmtDate, sum, byCategory, startOfDay, startOfWeek, DAY } from '../lib/format.js'
 import BarChart from './BarChart.vue'
@@ -38,6 +38,12 @@ const week = computed(() => sum(since(startOfWeek())))
 const daysLeft = computed(() => (nextSalaryDate.value ? Math.max(1, Math.ceil((nextSalaryDate.value - now) / DAY)) : 0))
 const perDayAllowed = computed(() => safeToSpend.value.perDay)
 const showSafe = ref(false)
+// حساب بتحوّل له كتير (من حساباتك) ولسه ما اتسألتش عليه → ده حساب ادخار؟
+const saveAsk = computed(() => {
+  if ((state.settings.saveAccts || []).length) return null
+  const asked = new Set(state.settings.saveAsked || [])
+  return saveCandidates.value.find((c) => c.mine && c.n >= 3 && !asked.has(c.acct)) || null
+})
 const elapsed = computed(() => Math.max(1, (now - cyc.value.from) / DAY))
 const projected = computed(() => {
   const total = elapsed.value + daysLeft.value
@@ -132,6 +138,7 @@ const showReview = ref(false)
           <div v-for="p in safeToSpend.parts" :key="p.k" class="sr"><span>{{ p.label }}</span><b dir="ltr">{{ p.v < 0 ? '−' : '' }}{{ fmt(Math.abs(p.v)) }}</b></div>
           <div class="sr tot"><span>÷ {{ safeToSpend.days }} يوم للراتب</span><b>{{ fmt(perDayAllowed) }} / يوم</b></div>
         </div>
+        <button v-if="savings.hasAcct" class="saved" @click="emit('go', 'savings')">🐷 حوّشت {{ fmt(Math.max(0, savings.put)) }} {{ $money.sym }} الراتب ده<template v-if="savings.goal"> من {{ fmt(savings.goal) }}</template> ‹</button>
         <div class="foot" v-if="nextSalaryDate">
           الراتب الجاي تقريبًا {{ fmtDate(nextSalaryDate, { day: 'numeric', month: 'short' }) }} (بعد {{ daysLeft }} يوم) · بالمعدل ده هتقفل على {{ fmt(projected) }} ({{ Math.round((projected / limit) * 100) }}٪ من الحد)
         </div>
@@ -170,6 +177,15 @@ const showReview = ref(false)
       <b>🕵️ المراجع الذكي لقى {{ findings.length === 1 ? 'حاجة محتاجة' : findings.length + ' حاجات محتاجة' }} تأكيدك</b>
       <span class="sm muted">قارن عملياتك ببعض: تحويلات لنفسك، استرداد يخص شراء، سلف رجعت ‹</span>
     </button>
+
+    <section v-if="saveAsk" class="card note sum">
+      <b>🐷 الحساب اللي آخره {{ saveAsk.acct }} بتحوّشه فيه؟</b>
+      <div class="sm">حوّلت له {{ saveAsk.n }} مرة ({{ fmt(saveAsk.a) }} {{ $money.sym }}). لو ده حساب ادخار، التحويلات ليه هتتحسب ادخار وهتشوف حوّشت كام كل راتب.</div>
+      <div class="nact">
+        <button class="ok" @click="toggleSaveAcct(saveAsk.acct, true)">أيوه، حساب ادخار</button>
+        <button class="link" @click="toggleSaveAcct(saveAsk.acct, false)">لأ</button>
+      </div>
+    </section>
 
     <section v-if="priceUps.length" class="card note price">
       <button class="x" @click="dismissPrice(priceUps[0].id)">×</button>
@@ -301,6 +317,7 @@ const showReview = ref(false)
 .safe .how { font-size: 11.5px; opacity: .85; margin-top: 2px; text-decoration: underline; text-underline-offset: 3px }
 .safe .how i { display: inline-block; font-style: normal; text-decoration: none; transition: transform .2s }
 .safe.open .how i { transform: rotate(180deg) }
+.saved { all: unset; display: block; cursor: pointer; margin-top: 12px; font-size: 13px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.12) }
 .safebox { margin-top: 12px; background: rgba(255,255,255,.1); border-radius: 14px; padding: 8px 12px; font-size: 12.5px; cursor: pointer }
 .safebox .sr { display: flex; justify-content: space-between; padding: 4px 0 }
 .safebox .sr b { font-variant-numeric: tabular-nums }

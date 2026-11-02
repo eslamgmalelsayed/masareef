@@ -43,7 +43,7 @@ export function askContext() {
     last_30_days_daily_spend: daily,
     subscriptions: subscriptions.value.slice(0, 15).map((s) => ({ name: s.name, every: s.period.label, amount: r0(s.amount) })),
     debts: { i_owe: r0(debtTotals.value.owed), owed_to_me: r0(debtTotals.value.lent) },
-    savings: { avg_left_per_salary: r0(savings.value.avgSaved), goal: r0(state.settings.saveGoal) },
+    savings: { avg_left_per_salary: r0(savings.value.avgSaved), goal: r0(state.settings.saveGoal), ...(savings.value.hasAcct ? { moved_to_savings_account_this_cycle: r0(savings.value.put), moved_to_savings_per_cycle: savings.value.history.map((h) => ({ month: h.label, amount: r0(h.put) })) } : {}) },
     bank_fees_last_year: r0(fees.value.year),
     transactions_count: allTx.value.length,
   }

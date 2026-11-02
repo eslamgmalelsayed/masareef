@@ -434,3 +434,25 @@ describe('تصنيف المحلات بالذكاء الاصطناعي', async ()
     expect(GROUP_OF.x_abc123).toBe('g_sport')
   })
 })
+
+describe('حساب الادخار', async () => {
+  const { savedIn, saveCandidates, toggleSaveAcct } = await import('../src/lib/store.js')
+  it('التحويل ليه ادخار، والراجع منه سحب، ومش بيتحسب صرف', () => {
+    state.settings.saveAccts = []
+    state.smsTx = [
+      { ...tx(5, 'self', 1000, 'اسلام'), to: '8328', fr: '0005' },
+      { ...tx(4, 'self', 1000, 'اسلام'), to: '8328', fr: '0005' },
+      { ...tx(3, 'self', 500, 'اسلام'), to: '8328', fr: '0005' },
+      { ...tx(2, 'in', 300, 'اسلام'), fr: '8328' },
+      { ...tx(1, 'transfer', 200, 'محمد'), to: '7777' },
+    ]
+    expect(saveCandidates.value[0]).toMatchObject({ acct: '8328', n: 3, mine: true })
+    toggleSaveAcct('8328', true)
+    const ks = allTx.value.map((t) => t.k).sort()
+    expect(ks).toEqual(['save', 'save', 'save', 'transfer', 'unsave'])
+    expect(savedIn(new Date(0), new Date())).toBe(2200)
+    expect(spendTx.value.every((t) => t.k !== 'save')).toBe(true)
+    toggleSaveAcct('8328', false)
+    expect(allTx.value.filter((t) => t.k === 'save').length).toBe(0)
+  })
+})

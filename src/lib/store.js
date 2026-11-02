@@ -207,7 +207,7 @@ export async function syncSms(full = false) {
 
 // ===== كاش القراية =====
 // اتغيّر أي حاجة من دي → قراية كاملة مرة واحدة: نسخة القراية، اسمك وحساباتك، البنوك، أو عدد القوالب
-const PARSER_V = 'p4'
+const PARSER_V = 'p5'
 function cacheSig(senders) {
   return [PARSER_V, state.homeCur, JSON.stringify(profile()), senders.slice().sort().join(','), Object.keys(state.tpls || {}).length].join('|')
 }
@@ -335,6 +335,52 @@ function markSelf(list) {
   }
   for (const t of list) if (t.k === 'self') { t.c = 'self'; if (!t.m || t.m === '—') t.m = 'بين حساباتك' }
 }
+/**
+ * حساب الادخار: تحويل ليه = ادخار (مش صرف ولا "بين حساباتك")، وفلوس راجعة منه = سحب من الادخار.
+ * الحساب بيتعرف بآخر ٤ أرقام (من الرسالة نفسها).
+ */
+function markSaving(list) {
+  const accts = new Set(state.settings.saveAccts || [])
+  if (!accts.size) return
+  const byId = new Map(list.map((t) => [t.id, t]))
+  for (const t of list) {
+    if (!['transfer', 'self'].includes(t.k)) continue
+    if (t.to && accts.has(t.to) && !accts.has(t.fr)) { t.k = 'save'; t.c = 'save' }
+    else if (t.k === 'self' && t.fr && accts.has(t.fr) && !accts.has(t.to)) { t.k = 'unsave'; t.c = 'save' }
+  }
+  for (const t of list) {
+    if (!['in', 'self'].includes(t.k) || !t.fr || !accts.has(t.fr)) continue
+    const p = t.pair && byId.get(t.pair)
+    if (p && p.k === 'unsave') continue // اتحسب من ناحية التحويل الصادر
+    t.k = 'unsave'; t.c = 'save'
+  }
+}
+/** الحسابات اللي بتحوّل لها (علشان تختار منها حساب الادخار) — حساباتك الأول */
+export const saveCandidates = computed(() => {
+  const m = {}
+  const from = Date.now() - 365 * DAYMS
+  for (const t of allTx.value) {
+    if (!['transfer', 'self', 'save'].includes(t.k) || !t.to || t.ts < from) continue
+    const o = (m[t.to] ||= { acct: t.to, n: 0, a: 0, name: '', mine: false, last: 0 })
+    o.n++; o.a += t.a
+    if (t.ts > o.last) { o.last = t.ts; o.name = t.m && t.m !== 'بين حساباتك' ? t.m : o.name }
+    if (t.k !== 'transfer') o.mine = true
+  }
+  return Object.values(m).filter((o) => o.mine || o.n >= 2).sort((a, b) => b.mine - a.mine || b.n - a.n).slice(0, 12)
+})
+export function toggleSaveAcct(acct, on) {
+  const cur = state.settings.saveAccts || []
+  state.settings.saveAccts = on ? [...new Set([...cur, acct])] : cur.filter((x) => x !== acct)
+  state.settings.saveAsked = [...new Set([...(state.settings.saveAsked || []), acct])]
+  saveSettings()
+}
+/** حوّشت كام (التحويلات للادخار ناقص السحب منه) في فترة */
+export function savedIn(from, to) {
+  let s = 0
+  for (const t of allTx.value) if (t.d >= from && t.d <= to) { if (t.k === 'save') s += t.a; else if (t.k === 'unsave') s -= t.a }
+  return s
+}
+
 /** "دي بين حساباتي" / "لا، مش بين حساباتي" */
 export function setSelfTx(t, on) {
   const ids = [t.id, ...(t.pair ? [t.pair] : [])]
@@ -363,6 +409,7 @@ export const allTx = computed(() => {
     out.push({ ...t, c: one[t.id] || categorize(t, ov, ai), d: new Date(t.ts), ...(one[t.id] ? { one: 1 } : {}) })
   }
   markSelf(out)
+  markSaving(out)
   // شراء اترد فلوسه (المراجع الذكي ربطه باسترداده) → مبقاش مصروف
   const refunded = new Set(Object.values(state.settings.refundLinks || {}))
   if (refunded.size) for (const t of out) if (refunded.has(t.id) && t.k === 'purchase') t.k = 'refunded'
