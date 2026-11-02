@@ -241,6 +241,11 @@ export function parseMessages(messages, profile, tpls = null) {
     }
     // الحوالة المحلية (أو اللي بين حساباتك) مش دايمًا مصروف، بس رسومها مصروف فعلي → عملية رسوم لوحدها
     const tx = out[out.length - 1]
+    // رسوم الشراء بعملة أجنبية: فلوس اتخصمت فعلًا فوق المبلغ → عملية رسوم لوحدها
+    if (tx.fx && tx.k === 'purchase') {
+      out.push({ id: tx.id + ':fx', ts, a: r2(tx.fx), k: 'fee', m: 'رسوم شراء بعملة أجنبية', b: bank, ...(tx.card ? { card: tx.card } : {}) })
+      delete tx.fx
+    }
     if (tx.fee && tx.k !== 'intl') {
       out.push({ id: tx.id + ':fee', ts, a: r2(tx.fee), k: 'fee', m: 'رسوم حوالة', b: bank })
       delete tx.fee
@@ -273,7 +278,7 @@ function meta(b) {
   if (card) o.card = card[1]
   if (/ائتمان|credit card/i.test(b)) o.cr = 1
   // رسوم العمليات بعملة أجنبية (الراجحي بيكتبها: رسوم وضريبة: 9.06 SAR)
-  const fx = b.match(/رسوم وضريبة\s*[:：]\s*([\d,]+(?:\.\d+)?)/)
+  const fx = b.match(/رسوم وضريبة\s*[:：]\s*(?:SAR|SR|ر\.?س)?\s*([\d,]+(?:\.\d+)?)/)
   if (fx) { const v = num(fx[1]); if (v) o.fx = v }
   // رسوم الحوالة الدولية (الرسوم:SAR 17.25 / رسوم:SR 17.25)
   // رسوم الحوالة (دولية أو محلية): الرسوم:SAR 17.25 / رسوم:SR 1.15

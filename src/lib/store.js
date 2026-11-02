@@ -207,7 +207,7 @@ export async function syncSms(full = false) {
 
 // ===== كاش القراية =====
 // اتغيّر أي حاجة من دي → قراية كاملة مرة واحدة: نسخة القراية، اسمك وحساباتك، البنوك، أو عدد القوالب
-const PARSER_V = 'p5'
+const PARSER_V = 'p6'
 function cacheSig(senders) {
   return [PARSER_V, state.homeCur, JSON.stringify(profile()), senders.slice().sort().join(','), Object.keys(state.tpls || {}).length].join('|')
 }

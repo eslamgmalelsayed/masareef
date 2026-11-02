@@ -30,7 +30,7 @@ const FEE_TYPES = {
   sms: { ic: '✉️', name: 'رسوم الرسايل', tip: 'شوف لو البنك عنده إشعارات من التطبيق ببلاش بدل رسوم الرسايل.' },
   other: { ic: '🏦', name: 'رسوم تانية', tip: 'لو مش فاهم رسم معين، اسأل البنك — أحيانًا بيتشال لو طلبت.' },
 }
-const feeType = (t) => (/حوالة|حواله/.test(t.m) ? 'remit' : /بطاق|تجديد|إصدار|اصدار|سنوي/.test(t.m) ? 'card' : /سحب|صراف|ATM/i.test(t.m) ? 'atm' : /رسائل|رسايل|SMS|نصي/i.test(t.m) ? 'sms' : 'other')
+const feeType = (t) => (/عملة أجنبية/.test(t.m) ? 'fx' : /حوالة|حواله/.test(t.m) ? 'remit' : /بطاق|تجديد|إصدار|اصدار|سنوي/.test(t.m) ? 'card' : /سحب|صراف|ATM/i.test(t.m) ? 'atm' : /رسائل|رسايل|SMS|نصي/i.test(t.m) ? 'sms' : 'other')
 export const fees = computed(() => {
   const from = Date.now() - 365 * DAY
   const items = []
