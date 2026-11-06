@@ -74,3 +74,7 @@ body.privacy canvas { filter: blur(7px); opacity: .7 }
 html.modal-open, html.modal-open body { overflow: hidden; overscroll-behavior: none }
 .scrim { overscroll-behavior: contain }
 .sheet, .box { overscroll-behavior: contain }
+
+/* الكيبورد (الأندرويد بيبعت ارتفاعه في --kb): النوافذ اللي من تحت بتطلع فوقه ومبتعديش الشاشة */
+.scrim { padding-bottom: var(--kb, 0px); transition: padding-bottom .18s }
+.kb-open .scrim > .sheet, .kb-open .scrim > .box, .kb-open .scrim > .dlg { max-height: calc(100vh - var(--kb, 0px) - 24px) !important; overflow-y: auto }

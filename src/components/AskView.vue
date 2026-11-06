@@ -79,4 +79,5 @@ function clear() { chat.value = []; save() }
 .bar input:focus { border-color: var(--accent) }
 .bar button { width: 46px; border: 0; border-radius: 14px; background: var(--accent); color: #fff; font-size: 20px; font-weight: 700; cursor: pointer }
 .bar button:disabled { opacity: .45 }
+:global(.kb-open) .bar { bottom: var(--kb, 0px) }
 </style>
