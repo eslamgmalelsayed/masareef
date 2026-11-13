@@ -126,8 +126,8 @@ async function del() { if (await ask('تمسح المصروف ده؟', { yes: '�
         </div>
       </div>
 
-      <div v-if="t.k === 'save' || t.k === 'unsave'" class="selfbox"><span>🐷 {{ t.k === 'save' ? 'تحويل لحساب الادخار — بيتحسب ادخار مش صرف' : 'فلوس راجعة من حساب الادخار — بتتخصم من اللي حوّشته' }}</span><button class="link" @click="toggleSaveAcct(t.k === 'save' ? t.to : t.fr, false)">الحساب ده مش للادخار</button></div>
-      <div v-if="t.k === 'self'" class="selfbox"><span>🔁 تحويل بين حساباتك — مش بيتحسب مصروف ولا دخل</span><button class="link" @click="selfOff">مش بين حساباتي</button><button v-if="t.to && !(state.settings.saveAccts || []).includes(t.to)" class="link" @click="toggleSaveAcct(t.to, true)">🐷 الحساب ده (••{{ t.to }}) للادخار</button></div>
+      <div v-if="t.k === 'save' || t.k === 'unsave'" class="selfbox"><span>💰 {{ t.k === 'save' ? 'تحويل لحساب الادخار — بيتحسب ادخار مش صرف' : 'فلوس راجعة من حساب الادخار — بتتخصم من اللي حوّشته' }}</span><button class="link" @click="toggleSaveAcct(t.k === 'save' ? t.to : t.fr, false)">الحساب ده مش للادخار</button></div>
+      <div v-if="t.k === 'self'" class="selfbox"><span>🔁 تحويل بين حساباتك — مش بيتحسب مصروف ولا دخل</span><button class="link" @click="selfOff">مش بين حساباتي</button><button v-if="t.to && !(state.settings.saveAccts || []).includes(t.to)" class="link" @click="toggleSaveAcct(t.to, true)">💰 الحساب ده (••{{ t.to }}) للادخار</button></div>
       <div v-else-if="pend" class="autoloan ask"><span>🤝 دي سلفة؟</span><span class="ab"><button :class="{ pri: pend.likely }" @click="markLoan(t.id)">أيوه</button><button @click="ansNo">لا</button></span></div>
       <button v-else-if="canDebt && !hasDebt" class="debt" @click="markDebt">{{ t.k === 'in' ? '🤝 دي سلفة اتسلفتها (ضيفها لـ عليّا)' : '🤝 دي سلفة (ضيفها لـ ليّا)' }}</button>
       <div v-else-if="isAutoLoan" class="autoloan"><span>🤝 محسوبة سلفة ليك (ليّا)</span><button @click="notLoanAsk">مش سلفة</button></div>

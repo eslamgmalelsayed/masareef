@@ -23,7 +23,7 @@ export const CATEGORIES = [
   { id: 'intl', name: 'حوالات دولية', color: '#b45309', icon: '🌍' },
   { id: 'other', name: 'أخرى', color: '#94a3b8', icon: '•' },
   { id: 'ccpay', name: 'سداد بطاقات ائتمانية', color: '#64748b', icon: '💳', hidden: true }, // مش مصروف — تحويل لسداد الكريدت
-  { id: 'save', name: 'ادخار', color: '#0d9488', icon: '🐷', hidden: true }, // تحويل لحساب الادخار (أو سحب منه)
+  { id: 'save', name: 'ادخار', color: '#0d9488', icon: '💰', hidden: true }, // تحويل لحساب الادخار (أو سحب منه)
   { id: 'self', name: 'بين حساباتك', color: '#64748b', icon: '🔁', hidden: true }, // تحويل من حساب ليك لحساب تاني ليك
 ]
 export const CAT = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]))
@@ -122,7 +122,7 @@ export function registerAiCats(map) {
   for (const [id, c] of Object.entries(map || {})) {
     if (CAT[id] || !/^x_[a-z0-9]+$/.test(id)) continue
     const g = GROUP[c.group] || GROUP.g_shop
-    const cat = { id, name: String(c.name || 'بند').slice(0, 24), icon: String(c.icon || '•').slice(0, 4), color: g.color, ai: 1 }
+    const cat = { id, name: String(c.name || 'بند').slice(0, 24), icon: /🐷|🐖|🐽|🐗/.test(c.icon || '') ? '💰' : String(c.icon || '•').slice(0, 4), color: g.color, ai: 1 }
     CATEGORIES.splice(CATEGORIES.findIndex((x) => x.id === 'other'), 0, cat) // قبل "أخرى"
     CAT[id] = cat
     g.cats.push(id)

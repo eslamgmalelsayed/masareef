@@ -11,7 +11,7 @@ const time = (d) => d.toLocaleTimeString('ar-EG-u-nu-latn', { hour: 'numeric', m
     <span class="ic" :style="{ background: CAT[t.c].color + '1f', color: CAT[t.c].color }">{{ t.k === 'refund' || t.k === 'salary' || t.k === 'in' ? '↩︎' : CAT[t.c].icon }}</span>
     <span class="mid">
       <span class="nm">{{ t.m }}</span>
-      <span class="meta">{{ t.k === 'salary' ? 'راتب' : t.k === 'in' ? 'وارد' : t.k === 'save' ? 'ادخار 🐷' : t.k === 'unsave' ? 'سحب من الادخار' : t.k === 'refund' ? 'استرداد' : CAT[t.c].name + (t.k === 'manual' ? ' ✍️' : '') }} · {{ t.b }} · {{ time(t.d) }}</span>
+      <span class="meta">{{ t.k === 'salary' ? 'راتب' : t.k === 'in' ? 'وارد' : t.k === 'save' ? 'ادخار 💰' : t.k === 'unsave' ? 'سحب من الادخار' : t.k === 'refund' ? 'استرداد' : CAT[t.c].name + (t.k === 'manual' ? ' ✍️' : '') }} · {{ t.b }} · {{ time(t.d) }}</span>
     </span>
     <span class="amt" :class="{ plus: ['refund', 'salary', 'in'].includes(t.k) }">{{ ['refund', 'salary', 'in'].includes(t.k) ? '+' : '' }}{{ fmt2(t.a) }}</span>
   </button>

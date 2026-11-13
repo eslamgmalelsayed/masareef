@@ -138,7 +138,7 @@ const showReview = ref(false)
           <div v-for="p in safeToSpend.parts" :key="p.k" class="sr"><span>{{ p.label }}</span><b dir="ltr">{{ p.v < 0 ? '−' : '' }}{{ fmt(Math.abs(p.v)) }}</b></div>
           <div class="sr tot"><span>÷ {{ safeToSpend.days }} يوم للراتب</span><b>{{ fmt(perDayAllowed) }} / يوم</b></div>
         </div>
-        <button v-if="savings.hasAcct" class="saved" @click="emit('go', 'savings')">🐷 حوّشت {{ fmt(Math.max(0, savings.put)) }} {{ $money.sym }} الراتب ده<template v-if="savings.goal"> من {{ fmt(savings.goal) }}</template> ‹</button>
+        <button v-if="savings.hasAcct" class="saved" @click="emit('go', 'savings')">💰 حوّشت {{ fmt(Math.max(0, savings.put)) }} {{ $money.sym }} الراتب ده<template v-if="savings.goal"> من {{ fmt(savings.goal) }}</template> ‹</button>
         <div class="foot" v-if="nextSalaryDate">
           الراتب الجاي تقريبًا {{ fmtDate(nextSalaryDate, { day: 'numeric', month: 'short' }) }} (بعد {{ daysLeft }} يوم) · بالمعدل ده هتقفل على {{ fmt(projected) }} ({{ Math.round((projected / limit) * 100) }}٪ من الحد)
         </div>
@@ -179,7 +179,7 @@ const showReview = ref(false)
     </button>
 
     <section v-if="saveAsk" class="card note sum">
-      <b>🐷 الحساب اللي آخره {{ saveAsk.acct }} بتحوّشه فيه؟</b>
+      <b>💰 الحساب اللي آخره {{ saveAsk.acct }} بتحوّشه فيه؟</b>
       <div class="sm">حوّلت له {{ saveAsk.n }} مرة ({{ fmt(saveAsk.a) }} {{ $money.sym }}). لو ده حساب ادخار، التحويلات ليه هتتحسب ادخار وهتشوف حوّشت كام كل راتب.</div>
       <div class="nact">
         <button class="ok" @click="toggleSaveAcct(saveAsk.acct, true)">أيوه، حساب ادخار</button>

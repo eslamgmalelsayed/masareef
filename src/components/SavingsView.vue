@@ -31,7 +31,7 @@ function setGoal(e) {
     </header>
 
     <section class="card acc">
-      <div class="row-b"><h2>🐷 حساب الادخار</h2><button v-if="S.hasAcct && !picking" class="link" @click="picking = true">تعديل</button></div>
+      <div class="row-b"><h2>💰 حساب الادخار</h2><button v-if="S.hasAcct && !picking" class="link" @click="picking = true">تعديل</button></div>
       <template v-if="S.hasAcct && !picking">
         <div class="put"><span class="muted sm">حوّشت الراتب ده</span><b>{{ fmt(Math.max(0, S.put)) }} <small>{{ $money.sym }}</small></b>
           <small v-if="S.goal" class="muted">من هدف {{ fmt(S.goal) }} · {{ Math.round((Math.max(0, S.put) / S.goal) * 100) }}٪</small></div>

@@ -45,7 +45,7 @@ export default async (req) => {
       if (c === 'new' && a.newCat?.name) {
         const name = String(a.newCat.name).trim().slice(0, 24)
         const id = 'x_' + hash('cat:' + name)
-        if (!cats[id]) { cats[id] = { name, icon: String(a.newCat.icon || '•').slice(0, 4), group: GIDS.includes(a.newCat.group) ? a.newCat.group : 'g_shop' }; newCats = true }
+        if (!cats[id]) { cats[id] = { name, icon: /🐷|🐖|🐽|🐗/.test(a.newCat.icon || '') ? '💰' : String(a.newCat.icon || '•').slice(0, 4), group: GIDS.includes(a.newCat.group) ? a.newCat.group : 'g_shop' }; newCats = true }
         c = id
       }
       if (!BASE.some((b) => b.id === c) && !cats[c]) c = 'shop'
@@ -68,7 +68,7 @@ For every merchant return:
 - cat: the id of the best category from this list:
 ${catList}
   "shop" is for general stores you cannot place better. Use "new" ONLY when the merchant clearly belongs to a common kind of spending that none of the categories cover (e.g. a gym, a barber, a pet shop, a car wash) — then also give newCat.
-- newCat (only when cat = "new"): name = a short Arabic category name (2–3 words, general enough for other merchants of the same kind), icon = one emoji, group = the closest group id from:
+- newCat (only when cat = "new"): name = a short Arabic category name (2–3 words, general enough for other merchants of the same kind), icon = one emoji (never a pig), group = the closest group id from:
 ${groups}
 The rule-based guess in parentheses is often right for local chains but may be wrong; use your own judgment.
 

@@ -69,7 +69,7 @@ export async function drawReport(s, line = '') {
   g.font = F(500, 34); g.globalAlpha = 0.85
   // أقصى سطرين تحت البنود (علشان سطر الذكاء الاصطناعي يفضل له مكان)
   const extra = []
-  if (s.put > 0) extra.push(`🐷 حوّشت ${fmt(s.put)} ${sym} في حساب الادخار`)
+  if (s.put > 0) extra.push(`💰 حوّشت ${fmt(s.put)} ${sym} في حساب الادخار`)
   if (s.zeroDays) extra.push(`🔥 ${s.zeroDays === 1 ? 'يوم' : s.zeroDays === 2 ? 'يومين' : s.zeroDays + (s.zeroDays <= 10 ? ' أيام' : ' يوم')} ما صرفتش فيهم حاجة`)
   if (s.fav) extra.push(`🛍️ أكتر مكان: ${s.fav.name.slice(0, 22)} (${s.fav.n} مرة)`)
   for (const x of extra.slice(0, 2)) { g.fillText(x, R, y); y += 58 }
