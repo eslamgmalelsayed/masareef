@@ -13,8 +13,8 @@ const busy = ref(false)
 const box = ref(null)
 const save = () => { try { localStorage.setItem(LS_KEY, JSON.stringify(chat.value.slice(-30))) } catch {} }
 const down = () => nextTick(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }))
-onMounted(() => { down(); window.addEventListener('kb', down) })
-onUnmounted(() => window.removeEventListener('kb', down))
+onMounted(() => { down(); window.addEventListener('resize', down) })
+onUnmounted(() => window.removeEventListener('resize', down))
 
 async function send(text) {
   const t = String(text ?? q.value).trim()

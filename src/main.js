@@ -19,3 +19,9 @@ import { Capacitor } from '@capacitor/core'
 if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
 }
+
+// الكيبورد لما يطلع الصفحة بتصغر → الخانة اللي بتكتب فيها تفضل باينة
+window.addEventListener('resize', () => {
+  const a = document.activeElement
+  if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.closest('.bar')) setTimeout(() => a.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60)
+})
