@@ -1,6 +1,6 @@
 <script setup>
 // اسأل التطبيق — المحادثة بتفضل على الموبايل بس
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { askApp } from '../lib/ask.js'
 
 const emit = defineEmits(['back'])
@@ -13,7 +13,8 @@ const busy = ref(false)
 const box = ref(null)
 const save = () => { try { localStorage.setItem(LS_KEY, JSON.stringify(chat.value.slice(-30))) } catch {} }
 const down = () => nextTick(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }))
-onMounted(down)
+onMounted(() => { down(); window.addEventListener('kb', down) })
+onUnmounted(() => window.removeEventListener('kb', down))
 
 async function send(text) {
   const t = String(text ?? q.value).trim()
@@ -62,7 +63,7 @@ function clear() { chat.value = []; save() }
 </template>
 
 <style scoped>
-.ask { padding-bottom: calc(160px + env(safe-area-inset-bottom)) }
+.ask { padding-bottom: calc(160px + env(safe-area-inset-bottom) + var(--kb, 0px)) }
 .intro { margin: 0 6px 12px; line-height: 1.7 }
 .ideas { display: flex; flex-direction: column; gap: 8px }
 .ideas button { text-align: right; border: 1px solid var(--line); background: var(--surface); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 14px; color: var(--ink); cursor: pointer }
